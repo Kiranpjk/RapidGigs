@@ -61,7 +61,7 @@ git clone https://github.com/yourusername/rapidgig.git
 # Navigate to the project directory
 cd rapidgig
 
-# Backend setup (example for Django)
+# Backend setup 
 pip install -r requirements.txt
 python manage.py migrate
 python manage.py runserver
@@ -74,3 +74,4 @@ npm run dev
 🤝 Contributing
 
 Contributions are welcome! Feel free to fork this repo, create a feature branch, and submit a pull request.
+
