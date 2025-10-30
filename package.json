@@ -1,0 +1,20 @@
+{
+  "name": "rapidgig-platform",
+  "version": "1.0.0",
+  "description": "Student-Industry Microgig Platform",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd rapidgig-backend && npm run dev",
+    "dev:frontend": "cd rapidgig-frontend && npm run dev",
+    "build": "npm run build:backend && npm run build:frontend",
+    "build:backend": "cd rapidgig-backend && npm run build",
+    "build:frontend": "cd rapidgig-frontend && npm run build",
+    "start": "cd rapidgig-backend && npm start"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "keywords": ["microgig", "student", "jobs", "platform"],
+  "author": "",
+  "license": "MIT"
+}
