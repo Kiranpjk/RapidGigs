@@ -1,0 +1,27 @@
+# Env files
+*.env
+.env*
+backend/.env
+frontend/.env
+
+# Node modules
+node_modules/
+
+# Build output
+dist/
+build/
+.vite/
+.next/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Backend uploads
+backend/uploads/
+
+# Local dev
+.kiro/
