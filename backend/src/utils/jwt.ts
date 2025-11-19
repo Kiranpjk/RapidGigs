@@ -1,18 +1,20 @@
-import jwt from 'jsonwebtoken';
-import { config } from '../config/env';
+import jwt from "jsonwebtoken";
 
-export interface TokenPayload {
-  userId: string;
-  email: string;
-}
+export const generateToken = (payload: object) => {
 
-export const generateToken = (payload: TokenPayload): string => {
-  const secret = config.jwt.secret as string;
-  const expiresIn = config.jwt.expiresIn as string;
-  return jwt.sign(payload, secret, { expiresIn });
-};
+  const secret = process.env.JWT_SECRET;
 
-export const verifyToken = (token: string): TokenPayload => {
-  const secret = config.jwt.secret as string;
-  return jwt.verify(token, secret) as TokenPayload;
+  // Type safety: prevent undefined secret
+  if (!secret) {
+    throw new Error("JWT_SECRET environment variable is not defined");
+  }
+
+  // Cast secret as string to satisfy TypeScript
+  return jwt.sign(
+    payload,
+    secret as string,
+    {
+      expiresIn: "1d",
+    }
+  );
 };
