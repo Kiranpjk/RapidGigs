@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:3001/api';
+const API_BASE_URL = 'https://rapidgigs.onrender.com/api';
 
 // Helper function to get auth token
 const getAuthToken = (): string | null => {
@@ -46,7 +46,7 @@ export const authAPI = {
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Registration failed');
-    
+
     // Store token
     if (result.token) {
       localStorage.setItem('authToken', result.token);
@@ -63,7 +63,7 @@ export const authAPI = {
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Login failed');
-    
+
     // Store token
     if (result.token) {
       localStorage.setItem('authToken', result.token);
@@ -80,7 +80,7 @@ export const authAPI = {
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Google login failed');
-    
+
     // Store token
     if (result.token) {
       localStorage.setItem('authToken', result.token);
@@ -128,12 +128,12 @@ export const videosAPI = {
         },
         body: formData,
       });
-      
+
       if (!response.ok) {
         const result = await response.json().catch(() => ({ error: 'Upload failed' }));
         throw new Error(result.error || `Upload failed with status ${response.status}`);
       }
-      
+
       return await response.json();
     } catch (error: any) {
       if (error.message.includes('Failed to fetch') || error.message.includes('ERR_CONNECTION_RESET')) {
@@ -163,7 +163,7 @@ export const jobsAPI = {
     if (filters?.category) params.append('category', filters.category);
     if (filters?.type) params.append('type', filters.type);
     if (filters?.location) params.append('location', filters.location);
-    
+
     const url = `${API_BASE_URL}/jobs${params.toString() ? `?${params.toString()}` : ''}`;
     return fetchWithAuth(url);
   },
