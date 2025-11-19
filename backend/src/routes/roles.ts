@@ -223,11 +223,7 @@ router.patch(
       const { userId } = req.params;
       const { isActive } = req.body;
 
-      const user = await UserModel.findByIdAndUpdate(
-        userId,
-        { isActive },
-        { new: true }
-      );
+      const user = await UserModel.update(userId, { isActive });
 
       if (!user) {
         return res.status(404).json({ error: 'User not found' });
