@@ -63,7 +63,7 @@ router.get('/threads', authenticate, async (req: AuthRequest, res) => {
       ...thread,
       timestamp: formatTimestamp(thread.timestamp),
     }));
-    
+
     res.json(sortedThreads);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -96,12 +96,15 @@ router.get('/threads/:userId', authenticate, async (req: AuthRequest, res) => {
       { isRead: true }
     );
 
-    res.json(messages.map(msg => ({
-      id: msg._id.toString(),
-      sender: msg.senderId.toString() === req.user!.userId ? 'me' : 'them',
-      text: msg.message,
-      time: formatTimestamp(msg.createdAt),
-    })));
+    res.json(messages.map(msg => {
+      const senderId = (msg.senderId as any)._id.toString();
+      return {
+        id: msg._id.toString(),
+        sender: senderId === req.user!.userId ? 'me' : 'them',
+        text: msg.message,
+        time: formatTimestamp(msg.createdAt),
+      };
+    }));
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

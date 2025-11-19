@@ -24,12 +24,12 @@ export const connectDatabase = async (): Promise<void> => {
   try {
     await mongoose.connect(config.db.uri);
     console.log('Connected to MongoDB');
-    
+
     // Initialize default categories
     await initializeDefaultCategories();
-    
+
     // Initialize roles and permissions
-    await initializeRolesAndPermissions();
+    // await initializeRolesAndPermissions(); // Disabled for performance
   } catch (error) {
     console.error('Error connecting to MongoDB:', error);
     process.exit(1);
@@ -68,7 +68,7 @@ const initializeRolesAndPermissions = async () => {
 
     // Update all existing users with permissions based on their role
     const users = await User.find();
-    
+
     for (const user of users) {
       // Determine role if not set
       if (!user.role) {
@@ -83,7 +83,7 @@ const initializeRolesAndPermissions = async () => {
 
       // Set permissions based on role
       user.permissions = getPermissionsForRole(user.role);
-      
+
       // Set isActive if not set
       if (user.isActive === undefined) {
         user.isActive = true;

@@ -47,20 +47,15 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/images', imageRoutes);
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
 // WebSocket for real-time messaging
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
-  socket.on('join-room', (userId: number) => {
+  socket.on('join-room', (userId: string) => {
     socket.join(`user-${userId}`);
   });
 
-  socket.on('send-message', async (data: { receiverId: number; message: string; senderId: number }) => {
+  socket.on('send-message', async (data: { receiverId: string; message: string; senderId: string }) => {
     // Broadcast to receiver
     io.to(`user-${data.receiverId}`).emit('new-message', {
       senderId: data.senderId,
@@ -72,11 +67,6 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
   });
-});
-
-// Error handler (must be last, after all routes)
-app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  errorHandler(err, req, res, next);
 });
 
 // Start server

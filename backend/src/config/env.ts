@@ -17,6 +17,6 @@ export const config = {
     maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '52428800', 10), // 50MB
   },
   cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+    origin: process.env.CORS_ORIGIN || ['http://localhost:5173', 'https://rapid-gigs.vercel.app'],
   },
 };
