@@ -7,12 +7,12 @@ export interface TokenPayload {
 }
 
 export const generateToken = (payload: TokenPayload): string => {
-  const secret = config.jwt.secret as string;
-  const expiresIn = config.jwt.expiresIn as string;
-  return jwt.sign(payload, secret, { expiresIn });
+  // Type assertion to avoid TypeScript strict checking issues
+  return jwt.sign(payload, config.jwt.secret, {
+    expiresIn: config.jwt.expiresIn,
+  } as any);
 };
 
 export const verifyToken = (token: string): TokenPayload => {
-  const secret = config.jwt.secret as string;
-  return jwt.verify(token, secret) as TokenPayload;
+  return jwt.verify(token, config.jwt.secret) as TokenPayload;
 };
