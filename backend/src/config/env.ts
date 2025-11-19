@@ -10,7 +10,7 @@ export const config = {
     expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as string,
   },
   db: {
-    uri: process.env.MONGODB_URI || 'mongodb://localhost:27017/rapidgig',
+    uri: process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/rapidgig',
   },
   upload: {
     dir: process.env.UPLOAD_DIR || './uploads',
