@@ -172,10 +172,10 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
                             <a href="#saved-jobs" className="flex items-center gap-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white rounded-md px-3 py-2"><BookmarkIcon className="w-5 h-5" />Saved Jobs</a>
                             <a href="#my-applications" className="flex items-center gap-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white rounded-md px-3 py-2"><DocumentChartBarIcon className="w-5 h-5" />My Applications</a>
                         </nav>
+                        <button className="w-full mt-4 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2">
+                            <Cog6ToothIcon className="w-5 h-5" /> Settings
+                        </button>
                     </div>
-                    <button className="w-full mt-4 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2">
-                        <Cog6ToothIcon className="w-5 h-5" /> Settings
-                    </button>
                 </aside>
                 <main className="w-full space-y-8">
                     <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg shadow-lg overflow-hidden">
