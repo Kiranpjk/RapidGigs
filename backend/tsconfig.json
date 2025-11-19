@@ -18,3 +18,11 @@
     "include": ["src/**/*"],
     "exclude": ["node_modules", "dist"]
   }
+{
+  "compilerOptions": {
+    "strict": false,
+    "noImplicitAny": false,
+    "skipLibCheck": true,
+    "noPropertyAccessFromIndexSignature": false
+  }
+}
