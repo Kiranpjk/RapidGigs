@@ -1,5 +1,8 @@
 # RapidGig - Frontend Developer Intern Assignment
 
+## 🚀 Live Demo
+**Deployed Application:** [https://rapid-gigs.vercel.app/](https://rapid-gigs.vercel.app/)
+
 ## Overview
 RapidGig is a scalable web application designed to connect freelancers with recruiters through a video-first approach. This project was built as part of the Frontend Developer Intern assignment, demonstrating a modern frontend architecture integrated with a robust backend.
 
