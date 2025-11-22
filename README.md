@@ -100,5 +100,4 @@ To scale this application for a production environment with high traffic, I woul
     *   **CSRF Protection:** Ensure proper CSRF tokens are used if cookies are utilized for auth.
     *   **Input Sanitization:** rigorously validate and sanitize all inputs to prevent injection attacks.
 
-## License
-MIT
+
