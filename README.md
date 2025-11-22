@@ -1,36 +1,101 @@
-🚀 RapidGig: The Video-First Gig PlatformYour Work, Your Code, Your Gig in 30 SecondsA modern, full-stack platform disrupting the freelancer-recruiter connection with a video-first approach and AI-powered tooling.✨ Features & Highlights🛡️ Authentication & Security (Core Deliverable)Secure JWT Authentication: Full email/password register, login, and logout flow using JSON Web Tokens.Social Sign-On: Integrated Google OAuth 2.0 for quick, one-click sign-in.RBAC: Role-Based Access Control system for Students, Recruiters, and Admins.💼 Job & Application Management (CRUD Entity)Job Dashboard (CRUD): Recruiters can Create, Read, Update, and Delete job listings.Video Integration: Company job briefs and freelancer intro videos for enhanced context.Application Tracking: Real-time status updates (Applied, Interviewing, Offer Received, etc.) with history.🎬 Discovery & EngagementShorts Feed: TikTok-style swipeable vertical videos for quick gig discovery.Real-Time: Instant messaging and push notifications for application status and new alerts.Advanced Search: Comprehensive filtering by category, location, and pay rate.🤖 AI-Powered ProfilesGemini AI Integration: On-demand generation of unique profile avatars and banners.Customization: Full user profile editing and persistence across sessions.🛠️ Tech Stack & ArchitectureRapidGig is built on a modern, type-safe full-stack architecture using the MERN-TS stack.CategoryTechnologyPurposeFrontendReact 19 / TypeScriptHigh-performance, type-safe UIStylingTailwind CSS / Modern UIUtility-first styling with responsive, Dark/Light Mode designBackendNode.js / Express.jsFast, scalable API serverDatabaseMongoDB / MongooseFlexible NoSQL data storage / ODMSecurityJWT / Google OAuthToken-based authentication and social loginDevOpsVite, ESLint, PrettierFast bundling, code quality, and formatting📁 Project StructureThe project is split into clean, modular frontend and backend services:RapidGig/
-├── frontend/        # React 19 / Vite / TypeScript App
-│   ├── components/  # Modular UI components (Auth, Layout, Common)
-│   ├── context/     # Global state management (AuthContext, JobContext)
-│   └── services/    # Frontend API client logic
-├── backend/         # Node.js / Express.js / TypeScript API
-│   ├── src/
-│   │   ├── middleware/ # JWT Auth, RBAC, Error Handling
-│   │   ├── models/     # Mongoose Schemas (User, Job, Application)
-│   │   └── routes/     # All API Endpoints (Auth, Jobs, Videos)
-│   └── uploads/     # Storage for Avatars, Videos, and Documents
-└── ...
-📦 Getting StartedPrerequisitesEnsure you have Node.js (v18+), MongoDB (v6.0+), and npm/yarn installed.Quick StartClone the Repository:Bashgit clone https://github.com/yourusername/rapidgig.git
-cd rapidgig
-Backend Setup: (Runs on http://localhost:3001)Bashcd backend
-npm install
-# Create and configure .env file (see Configuration)
-npm run dev 
-Frontend Setup: (Runs on http://localhost:5173)Bashcd ../frontend
-npm install
-npm run dev 
-⚙️ ConfigurationCreate a .env file in the backend/ directory:Code snippet# Server
+# RapidGig - Frontend Developer Intern Assignment
+
+## Overview
+RapidGig is a scalable web application designed to connect freelancers with recruiters through a video-first approach. This project was built as part of the Frontend Developer Intern assignment, demonstrating a modern frontend architecture integrated with a robust backend.
+
+## Core Features
+### ✅ Frontend (React.js + TypeScript)
+- **Responsive Design:** Built with TailwindCSS for a mobile-first, adaptive UI.
+- **Authentication:** Secure login and signup forms with client-side validation.
+- **Protected Routes:** Dashboard and profile pages are protected and require authentication.
+- **Dashboard:** A comprehensive dashboard for users to view gigs, filter by category, and manage their profile.
+- **Search & Filter:** Real-time filtering of jobs/gigs by category, location, and pay rate.
+- **Profile Management:** Users can update their profile details, upload avatars/banners, and manage their video introductions.
+
+### ✅ Backend (Node.js + Express)
+- **RESTful API:** A complete set of endpoints for Auth, Jobs, Users, and Videos.
+- **Authentication:** JWT-based authentication with secure password hashing (bcrypt).
+- **Database:** MongoDB integration using Mongoose for flexible data modeling.
+- **CRUD Operations:** Full Create, Read, Update, Delete capabilities for Jobs and Videos.
+
+### ✅ Security & Scalability
+- **JWT Middleware:** Protects private routes and ensures secure API communication.
+- **Password Hashing:** User passwords are hashed before storage.
+- **Error Handling:** Centralized error handling for consistent API responses.
+- **Modular Structure:** Codebase organized into controllers, services, and routes for maintainability.
+
+## Tech Stack
+- **Frontend:** React 18, TypeScript, TailwindCSS, Vite
+- **Backend:** Node.js, Express.js, TypeScript, MongoDB, Mongoose
+- **Tools:** Postman (Collection included), Git
+
+## Getting Started
+
+### Prerequisites
+- Node.js (v16+)
+- MongoDB (Local or Atlas URI)
+
+### Installation
+
+1. **Clone the repository:**
+   ```bash
+   git clone <repository-url>
+   cd RapidGigs-main
+   ```
+
+2. **Backend Setup:**
+   ```bash
+   cd backend
+   npm install
+   # Create a .env file based on the example below
+   npm run dev
+   ```
+
+3. **Frontend Setup:**
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+
+### Configuration (.env)
+Create a `.env` file in the `backend` directory:
+```env
 PORT=3001
+MONGODB_URI=mongodb://localhost:27017/rapidgig
+JWT_SECRET=your_jwt_secret_key
 CORS_ORIGIN=http://localhost:5173
+```
 
-# Database
-MONGODB_URI=mongodb://localhost:27017/rapidgig 
+## API Documentation
+A Postman collection is included in the root directory: `rapidgig_postman_collection.json`. Import this into Postman to test the API endpoints.
 
-# Authentication
-JWT_SECRET=your-super-secret-key 
-JWT_EXPIRES_IN=7d
-# Ensure secure hashing is enabled for production 
+## Scalability Note: Frontend-Backend Integration for Production
 
-# Gemini AI 
-GEMINI_API_KEY=your-api-key 
-🔌 API DocumentationDetailed API routes are listed below. A comprehensive Postman Collection is available in the repository root for testing all endpoints.Authentication EndpointsPOST /api/auth/register (Email, Password, Name)POST /api/auth/login (Email, Password)GET /api/auth/me (Protected - Requires Bearer Token)Job EndpointsGET /api/jobs (Get All Jobs)POST /api/jobs (Protected - Create New Job)DELETE /api/jobs/:id (Protected - Delete Job)GET /api/jobs/:id (Get Single Job)(...List all other key endpoints concisely here...)📸 ScreenshotsFeatureImageRecruiter DashboardJob Listings FeedShorts Video DiscoveryUser Profile Page🚀 Deployment & ScalabilityThe modular separation of the frontend and backend allows for standard scaling practices:Frontend (React): Deployable as static assets via Vercel or Netlify (minimal cost).Backend (Node.js): Deployable on Heroku, Railway, or DigitalOcean, easily scaled horizontally using a load balancer and a process manager like PM2 (Clustering).Database: Utilize MongoDB Atlas for managed, highly-available, and auto-scaling database infrastructure.🤝 ContributingWe welcome contributions! Please refer to the [CONTRIBUTING.md] file for guidelines (You should create this file).📝 LicenseThis project is licensed under the MIT License.
+To scale this application for a production environment with high traffic, I would implement the following strategies:
+
+1.  **Load Balancing & Horizontal Scaling:**
+    *   Deploy the backend across multiple instances (using PM2 or Kubernetes) behind a Load Balancer (e.g., Nginx or AWS ALB). This ensures no single server is a bottleneck.
+    *   The frontend can be served via a CDN (like Cloudflare or AWS CloudFront) to cache static assets globally, reducing latency for users.
+
+2.  **Caching Strategy:**
+    *   **Redis:** Implement Redis for caching frequently accessed data (like Job listings or User profiles) to reduce database load.
+    *   **Browser Caching:** Utilize HTTP cache headers for static resources on the frontend.
+    *   **React Query / SWR:** On the frontend, use libraries like TanStack Query to cache API responses, manage stale data, and reduce redundant network requests.
+
+3.  **Database Optimization:**
+    *   **Indexing:** Ensure proper indexing on frequently queried fields (e.g., `category`, `location` in the Jobs collection).
+    *   **Sharding:** As data grows, shard the MongoDB database to distribute data across multiple machines.
+    *   **Read Replicas:** Use read replicas for heavy read operations (like the job feed) to offload the primary database.
+
+4.  **Microservices Architecture:**
+    *   Decouple the "Video Processing" feature into a separate microservice. Video uploads and transcoding are resource-intensive and shouldn't block the main API server.
+    *   Use a message queue (e.g., RabbitMQ or Kafka) to handle asynchronous tasks like sending emails or processing video uploads.
+
+5.  **Security Enhancements:**
+    *   **Rate Limiting:** Implement rate limiting (e.g., `express-rate-limit`) to prevent DDoS attacks and abuse.
+    *   **CSRF Protection:** Ensure proper CSRF tokens are used if cookies are utilized for auth.
+    *   **Input Sanitization:** rigorously validate and sanitize all inputs to prevent injection attacks.
+
+## License
+MIT
