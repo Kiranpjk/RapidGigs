@@ -1,4 +1,4 @@
-# RapidGig - Frontend Developer Intern Assignment
+# RapidGig 
 
 ## 🚀 Live Demo
 **Deployed Application:** [https://rapid-gigs.vercel.app/](https://rapid-gigs.vercel.app/)
