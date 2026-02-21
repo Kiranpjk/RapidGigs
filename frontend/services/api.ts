@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://rapidgigs.onrender.com/api';
+const API_BASE_URL = (import.meta.env.VITE_API_BASE as string) || 'http://localhost:3001/api';
 
 // Helper function to get auth token
 const getAuthToken = (): string | null => {

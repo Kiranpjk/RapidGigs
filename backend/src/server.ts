@@ -17,6 +17,7 @@ import userRoutes from './routes/users';
 import categoryRoutes from './routes/categories';
 import roleRoutes from './routes/roles';
 import imageRoutes from './routes/images';
+import adminRoutes from './routes/admin';
 
 const app = express();
 const httpServer = createServer(app);
@@ -46,6 +47,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/images', imageRoutes);
+app.use('/api/admin', adminRoutes);
 
 // WebSocket for real-time messaging
 io.on('connection', (socket) => {

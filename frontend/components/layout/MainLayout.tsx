@@ -9,6 +9,7 @@ import ProfilePage from '../pages/ProfilePage';
 import MessagesPage from '../pages/MessagesPage';
 import UploadVideoPage from '../pages/UploadVideoPage';
 import JobApplicationPage from '../pages/JobApplicationPage';
+import AdminPage from '../pages/AdminPage';
 import { ALL_JOBS } from '../../data/mockData';
 import { useAuth } from '../../context/AuthContext';
 
@@ -61,6 +62,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ currentPage, navigate, onLogout
                 return <UploadVideoPage navigate={navigate} />;
             case 'job_application':
                 return <JobApplicationPage job={selectedJob} navigate={navigate} previousPage={previousPage} />;
+            case 'admin':
+                return <AdminPage />;
             default:
                 return <DashboardPage navigate={navigate} onApplyNow={handleApplyNow} />;
         }

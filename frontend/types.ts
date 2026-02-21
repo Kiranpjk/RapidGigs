@@ -12,6 +12,7 @@ export type Page =
   | 'notifications'
   | 'upload_video'
   | 'job_application';
+  | 'admin';
 
 export interface User {
   id: number;

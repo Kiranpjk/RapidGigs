@@ -3,6 +3,18 @@ import { config } from './env';
 import * as fs from 'fs';
 import * as path from 'path';
 
+// Optionally use in-memory MongoDB for development when no external URI provided
+let mongoMemoryServer: any = null;
+let usingInMemory = false;
+try {
+  // Lazy require to avoid adding dependency at runtime when not needed
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { MongoMemoryServer } = require('mongodb-memory-server');
+  mongoMemoryServer = MongoMemoryServer;
+} catch (err) {
+  // mongodb-memory-server not installed or not available; that's fine
+}
+
 // Ensure upload directories exist
 const ensureDirectories = () => {
   const dirs = [
@@ -22,11 +34,60 @@ ensureDirectories();
 // Connect to MongoDB
 export const connectDatabase = async (): Promise<void> => {
   try {
-    await mongoose.connect(config.db.uri);
-    console.log('Connected to MongoDB');
+    try {
+      await mongoose.connect(config.db.uri);
+      console.log('Connected to MongoDB at', config.db.uri);
+    } catch (e) {
+      // If connect fails and mongodb-memory-server is available, start an in-memory DB
+      if (!process.env.MONGO_URI && mongoMemoryServer) {
+        console.warn('Failed to connect to external MongoDB, starting in-memory MongoDB for development');
+        const mongod = await mongoMemoryServer.create();
+        const uri = mongod.getUri();
+        usingInMemory = true;
+        await mongoose.connect(uri);
+        console.log('Connected to in-memory MongoDB');
+      } else {
+        throw e;
+      }
+    }
 
     // Initialize default categories
     await initializeDefaultCategories();
+    
+      // Create a default admin user for development (only when in-memory DB or when explicitly requested)
+      const ensureDevAdmin = async () => {
+        try {
+          const { User } = await import('../models/User');
+          const { hashPassword } = await import('../utils/password');
+        
+          const shouldCreate = usingInMemory || process.env.CREATE_DEV_ADMIN === 'true';
+          if (!shouldCreate) return;
+        
+          const adminEmail = process.env.DEV_ADMIN_EMAIL || 'admin@local';
+          const existing = await User.findOne({ email: adminEmail.toLowerCase() });
+          if (existing) return;
+        
+          const pwd = process.env.DEV_ADMIN_PASSWORD || 'adminpass';
+          const hashed = await hashPassword(pwd);
+          const admin = new User({
+            email: adminEmail,
+            password: hashed,
+            name: 'Dev Admin',
+            role: 'admin',
+            permissions: ['*'],
+            isActive: true,
+            isRecruiter: false,
+            isStudent: false,
+          });
+          await admin.save();
+          console.log('Created development admin:', adminEmail, 'password:', pwd);
+        } catch (error) {
+          // ignore errors
+        }
+      };
+    
+      // Optionally create dev admin
+      await ensureDevAdmin();
 
     // Initialize roles and permissions
     // await initializeRolesAndPermissions(); // Disabled for performance
@@ -103,6 +164,15 @@ export const disconnectDatabase = async (): Promise<void> => {
   try {
     await mongoose.disconnect();
     console.log('Disconnected from MongoDB');
+    if (usingInMemory && mongoMemoryServer) {
+      try {
+        // stop the in-memory server if it was used
+        const instance = await mongoMemoryServer.getInstance?.();
+        if (instance && typeof instance.stop === 'function') await instance.stop();
+      } catch (e) {
+        // ignore
+      }
+    }
   } catch (error) {
     console.error('Error disconnecting from MongoDB:', error);
   }

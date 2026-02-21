@@ -83,6 +83,11 @@ const Header: React.FC<HeaderProps> = ({ navigate, onLogout, currentPage, theme,
         { name: 'Messages', page: 'messages', icon: <MessageSquareIcon className="w-5 h-5" />, requiresAuth: true },
     ];
 
+    // If user is admin, add Admin nav item
+    if (user && (user as any).role === 'admin') {
+        allNavItems.splice(3, 0, { name: 'Admin', page: 'admin', icon: <Cog6ToothIcon className="w-5 h-5" />, requiresAuth: true });
+    }
+
     // Filter nav items based on authentication
     const navItems = allNavItems.filter(item => !item.requiresAuth || isAuthenticated);
 
