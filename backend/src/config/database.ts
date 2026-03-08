@@ -42,11 +42,7 @@ export const connectDatabase = async (): Promise<void> => {
       if (!process.env.MONGO_URI && mongoMemoryServer) {
         console.warn('Failed to connect to external MongoDB, starting in-memory MongoDB for development');
         try {
-          const mongod = await mongoMemoryServer.create({
-            binary: {
-              version: process.env.MONGOMS_VERSION || '7.0.14',
-            },
-          });
+          const mongod = await mongoMemoryServer.create();
           const uri = mongod.getUri();
           usingInMemory = true;
           await mongoose.connect(uri, { serverSelectionTimeoutMS: 5000 });
