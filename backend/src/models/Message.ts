@@ -6,39 +6,21 @@ export interface IMessage extends Document {
   receiverId: mongoose.Types.ObjectId;
   message: string;
   isRead: boolean;
+  readAt?: Date;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 const MessageSchema: Schema = new Schema(
   {
-    threadId: {
-      type: String,
-      required: true,
-    },
-    senderId: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-    },
-    receiverId: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-    },
-    message: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    isRead: {
-      type: Boolean,
-      default: false,
-    },
+    threadId: { type: String, required: true },
+    senderId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    receiverId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    message: { type: String, required: true, trim: true },
+    isRead: { type: Boolean, default: false },
+    readAt: { type: Date },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
 export const Message: Model<IMessage> = mongoose.model<IMessage>('Message', MessageSchema);
-

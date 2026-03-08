@@ -55,6 +55,29 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Get jobs posted by current user (recruiter view)
+router.get('/my-jobs', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const jobs = await Job.find({ postedBy: new mongoose.Types.ObjectId(req.user!.userId) })
+      .populate('categoryId', 'name')
+      .sort({ createdAt: -1 });
+
+    res.json(jobs.map(job => ({
+      _id: job._id.toString(),
+      id: job._id.toString(),
+      title: job.title,
+      company: job.company,
+      location: job.location,
+      type: job.type,
+      pay: job.pay,
+      description: job.description,
+      createdAt: job.createdAt,
+    })));
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get single job
 router.get('/:id', async (req, res) => {
   try {
@@ -185,6 +208,59 @@ router.patch('/:id/engagement', async (req, res) => {
       comments: job.comments,
       shares: job.shares,
     });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update job (authenticated, owner only)
+router.put('/:id', authenticate, async (req: AuthRequest, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid job ID' });
+    }
+
+    const job = await Job.findById(req.params.id);
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    // Verify ownership
+    if (job.postedBy.toString() !== req.user!.userId) {
+      return res.status(403).json({ error: 'Unauthorized to edit this job' });
+    }
+
+    const {
+      title,
+      company,
+      location,
+      type,
+      pay,
+      description,
+      categoryId,
+      companyVideoUrl,
+      freelancerVideoUrl,
+      shortVideoUrl,
+    } = req.body;
+
+    const updatedJob = await Job.findByIdAndUpdate(
+      req.params.id,
+      {
+        title,
+        company,
+        location,
+        type,
+        pay,
+        description,
+        categoryId: categoryId ? new mongoose.Types.ObjectId(categoryId) : job.categoryId,
+        companyVideoUrl,
+        freelancerVideoUrl,
+        shortVideoUrl,
+      },
+      { new: true }
+    );
+
+    res.json(updatedJob);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

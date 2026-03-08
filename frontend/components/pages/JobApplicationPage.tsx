@@ -108,7 +108,9 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ job, navigate, 
         }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       
       // Validate required fields
@@ -121,20 +123,29 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ job, navigate, 
           showAlert('Cover Letter Required', 'Please write a cover letter to complete your application', 'warning');
           return;
       }
-      
-      // Submit application using context
-      submitApplication(job, resumeFile, videoFile, coverLetter);
-      
-      showSuccess('Application Submitted!', `Your application for ${job.title} at ${job.company} has been sent successfully!`, () => {
-          navigate('profile');
-      });
-      setTimeout(() => navigate('profile'), 2000);
-      
-      // Scroll to my-applications section
-      setTimeout(() => {
-        const el = document.getElementById('my-applications');
-        if (el) el.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
+
+      setIsSubmitting(true);
+
+      try {
+        // Submit application - now goes to backend for real jobs
+        await submitApplication(job, resumeFile, videoFile, coverLetter);
+        
+        showSuccess('Application Submitted!', `Your application for ${job.title} at ${job.company} has been sent successfully!`, () => {
+            navigate('profile');
+        });
+        setTimeout(() => navigate('profile'), 2000);
+        
+        // Scroll to my-applications section
+        setTimeout(() => {
+          const el = document.getElementById('my-applications');
+          if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      } catch (err: any) {
+        const message = err?.message || 'Failed to submit application. Please try again.';
+        showAlert('Submission Failed', message, 'danger');
+      } finally {
+        setIsSubmitting(false);
+      }
     };
 
     return (
@@ -257,7 +268,9 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ job, navigate, 
                         
                         <div className="flex justify-end gap-4">
                             <button type="button" onClick={goBack} className="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold py-2 px-4 rounded-lg">Cancel</button>
-                            <button type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-6 rounded-lg">Submit Application</button>
+                            <button type="submit" disabled={isSubmitting} className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-2 px-6 rounded-lg transition-colors">
+                                {isSubmitting ? 'Submitting...' : 'Submit Application'}
+                            </button>
                         </div>
                     </form>
                 </div>

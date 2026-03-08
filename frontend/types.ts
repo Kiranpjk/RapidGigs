@@ -12,7 +12,10 @@ export type Page =
   | 'notifications'
   | 'upload_video'
   | 'job_application'
-  | 'admin';
+  | 'admin'
+  | 'post_job'
+  | 'review_applications'
+  | 'candidates';
 
 export interface User {
   id: number;
@@ -43,6 +46,7 @@ export interface Job {
   pay: string;
   description: string;
   postedAgo: string;
+  category?: string;
   companyVideoUrl?: string;
   freelancerVideoUrl?: string;
   shortVideoUrl?: string;

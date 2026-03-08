@@ -36,6 +36,38 @@ router.get('/my-applications', authenticate, async (req: AuthRequest, res) => {
   }
 });
 
+// Get applications for a specific job (recruiter view)
+router.get('/job/:jobId', authenticate, async (req: AuthRequest, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.jobId)) {
+      return res.status(400).json({ error: 'Invalid job ID' });
+    }
+
+    const applications = await Application.find({ jobId: new mongoose.Types.ObjectId(req.params.jobId) })
+      .populate('userId', 'name email avatarUrl title')
+      .sort({ createdAt: -1 });
+
+    res.json(applications.map(app => ({
+      _id: app._id.toString(),
+      applicant: app.userId ? {
+        id: (app.userId as any)._id.toString(),
+        name: (app.userId as any).name,
+        email: (app.userId as any).email,
+        avatarUrl: (app.userId as any).avatarUrl,
+        title: (app.userId as any).title,
+      } : null,
+      coverLetter: app.coverLetter,
+      resumeUrl: app.resumeUrl,
+      videoUrl: app.videoUrl,
+      status: app.status,
+      createdAt: (app as any).createdAt,
+      dateApplied: app.dateApplied,
+    })));
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Create application
 router.post(
   '/',
@@ -94,7 +126,7 @@ router.post(
 router.patch(
   '/:id/status',
   authenticate,
-  [body('status').isIn(['Applied', 'Interviewing', 'Offer Received', 'Rejected'])],
+  [body('status').isIn(['Applied', 'Interviewing', 'Offer Received', 'Rejected', 'pending', 'reviewing', 'shortlisted', 'interviewing', 'accepted', 'rejected'])],
   async (req: AuthRequest, res) => {
     try {
       const errors = validationResult(req);

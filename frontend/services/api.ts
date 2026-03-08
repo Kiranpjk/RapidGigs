@@ -168,6 +168,10 @@ export const jobsAPI = {
     return fetchWithAuth(url);
   },
 
+  getMyJobs: async () => {
+    return fetchWithAuth(`${API_BASE_URL}/jobs/my-jobs`);
+  },
+
   getById: async (jobId: string) => {
     return fetchWithAuth(`${API_BASE_URL}/jobs/${jobId}`);
   },
@@ -175,6 +179,13 @@ export const jobsAPI = {
   create: async (jobData: any) => {
     return fetchWithAuth(`${API_BASE_URL}/jobs`, {
       method: 'POST',
+      body: JSON.stringify(jobData),
+    });
+  },
+
+  update: async (jobId: string, jobData: any) => {
+    return fetchWithAuth(`${API_BASE_URL}/jobs/${jobId}`, {
+      method: 'PUT',
       body: JSON.stringify(jobData),
     });
   },
@@ -252,6 +263,10 @@ export const notificationsAPI = {
 
 // Users API
 export const usersAPI = {
+  search: async (query: string) => {
+    return fetchWithAuth(`${API_BASE_URL}/users/search?q=${encodeURIComponent(query)}`);
+  },
+
   getProfile: async (userId: string) => {
     return fetchWithAuth(`${API_BASE_URL}/users/${userId}`);
   },
@@ -293,5 +308,12 @@ export const imagesAPI = {
 export const categoriesAPI = {
   getAll: async () => {
     return fetchWithAuth(`${API_BASE_URL}/categories`);
+  },
+};
+
+// Shorts API
+export const shortsAPI = {
+  getFeed: async () => {
+    return fetchWithAuth(`${API_BASE_URL}/shorts/feed`);
   },
 };

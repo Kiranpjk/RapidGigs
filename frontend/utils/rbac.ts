@@ -4,10 +4,11 @@ export type Role = 'student' | 'recruiter' | 'moderator' | 'admin';
 
 const COMMON_AUTH_PAGES: Page[] = ['profile', 'messages', 'notifications'];
 const CREATOR_PAGES: Page[] = ['upload_video'];
+const RECRUITER_PAGES: Page[] = ['post_job', 'review_applications', 'candidates', 'upload_video'];
 
 const ROLE_PAGE_ACCESS: Record<Role, Page[]> = {
   student: ['dashboard', 'shorts', 'jobs', 'job_application', ...COMMON_AUTH_PAGES, ...CREATOR_PAGES],
-  recruiter: ['dashboard', 'shorts', 'jobs', 'job_application', ...COMMON_AUTH_PAGES, ...CREATOR_PAGES],
+  recruiter: ['dashboard', 'shorts', 'jobs', 'job_application', ...COMMON_AUTH_PAGES, ...RECRUITER_PAGES],
   moderator: ['dashboard', 'admin', ...COMMON_AUTH_PAGES],
   admin: ['dashboard', 'admin', ...COMMON_AUTH_PAGES],
 };

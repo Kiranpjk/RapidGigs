@@ -41,7 +41,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ initialPage, navigate }) => {
 
     const Illustration = () => {
       return (
-        <div className="hidden lg:flex w-1/2 items-center justify-center p-12 relative overflow-hidden bg-gray-100 dark:bg-gray-900">
+        <div className="hidden lg:flex w-1/2 items-center justify-center p-12 relative overflow-hidden bg-gray-100 dark:bg-gray-900 min-h-[500px]">
           {/* Background Image */}
           <div 
             className="absolute top-0 left-0 w-full h-full object-cover z-0 opacity-20 dark:opacity-40"
@@ -68,7 +68,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ initialPage, navigate }) => {
 
     return (
         <>
-            <div className="min-h-screen flex bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white font-sans">
+            <div className="flex bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white font-sans rounded-2xl overflow-hidden">
                 <Illustration />
                 <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
                     <div className="w-full max-w-md">
@@ -390,16 +390,23 @@ const SignUpForm = ({ onLoginClick, onSignUpSuccess }: { onLoginClick: () => voi
                     icon={<LockClosedIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />} 
                 />
                 
-                <div className="flex justify-between items-center py-2">
-                    <label className="text-gray-700 dark:text-gray-300">I'm a Student</label>
-                    <div onClick={() => setIsStudent(!isStudent)} className={`w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${isStudent ? 'bg-indigo-600' : 'bg-gray-300 dark:bg-gray-700'}`}>
-                        <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ease-in-out ${isStudent ? 'translate-x-6' : ''}`}></div>
-                    </div>
-                </div>
-                <div className="flex justify-between items-center pb-2">
-                    <label className="text-gray-700 dark:text-gray-300">I'm a Recruiter</label>
-                    <div onClick={() => setIsRecruiter(!isRecruiter)} className={`w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${isRecruiter ? 'bg-indigo-600' : 'bg-gray-300 dark:bg-gray-700'}`}>
-                        <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ease-in-out ${isRecruiter ? 'translate-x-6' : ''}`}></div>
+                <div className="space-y-3 py-2">
+                    <p className="text-sm font-bold text-gray-700 dark:text-gray-300">I am a...</p>
+                    <div className="flex gap-3">
+                        <button
+                            type="button"
+                            onClick={() => { setIsStudent(true); setIsRecruiter(false); }}
+                            className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all duration-200 text-sm font-semibold ${isStudent ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400' : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-indigo-300'}`}
+                        >
+                            🎓 Student
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => { setIsRecruiter(true); setIsStudent(false); }}
+                            className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all duration-200 text-sm font-semibold ${isRecruiter ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400' : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-indigo-300'}`}
+                        >
+                            💼 Recruiter
+                        </button>
                     </div>
                 </div>
 

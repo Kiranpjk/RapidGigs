@@ -10,6 +10,50 @@ import mongoose from 'mongoose';
 
 const router = express.Router();
 
+// Search users by email or user ID
+router.get('/search', authenticate, async (req: AuthRequest, res: express.Response) => {
+  try {
+    const { q } = req.query;
+    if (!q || typeof q !== 'string' || q.trim().length < 1) {
+      return res.status(400).json({ error: 'Query parameter q is required' });
+    }
+
+    const query = q.trim();
+    const currentUserId = req.user!.userId;
+
+    // Try to find by ObjectId first (user ID search)
+    let user = null;
+    if (mongoose.Types.ObjectId.isValid(query)) {
+      user = await UserModel.findById(query);
+    }
+
+    // If not found by ID, try email
+    if (!user) {
+      user = await UserModel.findByEmail(query.toLowerCase());
+    }
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found. Please check the ID or email.' });
+    }
+
+    // Don't return yourself
+    if (user._id.toString() === currentUserId) {
+      return res.status(400).json({ error: 'You cannot message yourself.' });
+    }
+
+    return res.json({
+      id: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      avatarUrl: user.avatarUrl,
+      title: user.title,
+      role: user.role,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get user profile
 router.get('/:id', async (req: express.Request, res: express.Response) => {
   try {

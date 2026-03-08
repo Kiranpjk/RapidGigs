@@ -44,6 +44,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
     const [bannerFile, setBannerFile] = useState<File | null>(null);
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
     const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+    const [myJobs, setMyJobs] = useState<any[]>([]);
+    const [myPostedApps, setMyPostedApps] = useState<number>(0);
     const [isGeneratingAvatar, setIsGeneratingAvatar] = useState(false);
     const [isGeneratingBanner, setIsGeneratingBanner] = useState(false);
 
@@ -84,12 +86,12 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
             if (!user) return;
 
             try {
-                // Use context applications if available, otherwise load from API
-                if (contextApplications.length > 0) {
-                    setApplications(contextApplications);
-                } else {
+                // Always load from backend API to get latest recruiter-updated statuses
+                try {
                     const apps = await applicationsAPI.getMyApplications();
-                    setApplications(apps);
+                    setApplications(Array.isArray(apps) ? apps : contextApplications);
+                } catch {
+                    setApplications(contextApplications);
                 }
 
                 // Load user videos
@@ -99,6 +101,16 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
                 } catch (videoError) {
                     console.error('Error loading videos:', videoError);
                     setMyVideos([]);
+                }
+
+                // For recruiters: load their posted jobs
+                if (user.isRecruiter) {
+                    try {
+                        const { jobsAPI } = await import('../../services/api');
+                        const jobs = await jobsAPI.getMyJobs();
+                        const jobArr = Array.isArray(jobs) ? jobs : [];
+                        setMyJobs(jobArr);
+                    } catch { setMyJobs([]); }
                 }
 
                 // Load user stats
@@ -150,14 +162,21 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
     );
 
     const StatusBadge: React.FC<{ status: ApplicationStatus }> = ({ status }) => {
-        const baseClasses = "text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full inline-block";
-        const statusClasses: { [key in ApplicationStatus]: string } = {
-            Applied: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
-            Interviewing: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
-            'Offer Received': "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300",
-            Rejected: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
+        const baseClasses = "text-xs font-semibold mr-2 px-2.5 py-1 rounded-full inline-block";
+        const s = (status || 'Applied').toLowerCase();
+        const statusClasses: Record<string, string> = {
+            'applied':       "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
+            'pending':       "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300",
+            'reviewing':     "bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-300",
+            'shortlisted':   "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300",
+            'interviewing':  "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
+            'offer received':"bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300",
+            'accepted':      "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300",
+            'rejected':      "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
         };
-        return <span className={`${baseClasses} ${statusClasses[status]}`}>{status}</span>;
+        const cls = statusClasses[s] || statusClasses['applied'];
+        const label = status.charAt(0).toUpperCase() + status.slice(1);
+        return <span className={`${baseClasses} ${cls}`}>{label}</span>;
     };
 
     return (
@@ -168,9 +187,19 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
                         <h2 className="text-lg font-bold p-2">Profile Sections</h2>
                         <nav className="space-y-1">
                             <a href="#" className="flex items-center gap-2 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white font-semibold rounded-md px-3 py-2"><HomeIcon className="w-5 h-5" />Overview</a>
-                            <a href="#my-videos" className="flex items-center gap-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white rounded-md px-3 py-2"><VideoCameraIcon className="w-5 h-5" />My Videos</a>
-                            <a href="#saved-jobs" className="flex items-center gap-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white rounded-md px-3 py-2"><BookmarkIcon className="w-5 h-5" />Saved Jobs</a>
-                            <a href="#my-applications" className="flex items-center gap-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white rounded-md px-3 py-2"><DocumentChartBarIcon className="w-5 h-5" />My Applications</a>
+                            {user.isRecruiter ? (
+                                <>
+                                    <a href="#my-jobs" className="flex items-center gap-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white rounded-md px-3 py-2"><BriefcaseIcon className="w-5 h-5" />My Job Posts</a>
+                                    <a href="#received-apps" className="flex items-center gap-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white rounded-md px-3 py-2"><DocumentChartBarIcon className="w-5 h-5" />Applications Received</a>
+                                    <a href="#company-videos" className="flex items-center gap-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white rounded-md px-3 py-2"><VideoCameraIcon className="w-5 h-5" />Company Videos</a>
+                                </>
+                            ) : (
+                                <>
+                                    <a href="#my-videos" className="flex items-center gap-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white rounded-md px-3 py-2"><VideoCameraIcon className="w-5 h-5" />My Videos</a>
+                                    <a href="#saved-jobs" className="flex items-center gap-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white rounded-md px-3 py-2"><BookmarkIcon className="w-5 h-5" />Saved Jobs</a>
+                                    <a href="#my-applications" className="flex items-center gap-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white rounded-md px-3 py-2"><DocumentChartBarIcon className="w-5 h-5" />My Applications</a>
+                                </>
+                            )}
                         </nav>
                         <button className="w-full mt-4 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2">
                             <Cog6ToothIcon className="w-5 h-5" /> Settings
@@ -360,26 +389,16 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
                                     <button
                                         onClick={async () => {
                                             try {
-                                                // Save to database
                                                 const updateData: any = {};
                                                 if (avatarPreview) updateData.avatarUrl = avatarPreview;
                                                 if (bannerPreview) updateData.bannerUrl = bannerPreview;
-
                                                 await usersAPI.updateImages(user.id, updateData);
-
-                                                // Refresh user data from database
                                                 await refreshUser();
-
-                                                // Clear preview states
                                                 setAvatarPreview(null);
                                                 setBannerPreview(null);
                                                 setAvatarFile(null);
                                                 setBannerFile(null);
-
-                                                showSuccess(
-                                                    'Images Updated!',
-                                                    'Your profile and banner images have been saved successfully.'
-                                                );
+                                                showSuccess('Images Updated!', 'Your profile and banner images have been saved successfully.');
                                             } catch (error) {
                                                 console.error('Save images error:', error);
                                                 showAlert('Error', 'Failed to save images. Please try again.', 'danger');
@@ -397,12 +416,15 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
                                 >
                                     {isEditingProfile ? 'Cancel Edit' : 'Edit Profile'}
                                 </button>
-                                <button
-                                    onClick={() => navigate('upload_video')}
-                                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg"
-                                >
-                                    Upload Intro Video
-                                </button>
+                                {/* Only students need the Upload Intro Video button here */}
+                                {!user.isRecruiter && (
+                                    <button
+                                        onClick={() => navigate('upload_video')}
+                                        className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg"
+                                    >
+                                        Upload Intro Video
+                                    </button>
+                                )}
                             </div>
 
                             {/* Edit Profile Form */}
@@ -502,167 +524,249 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
                         </div>
                     </ProfileSection>
 
-                    {/* My Videos Section */}
-                    <div id="my-videos" className="scroll-mt-20">
-                        <ProfileSection title="My Videos" noPadding>
-                            <div className="p-8">
-                                <div className="flex justify-between items-center mb-6">
-                                    <p className="text-slate-600 dark:text-slate-400">
-                                        Showcase your skills and personality to potential employers.
-                                    </p>
-                                    <button
-                                        onClick={() => navigate('upload_video')}
-                                        className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-6 rounded-lg flex items-center gap-2"
-                                    >
-                                        <VideoCameraIcon className="w-5 h-5" />
-                                        Upload New Video
-                                    </button>
-                                </div>
+                    {user.isRecruiter ? (
+                        <>
+                            {/* ── RECRUITER: My Job Posts ── */}
+                            <div id="my-jobs" className="scroll-mt-20">
+                                <ProfileSection title="My Job Posts" noPadding>
+                                    {isLoading ? (
+                                        <div className="p-8 text-center">
+                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto" />
+                                        </div>
+                                    ) : myJobs.length === 0 ? (
+                                        <div className="p-8 text-center text-slate-500 dark:text-slate-400">
+                                            <BriefcaseIcon className="w-12 h-12 mx-auto mb-3 text-slate-300 dark:text-slate-600" />
+                                            <p>No jobs posted yet.</p>
+                                            <button onClick={() => navigate('post_job')} className="mt-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-6 rounded-lg">
+                                                Post Your First Job
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="divide-y divide-slate-200 dark:divide-slate-700">
+                                            {myJobs.map(job => {
+                                                const id = job._id || job.id;
+                                                return (
+                                                    <div key={id} className="p-6 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                                                        <div className="flex items-start justify-between gap-4">
+                                                            <div className="flex-1 min-w-0">
+                                                                <h3 className="font-bold text-slate-800 dark:text-white">{job.title}</h3>
+                                                                <p className="text-sm text-slate-500 dark:text-slate-400">{job.company} · {job.location}</p>
+                                                                <div className="flex items-center gap-3 mt-2 flex-wrap">
+                                                                    <span className="text-xs bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full">{job.type || 'Remote'}</span>
+                                                                    <span className="text-xs text-green-600 dark:text-green-400 font-semibold">{job.pay}</span>
+                                                                    <span className="text-xs text-slate-400">{new Date(job.createdAt || Date.now()).toLocaleDateString()}</span>
+                                                                </div>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => navigate('review_applications')}
+                                                                className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-semibold whitespace-nowrap"
+                                                            >
+                                                                View Applications →
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </ProfileSection>
+                            </div>
 
-                                {/* Display uploaded videos */}
-                                {myVideos.length > 0 ? (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                        {myVideos.map((video) => (
-                                            <div key={video._id} className="bg-slate-50 dark:bg-slate-800/50 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700">
-                                                <div className="relative aspect-video bg-slate-200 dark:bg-slate-700">
-                                                    <video
-                                                        src={`https://rapidgigs.onrender.com${video.videoUrl}`}
-                                                        controls
-                                                        className="w-full h-full object-cover"
-                                                        poster={video.thumbnailUrl ? `https://rapidgigs.onrender.com${video.thumbnailUrl}` : undefined}
-                                                    />
-                                                </div>
-                                                <div className="p-4">
-                                                    <div className="flex justify-between items-start mb-1">
-                                                        <h3 className="font-semibold text-slate-800 dark:text-white flex-1">{video.title}</h3>
-                                                        <button
-                                                            onClick={() => {
-                                                                showConfirm(
-                                                                    'Delete Video',
-                                                                    `Are you sure you want to delete "${video.title}"? This action cannot be undone.`,
-                                                                    async () => {
-                                                                        try {
-                                                                            await videosAPI.delete(video._id);
-                                                                            // Refresh videos list
-                                                                            const updatedVideos = await videosAPI.getMyVideos();
-                                                                            setMyVideos(updatedVideos);
-                                                                            showSuccess('Video Deleted!', 'Your video has been successfully removed.');
-                                                                        } catch (error) {
-                                                                            console.error('Error deleting video:', error);
-                                                                            showAlert('Error', 'Failed to delete video. Please try again.', 'danger');
-                                                                        }
-                                                                    },
-                                                                    'danger'
-                                                                );
-                                                            }}
-                                                            className="text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 ml-2"
-                                                            title="Delete video"
-                                                        >
+                            {/* ── RECRUITER: Applications Received ── */}
+                            <div id="received-apps" className="scroll-mt-20">
+                                <ProfileSection title="Applications Received">
+                                    <div className="flex items-center gap-6">
+                                        <div className="text-center">
+                                            <p className="text-5xl font-extrabold text-indigo-600 dark:text-indigo-400">{stats.applicationsReceived ?? 0}</p>
+                                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Total Applications</p>
+                                        </div>
+                                        <div className="flex-1 text-slate-600 dark:text-slate-400 text-sm">
+                                            <p>Across <span className="font-semibold text-slate-800 dark:text-white">{myJobs.length}</span> job posting{myJobs.length !== 1 ? 's' : ''}.</p>
+                                            <button
+                                                onClick={() => navigate('review_applications')}
+                                                className="mt-3 inline-block bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-5 rounded-lg text-sm"
+                                            >
+                                                Review Applications →
+                                            </button>
+                                        </div>
+                                    </div>
+                                </ProfileSection>
+                            </div>
+
+                            {/* ── RECRUITER: Company Videos ── */}
+                            <div id="company-videos" className="scroll-mt-20">
+                                <ProfileSection title="Company Videos" noPadding>
+                                    <div className="p-8">
+                                        <div className="flex justify-between items-center mb-6">
+                                            <p className="text-slate-600 dark:text-slate-400">Showcase your company culture and attract top talent.</p>
+                                            <button
+                                                onClick={() => navigate('upload_video')}
+                                                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-6 rounded-lg flex items-center gap-2"
+                                            >
+                                                <VideoCameraIcon className="w-5 h-5" />
+                                                Upload Video
+                                            </button>
+                                        </div>
+                                        {myVideos.length > 0 ? (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                                {myVideos.map((video) => (
+                                                    <div key={video._id} className="bg-slate-50 dark:bg-slate-800/50 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700">
+                                                        <div className="relative aspect-video bg-slate-200 dark:bg-slate-700">
+                                                            <video src={`https://rapidgigs.onrender.com${video.videoUrl}`} controls className="w-full h-full object-cover" poster={video.thumbnailUrl ? `https://rapidgigs.onrender.com${video.thumbnailUrl}` : undefined} />
+                                                        </div>
+                                                        <div className="p-4">
+                                                            <h3 className="font-semibold text-slate-800 dark:text-white">{video.title}</h3>
+                                                            <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2 mt-1">{video.description}</p>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="text-center py-12">
+                                                <VideoCameraIcon className="w-16 h-16 mx-auto text-slate-300 dark:text-slate-600 mb-4" />
+                                                <p className="text-slate-600 dark:text-slate-400 mb-4">No company videos yet.</p>
+                                                <p className="text-sm text-slate-500 dark:text-slate-400">Videos help attract top talent to your company!</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </ProfileSection>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            {/* ── STUDENT: My Videos ── */}
+                            <div id="my-videos" className="scroll-mt-20">
+                                <ProfileSection title="My Videos" noPadding>
+                                    <div className="p-8">
+                                        <div className="flex justify-between items-center mb-6">
+                                            <p className="text-slate-600 dark:text-slate-400">Showcase your skills and personality to potential employers.</p>
+                                            <button onClick={() => navigate('upload_video')} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-6 rounded-lg flex items-center gap-2">
+                                                <VideoCameraIcon className="w-5 h-5" />
+                                                Upload New Video
+                                            </button>
+                                        </div>
+                                        {myVideos.length > 0 ? (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                                {myVideos.map((video) => (
+                                                    <div key={video._id} className="bg-slate-50 dark:bg-slate-800/50 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700">
+                                                        <div className="relative aspect-video bg-slate-200 dark:bg-slate-700">
+                                                            <video src={`https://rapidgigs.onrender.com${video.videoUrl}`} controls className="w-full h-full object-cover" poster={video.thumbnailUrl ? `https://rapidgigs.onrender.com${video.thumbnailUrl}` : undefined} />
+                                                        </div>
+                                                        <div className="p-4">
+                                                            <div className="flex justify-between items-start mb-1">
+                                                                <h3 className="font-semibold text-slate-800 dark:text-white flex-1">{video.title}</h3>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        showConfirm('Delete Video', `Are you sure you want to delete "${video.title}"?`, async () => {
+                                                                            try {
+                                                                                await videosAPI.delete(video._id);
+                                                                                const updated = await videosAPI.getMyVideos();
+                                                                                setMyVideos(updated);
+                                                                                showSuccess('Deleted!', 'Your video has been removed.');
+                                                                            } catch {
+                                                                                showAlert('Error', 'Failed to delete video.', 'danger');
+                                                                            }
+                                                                        }, 'danger');
+                                                                    }}
+                                                                    className="text-red-500 hover:text-red-600 ml-2"
+                                                                >
+                                                                    <XMarkIcon className="w-5 h-5" />
+                                                                </button>
+                                                            </div>
+                                                            <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2">{video.description}</p>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="text-center py-12">
+                                                <VideoCameraIcon className="w-16 h-16 mx-auto text-slate-300 dark:text-slate-600 mb-4" />
+                                                <p className="text-slate-600 dark:text-slate-400 mb-4">You haven't uploaded any videos yet.</p>
+                                                <p className="text-sm text-slate-500 dark:text-slate-400">Videos help you stand out to recruiters!</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </ProfileSection>
+                            </div>
+
+                            {/* ── STUDENT: Saved Jobs ── */}
+                            <div id="saved-jobs" className="scroll-mt-20">
+                                <ProfileSection title="Saved Jobs" noPadding>
+                                    {savedJobs.length === 0 ? (
+                                        <div className="p-8 text-center">
+                                            <BookmarkIcon className="w-16 h-16 mx-auto text-slate-300 dark:text-slate-600 mb-4" />
+                                            <p className="text-slate-600 dark:text-slate-400 mb-4">You haven't saved any jobs yet.</p>
+                                            <button onClick={() => navigate('jobs')} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-6 rounded-lg">Browse Jobs</button>
+                                        </div>
+                                    ) : (
+                                        <div className="divide-y divide-slate-200 dark:divide-slate-700">
+                                            {savedJobs.map((job) => (
+                                                <div key={job.id} className="p-6 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                                                    <div className="flex justify-between items-start">
+                                                        <div className="flex-1">
+                                                            <h3 className="text-lg font-bold text-slate-800 dark:text-white">{job.title}</h3>
+                                                            <p className="text-slate-600 dark:text-slate-400">{job.company}</p>
+                                                            <div className="flex items-center gap-4 mt-2 text-sm text-slate-500 dark:text-slate-400">
+                                                                <span>{job.location}</span><span>•</span>
+                                                                <span className="text-green-600 dark:text-green-400 font-semibold">{job.pay}</span>
+                                                            </div>
+                                                        </div>
+                                                        <button onClick={() => unsaveJob(job.id)} className="text-slate-400 hover:text-red-500 dark:hover:text-red-400" title="Remove">
                                                             <XMarkIcon className="w-5 h-5" />
                                                         </button>
                                                     </div>
-                                                    <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2">{video.description}</p>
-                                                    <div className="mt-3 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                                                        <span>{new Date(video.createdAt).toLocaleDateString()}</span>
-                                                        <span className="capitalize">{video.category}</span>
-                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="text-center py-12">
-                                        <VideoCameraIcon className="w-16 h-16 mx-auto text-slate-300 dark:text-slate-600 mb-4" />
-                                        <p className="text-slate-600 dark:text-slate-400 mb-4">You haven't uploaded any videos yet.</p>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400">Videos help you stand out to recruiters!</p>
-                                    </div>
-                                )}
-                            </div>
-                        </ProfileSection>
-                    </div>
-
-                    {/* Saved Jobs Section */}
-                    <div id="saved-jobs" className="scroll-mt-20">
-                        <ProfileSection title="Saved Jobs" noPadding>
-                            {savedJobs.length === 0 ? (
-                                <div className="p-8 text-center">
-                                    <BookmarkIcon className="w-16 h-16 mx-auto text-slate-300 dark:text-slate-600 mb-4" />
-                                    <p className="text-slate-600 dark:text-slate-400 mb-4">You haven't saved any jobs yet.</p>
-                                    <button
-                                        onClick={() => navigate('jobs')}
-                                        className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-6 rounded-lg"
-                                    >
-                                        Browse Jobs
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="divide-y divide-slate-200 dark:divide-slate-700">
-                                    {savedJobs.map((job) => (
-                                        <div key={job.id} className="p-6 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                                            <div className="flex justify-between items-start">
-                                                <div className="flex-1">
-                                                    <h3 className="text-lg font-bold text-slate-800 dark:text-white">{job.title}</h3>
-                                                    <p className="text-slate-600 dark:text-slate-400">{job.company}</p>
-                                                    <div className="flex items-center gap-4 mt-2 text-sm text-slate-500 dark:text-slate-400">
-                                                        <span>{job.location}</span>
-                                                        <span>•</span>
-                                                        <span className="text-green-600 dark:text-green-400 font-semibold">{job.pay}</span>
-                                                    </div>
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    <button
-                                                        onClick={() => unsaveJob(job.id)}
-                                                        className="text-slate-400 hover:text-red-500 dark:hover:text-red-400"
-                                                        title="Remove from saved"
-                                                    >
-                                                        <XMarkIcon className="w-5 h-5" />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </ProfileSection>
-                    </div>
-
-                    <div id="my-applications" className="scroll-mt-20">
-                        <ProfileSection title="My Applications" noPadding>
-                            {isLoading ? (
-                                <div className="p-8 text-center">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
-                                    <p className="mt-2 text-slate-600 dark:text-slate-400">Loading applications...</p>
-                                </div>
-                            ) : applications.length === 0 ? (
-                                <div className="p-8 text-center text-slate-600 dark:text-slate-400">
-                                    <p>No applications yet. Start applying to jobs!</p>
-                                </div>
-                            ) : (
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm text-left text-slate-500 dark:text-slate-400">
-                                        <thead className="text-xs text-slate-700 dark:text-slate-300 uppercase bg-slate-100 dark:bg-slate-700/50">
-                                            <tr>
-                                                <th scope="col" className="px-6 py-3">Company</th>
-                                                <th scope="col" className="px-6 py-3">Position</th>
-                                                <th scope="col" className="px-6 py-3">Date Applied</th>
-                                                <th scope="col" className="px-6 py-3">Status</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {applications.map((app) => (
-                                                <tr key={app.id} className="border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/70">
-                                                    <th scope="row" className="px-6 py-4 font-medium text-slate-900 dark:text-white whitespace-nowrap">{app.job.company}</th>
-                                                    <td className="px-6 py-4">{app.job.title}</td>
-                                                    <td className="px-6 py-4">{new Date(app.dateApplied).toLocaleDateString()}</td>
-                                                    <td className="px-6 py-4"><StatusBadge status={app.status} /></td>
-                                                </tr>
                                             ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-                        </ProfileSection>
-                    </div>
+                                        </div>
+                                    )}
+                                </ProfileSection>
+                            </div>
+
+                            {/* ── STUDENT: My Applications ── */}
+                            <div id="my-applications" className="scroll-mt-20">
+                                <ProfileSection title="My Applications" noPadding>
+                                    {isLoading ? (
+                                        <div className="p-8 text-center">
+                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+                                            <p className="mt-2 text-slate-600 dark:text-slate-400">Loading applications...</p>
+                                        </div>
+                                    ) : applications.length === 0 ? (
+                                        <div className="p-8 text-center text-slate-600 dark:text-slate-400">
+                                            <p>No applications yet. Start applying to jobs!</p>
+                                        </div>
+                                    ) : (
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-sm text-left text-slate-500 dark:text-slate-400">
+                                                <thead className="text-xs text-slate-700 dark:text-slate-300 uppercase bg-slate-100 dark:bg-slate-700/50">
+                                                    <tr>
+                                                        <th scope="col" className="px-6 py-3">Company</th>
+                                                        <th scope="col" className="px-6 py-3">Position</th>
+                                                        <th scope="col" className="px-6 py-3">Date Applied</th>
+                                                        <th scope="col" className="px-6 py-3">Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {applications.map((app) => {
+                                                        const company = app.job?.company || app.jobId?.company || '—';
+                                                        const title = app.job?.title || app.jobId?.title || '—';
+                                                        const date = app.dateApplied || app.createdAt || new Date().toISOString();
+                                                        return (
+                                                            <tr key={app.id || app._id} className="border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/70">
+                                                                <th scope="row" className="px-6 py-4 font-medium text-slate-900 dark:text-white whitespace-nowrap">{company}</th>
+                                                                <td className="px-6 py-4">{title}</td>
+                                                                <td className="px-6 py-4">{new Date(date).toLocaleDateString()}</td>
+                                                                <td className="px-6 py-4"><StatusBadge status={app.status} /></td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </ProfileSection>
+                            </div>
+                        </>
+                    )}
                 </main>
             </div>
 

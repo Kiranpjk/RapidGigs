@@ -6,6 +6,8 @@ import MainLayout from './components/layout/MainLayout';
 import { useAuth } from './context/AuthContext';
 import { JobProvider } from './context/JobContext';
 import { canAccessPage, getDefaultPageForRole } from './utils/rbac';
+import AdminLayout from './components/layout/AdminLayout';
+import RecruiterLayout from './components/layout/RecruiterLayout';
 
 const App: React.FC = () => {
   // Load saved page from localStorage or default to dashboard
@@ -120,31 +122,55 @@ const App: React.FC = () => {
 
   return (
     <JobProvider>
-      <MainLayout 
-        currentPage={currentPage} 
-        navigate={navigate} 
-        onLogout={handleLogout} 
-        theme={theme} 
-        toggleTheme={toggleTheme}
-        isAuthenticated={isAuthenticated}
-        requireAuth={requireAuth}
-      />
+      {user?.role === 'admin' || user?.role === 'moderator' ? (
+        <AdminLayout
+          currentPage={currentPage} 
+          navigate={navigate} 
+          onLogout={handleLogout} 
+          theme={theme} 
+          toggleTheme={toggleTheme}
+          isAuthenticated={isAuthenticated}
+        />
+      ) : user?.role === 'recruiter' ? (
+        <RecruiterLayout
+          currentPage={currentPage} 
+          navigate={navigate} 
+          onLogout={handleLogout} 
+          theme={theme} 
+          toggleTheme={toggleTheme}
+          isAuthenticated={isAuthenticated}
+          requireAuth={requireAuth}
+        />
+      ) : (
+        <MainLayout 
+          currentPage={currentPage} 
+          navigate={navigate} 
+          onLogout={handleLogout} 
+          theme={theme} 
+          toggleTheme={toggleTheme}
+          isAuthenticated={isAuthenticated}
+          requireAuth={requireAuth}
+        />
+      )}
       
       {/* Auth Modal */}
       {showAuthModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-0">
-          <div className="relative w-full h-full lg:h-auto lg:max-w-6xl lg:mx-4 lg:rounded-2xl overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="relative w-full max-w-6xl mx-auto my-8">
+            {/* Close button OUTSIDE the card */}
             <button
               onClick={() => setShowAuthModal(false)}
-              className="absolute top-4 right-4 lg:-top-4 lg:-right-4 w-10 h-10 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors z-10 shadow-lg"
+              className="absolute -top-4 -right-2 sm:-right-4 w-10 h-10 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors z-10 shadow-lg"
             >
               ✕
             </button>
-            <AuthPage initialPage={authModalPage} navigate={(page) => {
-              if (page === 'dashboard') {
-                handleAuthSuccess();
-              }
-            }} />
+            <div className="rounded-2xl overflow-hidden">
+              <AuthPage initialPage={authModalPage} navigate={(page) => {
+                if (page === 'dashboard') {
+                  handleAuthSuccess();
+                }
+              }} />
+            </div>
           </div>
         </div>
       )}

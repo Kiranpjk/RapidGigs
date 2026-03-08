@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { Job, Application } from '../types';
+import { applicationsAPI } from '../services/api';
 
 interface JobContextType {
   savedJobs: Job[];
@@ -7,7 +8,7 @@ interface JobContextType {
   saveJob: (job: Job) => void;
   unsaveJob: (jobId: number) => void;
   isJobSaved: (jobId: number) => boolean;
-  submitApplication: (job: Job, resumeFile: File, videoFile: File | null, coverLetter: string) => void;
+  submitApplication: (job: Job, resumeFile: File, videoFile: File | null, coverLetter: string) => Promise<void>;
 }
 
 const JobContext = createContext<JobContextType | undefined>(undefined);
@@ -48,23 +49,32 @@ export const JobProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return savedJobs.some(j => j.id === jobId);
   };
 
-  const submitApplication = (job: Job, resumeFile: File, videoFile: File | null, coverLetter: string) => {
+  const submitApplication = async (job: Job, resumeFile: File, videoFile: File | null, coverLetter: string): Promise<void> => {
+    const jobId = job.id?.toString();
+
+    // Only store in DB if the job has a valid MongoDB ObjectId (24 hex chars)
+    const isRealJob = /^[a-f\d]{24}$/i.test(jobId || '');
+
+    if (isRealJob) {
+      // Call the real backend API
+      await applicationsAPI.create({
+        jobId: jobId!,
+        coverLetter: coverLetter,
+        // Note: resume/video files would need file upload support
+        // For now we store the file names as placeholder URLs
+        resumeUrl: resumeFile ? `uploaded:${resumeFile.name}` : undefined,
+        videoUrl: videoFile ? `uploaded:${videoFile.name}` : undefined,
+      });
+    }
+
+    // Also persist to local state for optimistic display
     const newApplication: Application = {
-      id: applications.length + 1,
+      id: Date.now(),
       job: job,
       dateApplied: new Date().toISOString().split('T')[0],
       status: 'Applied',
     };
     setApplications(prev => [...prev, newApplication]);
-    
-    // Log for debugging
-    console.log('Application submitted:', {
-      job: job.title,
-      company: job.company,
-      resume: resumeFile.name,
-      video: videoFile?.name || 'Not provided',
-      coverLetter: coverLetter.substring(0, 50) + '...',
-    });
   };
 
   return (

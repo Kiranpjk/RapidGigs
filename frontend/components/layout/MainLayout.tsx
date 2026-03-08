@@ -30,7 +30,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ currentPage, navigate, onLogout
     const [selectedJob, setSelectedJob] = useState<Job | null>(null);
     const [previousPage, setPreviousPage] = useState<Page>('dashboard');
     
-    const handleApplyNow = (job: Job) => {
+    const handleApplyNow = (job: any) => {
         requireAuth(() => {
             setSelectedJob(job);
             setPreviousPage(currentPage);
@@ -38,8 +38,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ currentPage, navigate, onLogout
         }, currentPage);
     };
 
-    const handleNavigateToJobDetail = (jobId: number) => {
-        const job = ALL_JOBS.find((j: Job) => j.id === jobId);
+    const handleNavigateToJobDetail = (jobId: string) => {
+        // Now handles string IDs for backend compatibility
+        const job = ALL_JOBS.find((j: Job) => j.id.toString() === jobId);
         if (job) {
             setSelectedJob(job);
             navigate('job_application');
@@ -53,7 +54,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ currentPage, navigate, onLogout
             case 'jobs':
                 return <JobsPage onApplyNow={handleApplyNow} />;
             case 'shorts':
-                return <ShortsPage onApplyNow={handleApplyNow} onNavigateToJobDetail={handleNavigateToJobDetail} />;
+                return (
+                    <ShortsPage 
+                        onApplyNow={handleApplyNow} 
+                        onNavigateToJobDetail={handleNavigateToJobDetail} 
+                        onNavigate={navigate}
+                    />
+                );
             case 'profile':
                 return <ProfilePage navigate={navigate} />;
             case 'messages':

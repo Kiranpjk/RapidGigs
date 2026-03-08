@@ -18,6 +18,7 @@ import categoryRoutes from './routes/categories';
 import roleRoutes from './routes/roles';
 import imageRoutes from './routes/images';
 import adminRoutes from './routes/admin';
+import shortsRoutes from './routes/shorts';
 
 const app = express();
 const httpServer = createServer(app);
@@ -48,6 +49,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/images', imageRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/shorts', shortsRoutes);
 
 // WebSocket for real-time messaging
 io.on('connection', (socket) => {
@@ -63,6 +65,15 @@ io.on('connection', (socket) => {
       senderId: data.senderId,
       message: data.message,
       timestamp: new Date().toISOString(),
+      isRead: false,
+    });
+  });
+
+  // Receiver opened the thread — tell sender their messages were read
+  socket.on('mark-read', (data: { threadId: string; senderId: string; readerId: string }) => {
+    io.to(`user-${data.senderId}`).emit('message-read', {
+      threadId: data.threadId,
+      readerId: data.readerId,
     });
   });
 
