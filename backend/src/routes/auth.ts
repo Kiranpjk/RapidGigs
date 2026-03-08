@@ -6,8 +6,11 @@ import { generateToken } from '../utils/jwt';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { getPermissionsForRole } from '../config/permissions';
 import { OAuth2Client } from 'google-auth-library';
+import { requireDatabaseConnection } from '../middleware/database';
 
 const router = express.Router();
+
+router.use(requireDatabaseConnection);
 
 // Initialize Google OAuth client
 const googleClient = new OAuth2Client(

@@ -44,6 +44,9 @@ router.get('/', async (req, res) => {
       companyVideoUrl: job.companyVideoUrl,
       freelancerVideoUrl: job.freelancerVideoUrl,
       shortVideoUrl: job.shortVideoUrl,
+      shortVideoScript: job.shortVideoScript,
+      shortVideoScenes: job.shortVideoScenes,
+      shortVideoStatus: job.shortVideoStatus,
       likes: job.likes || 0,
       comments: job.comments || 0,
       shares: job.shares || 0,
@@ -82,6 +85,9 @@ router.get('/:id', async (req, res) => {
       companyVideoUrl: job.companyVideoUrl,
       freelancerVideoUrl: job.freelancerVideoUrl,
       shortVideoUrl: job.shortVideoUrl,
+      shortVideoScript: job.shortVideoScript,
+      shortVideoScenes: job.shortVideoScenes,
+      shortVideoStatus: job.shortVideoStatus,
       likes: job.likes || 0,
       comments: job.comments || 0,
       shares: job.shares || 0,
@@ -123,6 +129,9 @@ router.post(
         companyVideoUrl,
         freelancerVideoUrl,
         shortVideoUrl,
+        shortVideoScript,
+        shortVideoScenes,
+        shortVideoStatus,
       } = req.body;
 
       const job = new Job({
@@ -136,6 +145,9 @@ router.post(
         companyVideoUrl,
         freelancerVideoUrl,
         shortVideoUrl,
+        shortVideoScript,
+        shortVideoScenes,
+        shortVideoStatus,
         postedBy: new mongoose.Types.ObjectId(req.user!.userId),
       });
 

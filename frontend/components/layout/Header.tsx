@@ -10,6 +10,7 @@ import {
     VideoCameraIcon,
     BriefcaseSolidIcon,
     MessageSquareIcon,
+    Cog6ToothIcon,
     SunIcon,
     MoonIcon,
     XMarkIcon,
@@ -22,6 +23,7 @@ interface User {
     id: string;
     name: string;
     avatarUrl?: string;
+    role?: string;
 }
 
 interface HeaderProps {
@@ -83,8 +85,8 @@ const Header: React.FC<HeaderProps> = ({ navigate, onLogout, currentPage, theme,
         { name: 'Messages', page: 'messages', icon: <MessageSquareIcon className="w-5 h-5" />, requiresAuth: true },
     ];
 
-    // If user is admin, add Admin nav item
-    if (user && (user as any).role === 'admin') {
+    // If user is admin or moderator, add Admin nav item
+    if (user && (user.role === 'admin' || user.role === 'moderator')) {
         allNavItems.splice(3, 0, { name: 'Admin', page: 'admin', icon: <Cog6ToothIcon className="w-5 h-5" />, requiresAuth: true });
     }
 

@@ -14,6 +14,8 @@ interface AuthPageProps {
     navigate: (page: Page) => void;
 }
 
+const GOOGLE_CLIENT_ID = ((import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined) || '').trim();
+
 const AuthPage: React.FC<AuthPageProps> = ({ initialPage, navigate }) => {
     const { modalState, showConfetti, showSuccess, closeModal, closeConfetti } = useModal();
     const [authMode, setAuthMode] = useState<AuthMode>(initialPage as AuthMode);
@@ -98,13 +100,14 @@ const AuthPage: React.FC<AuthPageProps> = ({ initialPage, navigate }) => {
 
 
 // Form components
-const InputField = ({ id, type, placeholder, icon, value, onChange }: { 
+const InputField = ({ id, type, placeholder, icon, value, onChange, autoComplete }: {
   id: string; 
   type: string; 
   placeholder: string; 
   icon: React.ReactNode; 
   value?: string;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  autoComplete?: string;
 }) => (
   <div className="relative">
       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -117,6 +120,7 @@ const InputField = ({ id, type, placeholder, icon, value, onChange }: {
           placeholder={placeholder} 
           value={value}
           onChange={onChange}
+          autoComplete={autoComplete}
           required
       />
   </div>
@@ -171,10 +175,10 @@ const LoginForm = ({ onSignUpClick, onForgotPasswordClick, onLoginSuccess } : { 
 
     // Initialize Google Sign-In with renderButton (CORRECT METHOD)
     useEffect(() => {
-        if (typeof window !== 'undefined' && (window as any).google) {
+        if (GOOGLE_CLIENT_ID && typeof window !== 'undefined' && (window as any).google) {
             /* global google */
             (window as any).google.accounts.id.initialize({
-                client_id: '186450415044-kmkrm11pkbehl8cguh1eear332jo6l24.apps.googleusercontent.com',
+                client_id: GOOGLE_CLIENT_ID,
                 callback: handleGoogleResponse,
             });
 
@@ -185,7 +189,7 @@ const LoginForm = ({ onSignUpClick, onForgotPasswordClick, onLoginSuccess } : { 
                     { 
                         theme: 'outline', 
                         size: 'large',
-                        width: '100%',
+                        width: 320,
                         text: 'continue_with',
                     }
                 );
@@ -228,6 +232,7 @@ const LoginForm = ({ onSignUpClick, onForgotPasswordClick, onLoginSuccess } : { 
                         placeholder="you@example.com" 
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
+                        autoComplete="email"
                         icon={<EnvelopeIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />} 
                     />
                 </div>
@@ -242,6 +247,7 @@ const LoginForm = ({ onSignUpClick, onForgotPasswordClick, onLoginSuccess } : { 
                         placeholder="••••••••" 
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
+                        autoComplete="current-password"
                         icon={<LockClosedIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />} 
                     />
                 </div>
@@ -254,7 +260,7 @@ const LoginForm = ({ onSignUpClick, onForgotPasswordClick, onLoginSuccess } : { 
                     <span className="px-4 text-gray-500 dark:text-gray-500 text-sm">OR</span>
                     <div className="flex-grow border-t border-gray-300 dark:border-gray-700"></div>
                 </div>
-                <div id="googleLoginBtn" className="w-full flex justify-center"></div>
+                {GOOGLE_CLIENT_ID && <div id="googleLoginBtn" className="w-full flex justify-center"></div>}
                 <p className="text-center text-gray-600 dark:text-gray-400 text-sm mt-8">
                     Don't have an account? <a onClick={onSignUpClick} className="font-bold text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 cursor-pointer transition-colors duration-300">Sign Up</a>
                 </p>
@@ -291,10 +297,10 @@ const SignUpForm = ({ onLoginClick, onSignUpSuccess }: { onLoginClick: () => voi
 
     // Initialize Google Sign-In with renderButton (CORRECT METHOD)
     useEffect(() => {
-        if (typeof window !== 'undefined' && (window as any).google) {
+        if (GOOGLE_CLIENT_ID && typeof window !== 'undefined' && (window as any).google) {
             /* global google */
             (window as any).google.accounts.id.initialize({
-                client_id: '186450415044-kmkrm11pkbehl8cguh1eear332jo6l24.apps.googleusercontent.com',
+                client_id: GOOGLE_CLIENT_ID,
                 callback: handleGoogleResponse,
             });
 
@@ -305,7 +311,7 @@ const SignUpForm = ({ onLoginClick, onSignUpSuccess }: { onLoginClick: () => voi
                     { 
                         theme: 'outline', 
                         size: 'large',
-                        width: '100%',
+                        width: 320,
                         text: 'signup_with',
                     }
                 );
@@ -363,6 +369,7 @@ const SignUpForm = ({ onLoginClick, onSignUpSuccess }: { onLoginClick: () => voi
                     placeholder="John Doe" 
                     value={name}
                     onChange={(e) => setName(e.target.value)}
+                    autoComplete="name"
                     icon={<UserIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />} 
                 />
                 <InputField 
@@ -371,6 +378,7 @@ const SignUpForm = ({ onLoginClick, onSignUpSuccess }: { onLoginClick: () => voi
                     placeholder="name@example.com" 
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    autoComplete="email"
                     icon={<EnvelopeIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />} 
                 />
                 <InputField 
@@ -379,6 +387,7 @@ const SignUpForm = ({ onLoginClick, onSignUpSuccess }: { onLoginClick: () => voi
                     placeholder="Create a secure password" 
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="new-password"
                     icon={<LockClosedIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />} 
                 />
                 <InputField 
@@ -387,6 +396,7 @@ const SignUpForm = ({ onLoginClick, onSignUpSuccess }: { onLoginClick: () => voi
                     placeholder="Re-enter your password" 
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
+                    autoComplete="new-password"
                     icon={<LockClosedIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />} 
                 />
                 
@@ -412,7 +422,7 @@ const SignUpForm = ({ onLoginClick, onSignUpSuccess }: { onLoginClick: () => voi
                     <span className="px-4 text-gray-500 dark:text-gray-500 text-sm">OR</span>
                     <div className="flex-grow border-t border-gray-300 dark:border-gray-700"></div>
                 </div>
-                <div id="googleSignupBtn" className="w-full flex justify-center"></div>
+                {GOOGLE_CLIENT_ID && <div id="googleSignupBtn" className="w-full flex justify-center"></div>}
                 <p className="text-center text-gray-600 dark:text-gray-400 text-sm pt-4">
                     Already have an account? <a onClick={onLoginClick} className="font-bold text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 cursor-pointer transition-colors duration-300">Login</a>
                 </p>
@@ -429,7 +439,7 @@ const ForgotPasswordForm = ({ onBackToLoginClick, showSuccess }: { onBackToLogin
             <p className="text-gray-600 dark:text-gray-400 mt-2 max-w-xs mx-auto">No worries, we'll send you reset instructions.</p>
         </div>
         <form onSubmit={(e) => { e.preventDefault(); showSuccess('Reset Link Sent!', 'Check your email for password reset instructions.'); setTimeout(() => onBackToLoginClick(), 2000); }} className="space-y-6">
-            <InputField id="email-forgot" type="email" placeholder="your.email@example.com" icon={<EnvelopeIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />} />
+            <InputField id="email-forgot" type="email" placeholder="your.email@example.com" autoComplete="email" icon={<EnvelopeIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />} />
             <PrimaryButton type="submit">Send Reset Link <PaperAirplaneIcon className="w-5 h-5 transform transition-transform duration-300 group-hover:rotate-45"/></PrimaryButton>
             <div className="text-center mt-6">
                 <a onClick={onBackToLoginClick} className="inline-block align-baseline font-bold text-sm text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 cursor-pointer transition-colors duration-300">← Back to Login</a>
