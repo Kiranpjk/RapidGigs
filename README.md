@@ -103,18 +103,6 @@ VITE_GOOGLE_CLIENT_ID=your_google_client_id
 ```
 If this value is not set, Google buttons are hidden in the auth modal.
 
-### JD to 30s Video conversion (Admin)
-When admin creates a job from a JD, backend now generates a 30-second video script + scene plan automatically.
-
-Optional webhook settings in `backend/.env` if you already have an existing video-render module:
-```env
-JD_VIDEO_WEBHOOK_URL=https://your-video-renderer/api/render
-JD_VIDEO_WEBHOOK_TOKEN=optional_bearer_token
-```
-
-- If webhook is configured, RapidGigs sends the generated narration + scene plan and stores returned `videoUrl` in the job.
-- If webhook is not configured, RapidGigs still stores a complete 30s script/scene plan with status `pending`.
-
 ## API Documentation
 A Postman collection is included in the root directory: `rapidgig_postman_collection.json`. Import this into Postman to test the API endpoints.
 
