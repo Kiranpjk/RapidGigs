@@ -1,11 +1,14 @@
 import express from 'express';
 import { requireAdmin } from '../middleware/rbac';
+import { authenticate } from '../middleware/auth';
 import { Application } from '../models/Application';
 import { User } from '../models/User';
 import { Job } from '../models/Job';
 import mongoose from 'mongoose';
 
 const router = express.Router();
+
+router.use(authenticate);
 
 // List users (with optional filter by role)
 router.get('/users', requireAdmin, async (req, res) => {

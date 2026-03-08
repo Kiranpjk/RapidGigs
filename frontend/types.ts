@@ -11,7 +11,7 @@ export type Page =
   | 'messages' 
   | 'notifications'
   | 'upload_video'
-  | 'job_application';
+  | 'job_application'
   | 'admin';
 
 export interface User {
