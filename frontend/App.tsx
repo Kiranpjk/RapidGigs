@@ -5,6 +5,7 @@ import AuthPage from './components/auth/AuthPage';
 import MainLayout from './components/layout/MainLayout';
 import { useAuth } from './context/AuthContext';
 import { JobProvider } from './context/JobContext';
+import { canAccessPage, getDefaultPageForRole } from './utils/rbac';
 
 const App: React.FC = () => {
   // Load saved page from localStorage or default to dashboard
@@ -22,7 +23,7 @@ const App: React.FC = () => {
   const [authModalPage, setAuthModalPage] = useState<'login' | 'signup'>('login');
   const [returnPage, setReturnPage] = useState<Page | null>(null);
   
-  const { isAuthenticated, isLoading, logout } = useAuth();
+  const { isAuthenticated, isLoading, logout, user } = useAuth();
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -47,14 +48,21 @@ const App: React.FC = () => {
       setReturnPage(currentPage);
       return;
     }
-    
+
     if (page === 'signup') {
       setAuthModalPage('signup');
       setShowAuthModal(true);
       setReturnPage(currentPage);
       return;
     }
-    
+
+    if (isAuthenticated && !canAccessPage(user?.role, page)) {
+      const fallbackPage = getDefaultPageForRole(user?.role);
+      setCurrentPage(fallbackPage);
+      localStorage.setItem('currentPage', fallbackPage);
+      return;
+    }
+
     setCurrentPage(page);
     // Save current page to localStorage
     localStorage.setItem('currentPage', page);
@@ -62,7 +70,7 @@ const App: React.FC = () => {
 
   const handleLogout = () => {
     logout();
-    setCurrentPage('dashboard');
+    setCurrentPage(getDefaultPageForRole(user?.role));
     setShowAuthModal(false);
     // Clear saved page on logout
     localStorage.removeItem('currentPage');
@@ -84,6 +92,19 @@ const App: React.FC = () => {
       setReturnPage(null);
     }
   };
+
+
+  useEffect(() => {
+    if (!isAuthenticated || !user) {
+      return;
+    }
+
+    if (!canAccessPage(user.role, currentPage)) {
+      const fallbackPage = getDefaultPageForRole(user.role);
+      setCurrentPage(fallbackPage);
+      localStorage.setItem('currentPage', fallbackPage);
+    }
+  }, [isAuthenticated, user, currentPage]);
 
   // Show loading while checking authentication
   if (isLoading) {
