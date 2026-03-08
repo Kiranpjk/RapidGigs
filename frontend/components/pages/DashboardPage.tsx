@@ -9,6 +9,7 @@ import {
     CurrencyDollarIcon,
 } from '../icons/Icons';
 import { NEARBY_GIGS, CATEGORIES, SHORT_VIDEOS_INTRO } from '../../data/mockData';
+import { useAuth } from '../../context/AuthContext';
 
 interface DashboardPageProps {
     navigate: (page: Page) => void;
@@ -17,6 +18,9 @@ interface DashboardPageProps {
 
 const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) => {
     const [selectedCategory, setSelectedCategory] = useState<string>('All');
+    const { user } = useAuth();
+
+    const isRecruiter = user?.role === 'recruiter';
     
     const CategoryButton: React.FC<{ children: React.ReactNode; isActive: boolean; onClick: () => void }> = ({ children, isActive, onClick }) => (
         <button 
@@ -88,10 +92,10 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                 <div className="absolute inset-0 bg-cover bg-center opacity-10 dark:opacity-20" style={{backgroundImage: 'url(https://picsum.photos/seed/bg/1200/400)'}}></div>
                 <div className="absolute inset-0 bg-gradient-to-t from-gray-100 dark:from-gray-900 via-gray-100/80 dark:via-gray-900/80 to-transparent"></div>
                 <div className="relative z-10">
-                    <h1 className="text-4xl md:text-5xl font-extrabold text-slate-800 dark:text-white mb-4 tracking-tighter">Discover Rapid Gigs Near You</h1>
-                    <p className="text-lg text-slate-600 dark:text-slate-300 max-w-2xl mx-auto mb-8">Connect with top talent or find your next microgig instantly. Your work, your code, your gig in 30 seconds.</p>
-                    <button onClick={() => navigate('upload_video')} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-lg transition-all duration-300 transform hover:scale-105 flex items-center gap-2 mx-auto">
-                        <ArrowUpOnSquareIcon className="w-5 h-5"/> Upload Intro
+                    <h1 className="text-4xl md:text-5xl font-extrabold text-slate-800 dark:text-white mb-4 tracking-tighter">{isRecruiter ? 'Find Skilled Talent Fast' : 'Discover Rapid Gigs Near You'}</h1>
+                    <p className="text-lg text-slate-600 dark:text-slate-300 max-w-2xl mx-auto mb-8">{isRecruiter ? 'Post jobs, review applicants, and hire in minutes with a recruiter-first workflow.' : 'Connect with top talent or find your next microgig instantly. Your work, your code, your gig in 30 seconds.'}</p>
+                    <button onClick={() => navigate(isRecruiter ? 'jobs' : 'upload_video')} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-lg transition-all duration-300 transform hover:scale-105 flex items-center gap-2 mx-auto">
+                        <ArrowUpOnSquareIcon className="w-5 h-5"/> {isRecruiter ? 'Manage Job Posts' : 'Upload Intro'}
                     </button>
                 </div>
             </div>
@@ -120,7 +124,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
             
             <section className="mb-12">
                 <h2 className="text-3xl font-bold mb-6 text-slate-800 dark:text-white">
-                    {selectedCategory === 'All' ? 'Nearby Gigs' : `${selectedCategory} Gigs`}
+                    {selectedCategory === 'All' ? (isRecruiter ? 'Recent Opportunities to Fill' : 'Nearby Gigs') : `${selectedCategory} Gigs`}
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {(selectedCategory === 'All' 
