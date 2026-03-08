@@ -61,6 +61,24 @@ RapidGig is a scalable web application designed to connect freelancers with recr
    npm run dev
    ```
 
+
+### Run Frontend + Backend together (recommended)
+From the repository root:
+```bash
+npm run dev
+```
+This starts:
+- Backend API on `http://localhost:3001`
+- Frontend app on `http://localhost:5173`
+
+You can also run each service separately:
+```bash
+npm run dev:backend
+npm run dev:frontend
+```
+
+> Note: If local MongoDB is not available, backend development mode can fall back to an in-memory MongoDB instance.
+
 ### Configuration (.env)
 Create a `.env` file in the `backend` directory:
 ```env

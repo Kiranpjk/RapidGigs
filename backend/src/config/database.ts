@@ -35,17 +35,30 @@ ensureDirectories();
 export const connectDatabase = async (): Promise<void> => {
   try {
     try {
-      await mongoose.connect(config.db.uri);
+      await mongoose.connect(config.db.uri, { serverSelectionTimeoutMS: 5000 });
       console.log('Connected to MongoDB at', config.db.uri);
     } catch (e) {
       // If connect fails and mongodb-memory-server is available, start an in-memory DB
       if (!process.env.MONGO_URI && mongoMemoryServer) {
         console.warn('Failed to connect to external MongoDB, starting in-memory MongoDB for development');
-        const mongod = await mongoMemoryServer.create();
-        const uri = mongod.getUri();
-        usingInMemory = true;
-        await mongoose.connect(uri);
-        console.log('Connected to in-memory MongoDB');
+        try {
+          const mongod = await mongoMemoryServer.create();
+          const uri = mongod.getUri();
+          usingInMemory = true;
+          await mongoose.connect(uri, { serverSelectionTimeoutMS: 5000 });
+          console.log('Connected to in-memory MongoDB');
+        } catch (memoryError) {
+          if (config.nodeEnv === 'development') {
+            console.warn('In-memory MongoDB failed to start. Continuing without database in development mode.');
+            console.warn(memoryError);
+            return;
+          }
+          throw memoryError;
+        }
+      } else if (config.nodeEnv === 'development') {
+        console.warn('MongoDB is unavailable. Continuing without database in development mode.');
+        console.warn(e);
+        return;
       } else {
         throw e;
       }
