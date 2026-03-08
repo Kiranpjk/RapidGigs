@@ -88,6 +88,21 @@ JWT_SECRET=your_jwt_secret_key
 CORS_ORIGIN=http://localhost:5173
 ```
 
+
+### Troubleshooting local auth/login
+- If you see `ERR_CONNECTION_REFUSED` for `localhost:3001`, make sure backend is running:
+  ```bash
+  npm run dev:backend
+  ```
+- If backend responds with `Database is not connected`, start MongoDB locally or provide a valid `MONGODB_URI` in `backend/.env`.
+
+### Optional Google Login config
+To enable Google Sign-In in local development, set this in `frontend/.env`:
+```env
+VITE_GOOGLE_CLIENT_ID=your_google_client_id
+```
+If this value is not set, Google buttons are hidden in the auth modal.
+
 ## API Documentation
 A Postman collection is included in the root directory: `rapidgig_postman_collection.json`. Import this into Postman to test the API endpoints.
 
