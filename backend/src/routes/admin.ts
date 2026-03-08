@@ -5,6 +5,8 @@ import { Application } from '../models/Application';
 import { User } from '../models/User';
 import { Job } from '../models/Job';
 import mongoose from 'mongoose';
+import { body, validationResult } from 'express-validator';
+import { generateJobVideoFromJD } from '../services/jdVideoService';
 
 const router = express.Router();
 
