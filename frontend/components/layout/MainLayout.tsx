@@ -12,6 +12,7 @@ import JobApplicationPage from '../pages/JobApplicationPage';
 import AdminPage from '../pages/AdminPage';
 import { ALL_JOBS } from '../../data/mockData';
 import { useAuth } from '../../context/AuthContext';
+import { canAccessPage } from '../../utils/rbac';
 
 
 interface MainLayoutProps {
@@ -63,6 +64,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ currentPage, navigate, onLogout
             case 'job_application':
                 return <JobApplicationPage job={selectedJob} navigate={navigate} previousPage={previousPage} />;
             case 'admin':
+                if (!isAuthenticated || !canAccessPage(user?.role, 'admin')) {
+                    return <DashboardPage navigate={navigate} onApplyNow={handleApplyNow} />;
+                }
                 return <AdminPage />;
             default:
                 return <DashboardPage navigate={navigate} onApplyNow={handleApplyNow} />;
@@ -71,13 +75,19 @@ const MainLayout: React.FC<MainLayoutProps> = ({ currentPage, navigate, onLogout
 
     const handleNavigate = (page: Page) => {
         // Require auth for protected pages
-        const protectedPages: Page[] = ['profile', 'messages', 'notifications', 'upload_video'];
-        
+        const protectedPages: Page[] = ['profile', 'messages', 'notifications', 'upload_video', 'admin'];
+
         if (protectedPages.includes(page) && !isAuthenticated) {
             requireAuth(() => navigate(page), currentPage);
-        } else {
-            navigate(page);
+            return;
         }
+
+        if (isAuthenticated && !canAccessPage(user?.role, page)) {
+            navigate('dashboard');
+            return;
+        }
+
+        navigate(page);
     };
 
     return (

@@ -295,3 +295,19 @@ export const categoriesAPI = {
     return fetchWithAuth(`${API_BASE_URL}/categories`);
   },
 };
+
+export const adminAPI = {
+  createJobFromJD: async (data: {
+    title: string;
+    company: string;
+    location: string;
+    type: 'Remote' | 'On-site' | 'Hybrid';
+    pay: string;
+    description: string;
+  }) => {
+    return fetchWithAuth(`${API_BASE_URL}/admin/jobs/create-from-jd`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+};

@@ -61,6 +61,24 @@ RapidGig is a scalable web application designed to connect freelancers with recr
    npm run dev
    ```
 
+
+### Run Frontend + Backend together (recommended)
+From the repository root:
+```bash
+npm run dev
+```
+This starts:
+- Backend API on `http://localhost:3001`
+- Frontend app on `http://localhost:5173`
+
+You can also run each service separately:
+```bash
+npm run dev:backend
+npm run dev:frontend
+```
+
+> Note: If local MongoDB is not available, backend development mode can fall back to an in-memory MongoDB instance.
+
 ### Configuration (.env)
 Create a `.env` file in the `backend` directory:
 ```env
@@ -69,6 +87,33 @@ MONGODB_URI=mongodb://localhost:27017/rapidgig
 JWT_SECRET=your_jwt_secret_key
 CORS_ORIGIN=http://localhost:5173
 ```
+
+
+### Troubleshooting local auth/login
+- If you see `ERR_CONNECTION_REFUSED` for `localhost:3001`, make sure backend is running:
+  ```bash
+  npm run dev:backend
+  ```
+- If backend responds with `Database is not connected`, start MongoDB locally or provide a valid `MONGODB_URI` in `backend/.env`.
+
+### Optional Google Login config
+To enable Google Sign-In in local development, set this in `frontend/.env`:
+```env
+VITE_GOOGLE_CLIENT_ID=your_google_client_id
+```
+If this value is not set, Google buttons are hidden in the auth modal.
+
+### JD to 30s Video conversion (Admin)
+When admin creates a job from a JD, backend now generates a 30-second video script + scene plan automatically.
+
+Optional webhook settings in `backend/.env` if you already have an existing video-render module:
+```env
+JD_VIDEO_WEBHOOK_URL=https://your-video-renderer/api/render
+JD_VIDEO_WEBHOOK_TOKEN=optional_bearer_token
+```
+
+- If webhook is configured, RapidGigs sends the generated narration + scene plan and stores returned `videoUrl` in the job.
+- If webhook is not configured, RapidGigs still stores a complete 30s script/scene plan with status `pending`.
 
 ## API Documentation
 A Postman collection is included in the root directory: `rapidgig_postman_collection.json`. Import this into Postman to test the API endpoints.
@@ -99,5 +144,4 @@ To scale this application for a production environment with high traffic, I woul
     *   **Rate Limiting:** Implement rate limiting (e.g., `express-rate-limit`) to prevent DDoS attacks and abuse.
     *   **CSRF Protection:** Ensure proper CSRF tokens are used if cookies are utilized for auth.
     *   **Input Sanitization:** rigorously validate and sanitize all inputs to prevent injection attacks.
-
 
