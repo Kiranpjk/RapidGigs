@@ -47,6 +47,7 @@ export const connectDatabase = async (): Promise<void> => {
               version: process.env.MONGOMS_VERSION || '7.0.14',
             },
           });
+          const mongod = await mongoMemoryServer.create();
           const uri = mongod.getUri();
           usingInMemory = true;
           await mongoose.connect(uri, { serverSelectionTimeoutMS: 5000 });
