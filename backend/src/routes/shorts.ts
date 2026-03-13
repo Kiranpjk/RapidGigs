@@ -1,4 +1,5 @@
 import express from 'express';
+import axios from 'axios';
 import { Job } from '../models/Job';
 import { ShortVideo } from '../models/ShortVideo';
 import { User } from '../models/User';
@@ -138,6 +139,55 @@ router.get('/feed', authenticate, async (req: AuthRequest, res) => {
   } catch (error: any) {
     console.error('Shorts algorithm error:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * AI Video Generation (Helios Integration)
+ * ---------------------------------------
+ * Generates a cinematic short video based on a text prompt.
+ */
+router.post('/generate', authenticate, async (req: AuthRequest, res) => {
+  const { prompt, title, description } = req.body;
+
+  if (!prompt) {
+    return res.status(400).json({ error: 'Prompt is required' });
+  }
+
+  try {
+    const HELIOS_SERVICE_URL = process.env.HELIOS_SERVICE_URL || 'http://localhost:8000';
+    
+    // Call Helios Microservice
+    const response = await axios.post(`${HELIOS_SERVICE_URL}/generate`, {
+      prompt,
+      num_frames: 132 // Helios multiple of 33
+    });
+
+    const { video_url } = response.data;
+
+    // Create a new Short Video entry in DB
+    const newShort = new ShortVideo({
+      userId: req.user!.userId,
+      title: title || 'AI Generated Short',
+      description: description || prompt,
+      videoUrl: `${HELIOS_SERVICE_URL}${video_url}`, // Full URL to Helios service
+      likes: 0,
+      views: 0
+    });
+
+    await newShort.save();
+
+    res.status(201).json({
+      message: 'Video generated successfully via Helios',
+      short: newShort
+    });
+
+  } catch (error: any) {
+    console.error('Helios generation error:', error.message);
+    res.status(500).json({ 
+      error: 'Failed to generate video', 
+      details: error.response?.data?.detail || error.message 
+    });
   }
 });
 

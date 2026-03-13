@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { Page } from '../../types';
-import { ArrowUpOnSquareIcon } from '../icons/Icons';
+import { ArrowUpOnSquareIcon, SparklesIcon, VideoCameraIcon } from '../icons/Icons';
 import { videosAPI, categoriesAPI } from '../../services/api';
 import Modal from '../common/Modal';
 import Confetti from '../common/Confetti';
 import useModal from '../../hooks/useModal';
+import HeliosGenerator from '../common/HeliosGenerator';
 
 interface UploadVideoPageProps {
     navigate: (page: Page) => void;
@@ -13,6 +14,7 @@ interface UploadVideoPageProps {
 
 const UploadVideoPage: React.FC<UploadVideoPageProps> = ({ navigate }) => {
     const { modalState, showConfetti, showSuccess, closeModal, closeConfetti } = useModal();
+    const [uploadMode, setUploadMode] = useState<'manual' | 'ai'>('manual');
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [categoryId, setCategoryId] = useState('');
@@ -122,11 +124,57 @@ const UploadVideoPage: React.FC<UploadVideoPageProps> = ({ navigate }) => {
     return (
         <>
             <div className="container mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-8">
-                <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 p-8 rounded-lg">
-                    <h1 className="text-3xl font-bold mb-2 tracking-tighter">Upload Your Introduction Video</h1>
-                    <p className="text-slate-500 dark:text-slate-400 mb-8">Showcase your skills and personality with a short video.</p>
+                <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                        <h1 className="text-3xl font-bold tracking-tighter text-slate-900 dark:text-white">Create Video</h1>
+                        <p className="text-slate-500 dark:text-slate-400">Share your vision with the world or let AI create it for you.</p>
+                    </div>
 
-                    <form className="space-y-6" onSubmit={handleSubmit}>
+                    <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+                        <button
+                            onClick={() => setUploadMode('manual')}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all ${
+                                uploadMode === 'manual' 
+                                ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+                                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                            }`}
+                        >
+                            <ArrowUpOnSquareIcon className="w-4 h-4" />
+                            Manual Upload
+                        </button>
+                        <button
+                            onClick={() => setUploadMode('ai')}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all ${
+                                uploadMode === 'ai' 
+                                ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+                                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                            }`}
+                        >
+                            <SparklesIcon className="w-4 h-4" />
+                            AI Generate (Helios)
+                        </button>
+                    </div>
+                </div>
+
+                {uploadMode === 'ai' ? (
+                    <HeliosGenerator 
+                        onSuccess={(videoUrl) => {
+                            showSuccess('AI Video Generated!', 'Your cinematic short has been synthesized by Helios and is now ready!', () => {
+                                navigate('shorts' as any);
+                            });
+                            // Redirect after short delay
+                            setTimeout(() => navigate('shorts' as any), 3000);
+                        }}
+                    />
+                ) : (
+                    <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 p-8 rounded-2xl shadow-sm">
+                        <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+                             <VideoCameraIcon className="w-5 h-5 text-indigo-500" />
+                             Upload Introduction Video
+                        </h2>
+
+                        <form className="space-y-6" onSubmit={handleSubmit}>
+                            {/* ... existing form fields ... */}
                         {error && (
                             <div className="bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-400 px-4 py-3 rounded">
                                 {error}
@@ -230,7 +278,8 @@ const UploadVideoPage: React.FC<UploadVideoPageProps> = ({ navigate }) => {
                             </button>
                         </div>
                     </form>
-                </div>
+                    </div>
+                )}
             </div>
 
             {/* Custom Modal */}

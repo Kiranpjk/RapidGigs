@@ -316,4 +316,11 @@ export const shortsAPI = {
   getFeed: async () => {
     return fetchWithAuth(`${API_BASE_URL}/shorts/feed`);
   },
+
+  generateAI: async (data: { prompt: string; title?: string; description?: string }) => {
+    return fetchWithAuth(`${API_BASE_URL}/shorts/generate`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
 };

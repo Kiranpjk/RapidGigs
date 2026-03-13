@@ -174,7 +174,7 @@ const LoginForm = ({ onSignUpClick, onForgotPasswordClick, onLoginSuccess } : { 
         if (typeof window !== 'undefined' && (window as any).google) {
             /* global google */
             (window as any).google.accounts.id.initialize({
-                client_id: '186450415044-kmkrm11pkbehl8cguh1eear332jo6l24.apps.googleusercontent.com',
+                client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '186450415044-kmkrm11pkbehl8cguh1eear332jo6l24.apps.googleusercontent.com',
                 callback: handleGoogleResponse,
             });
 
@@ -294,7 +294,7 @@ const SignUpForm = ({ onLoginClick, onSignUpSuccess }: { onLoginClick: () => voi
         if (typeof window !== 'undefined' && (window as any).google) {
             /* global google */
             (window as any).google.accounts.id.initialize({
-                client_id: '186450415044-kmkrm11pkbehl8cguh1eear332jo6l24.apps.googleusercontent.com',
+                client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '186450415044-kmkrm11pkbehl8cguh1eear332jo6l24.apps.googleusercontent.com',
                 callback: handleGoogleResponse,
             });
 

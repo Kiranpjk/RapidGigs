@@ -1,0 +1,20 @@
+# Core ML Libraries
+torch
+torchvision
+torchaudio
+git+https://github.com/huggingface/diffusers.git
+transformers
+accelerate
+sentencepiece
+safetensors
+protobuf
+
+# API & Utils
+fastapi
+uvicorn[standard]
+pydantic
+python-multipart
+numpy
+opencv-python-headless
+imageio[ffmpeg]
+python-dotenv
