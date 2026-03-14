@@ -14,6 +14,9 @@ const RecruiterDashboardPage: React.FC<RecruiterDashboardPageProps> = ({ navigat
     const [loadingJobs, setLoadingJobs] = useState(true);
     const [loadingVideos, setLoadingVideos] = useState(true);
 
+    const BASE_URL = import.meta.env.VITE_API_BASE?.replace('/api', '') || 'http://localhost:3001';
+    const getMediaUrl = (url?: string) => url ? (url.startsWith('http') ? url : `${BASE_URL}${url}`) : '';
+
     useEffect(() => {
         jobsAPI.getMyJobs()
             .then(data => setMyJobs(Array.isArray(data) ? data : []))
@@ -193,7 +196,7 @@ const RecruiterDashboardPage: React.FC<RecruiterDashboardPageProps> = ({ navigat
                             <div key={video._id} className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 group">
                                 <div className="relative aspect-video bg-slate-200 dark:bg-slate-800">
                                     <video
-                                        src={`https://rapidgigs.onrender.com${video.videoUrl}`}
+                                        src={getMediaUrl(video.videoUrl)}
                                         className="w-full h-full object-cover"
                                         controls={false}
                                         preload="metadata"

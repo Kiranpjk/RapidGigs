@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { jobsAPI, applicationsAPI, categoriesAPI } from '../../services/api';
+import { jobsAPI, applicationsAPI, categoriesAPI, fetchWithAuth } from '../../services/api';
 import { PencilSquareIcon, XMarkIcon, CheckCircleIcon as CheckIcon } from '../icons/Icons';
 
 const API_BASE = (import.meta.env.VITE_API_BASE as string) || 'http://localhost:3001/api';
@@ -35,11 +35,7 @@ const ReviewApplicationsPage: React.FC = () => {
     useEffect(() => {
         if (!selectedJobId) return;
         setLoadingApps(true);
-        const token = localStorage.getItem('authToken');
-        fetch(`${API_BASE}/applications/job/${selectedJobId}`, {
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-        })
-            .then(r => r.json())
+        fetchWithAuth(`${API_BASE}/applications/job/${selectedJobId}`)
             .then(data => setApplications(Array.isArray(data) ? data : []))
             .catch(() => setApplications([]))
             .finally(() => setLoadingApps(false));

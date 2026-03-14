@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Page } from '../../types';
+import { fetchWithAuth } from '../../services/api';
 
 interface CandidatesPageProps {
     navigate: (page: Page) => void;
@@ -29,11 +30,7 @@ const CandidatesPage: React.FC<CandidatesPageProps> = ({ navigate }) => {
     const [loadingProfile, setLoadingProfile] = useState(false);
 
     useEffect(() => {
-        const token = localStorage.getItem('authToken');
-        fetch(`${API_BASE}/admin/users?role=student&limit=50`, {
-            headers: { Authorization: `Bearer ${token}` }
-        })
-            .then(r => r.json())
+        fetchWithAuth(`${API_BASE}/admin/users?role=student&limit=50`)
             .then(data => {
                 const users = Array.isArray(data) ? data : (data.users || []);
                 setCandidates(users.filter((u: any) => u.role === 'student' || u.isStudent));
@@ -48,12 +45,8 @@ const CandidatesPage: React.FC<CandidatesPageProps> = ({ navigate }) => {
     const openProfile = async (candidate: Candidate) => {
         setViewingProfile(candidate);
         setLoadingProfile(true);
-        const token = localStorage.getItem('authToken');
         try {
-            const r = await fetch(`${API_BASE}/users/${candidate.id}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            const data = await r.json();
+            const data = await fetchWithAuth(`${API_BASE}/users/${candidate.id}`);
             setViewingStats(data.stats);
         } catch {
             setViewingStats(null);

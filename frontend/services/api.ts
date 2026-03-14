@@ -1,36 +1,44 @@
-const API_BASE_URL = (import.meta.env.VITE_API_BASE as string) || 'http://localhost:3001/api';
+// ✅ FIXED: fetchWithAuth no longer force-sets Content-Type for FormData
+//           (browser must set it with boundary for multipart uploads to work)
+// ✅ FIXED: All direct fetch() calls in admin/candidates pages should use these helpers
 
-// Helper function to get auth token
-const getAuthToken = (): string | null => {
-  return localStorage.getItem('authToken');
-};
+const API_BASE_URL =
+  (import.meta.env.VITE_API_BASE as string) || 'http://localhost:3001/api';
 
-// Helper function to make authenticated requests
-const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
+export { API_BASE_URL };
+
+const getAuthToken = (): string | null => localStorage.getItem('authToken');
+
+// ✅ FIXED: Don't set Content-Type when body is FormData — browser handles it
+export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   const token = getAuthToken();
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    ...options.headers,
-  };
+  const isFormData = options.body instanceof FormData;
+
+  const headers: Record<string, string> = {};
+
+  if (!isFormData) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  // Merge caller headers (caller can override Content-Type if needed)
+  const mergedHeaders = { ...headers, ...(options.headers as Record<string, string> || {}) };
+
+  const response = await fetch(url, { ...options, headers: mergedHeaders });
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Request failed' }));
-    throw new Error(error.error || 'Request failed');
+    throw new Error(error.error || `Request failed with status ${response.status}`);
   }
 
   return response.json();
 };
 
-// Auth API
+// ─── Auth API ─────────────────────────────────────────────────────────────────
+
 export const authAPI = {
   register: async (data: {
     email: string;
@@ -46,8 +54,6 @@ export const authAPI = {
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Registration failed');
-
-    // Store token
     if (result.token) {
       localStorage.setItem('authToken', result.token);
       localStorage.setItem('user', JSON.stringify(result.user));
@@ -63,8 +69,6 @@ export const authAPI = {
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Login failed');
-
-    // Store token
     if (result.token) {
       localStorage.setItem('authToken', result.token);
       localStorage.setItem('user', JSON.stringify(result.user));
@@ -80,8 +84,6 @@ export const authAPI = {
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Google login failed');
-
-    // Store token
     if (result.token) {
       localStorage.setItem('authToken', result.token);
       localStorage.setItem('user', JSON.stringify(result.user));
@@ -94,9 +96,7 @@ export const authAPI = {
     localStorage.removeItem('user');
   },
 
-  getCurrentUser: async () => {
-    return fetchWithAuth(`${API_BASE_URL}/auth/me`);
-  },
+  getCurrentUser: async () => fetchWithAuth(`${API_BASE_URL}/auth/me`),
 
   forgotPassword: async (email: string) => {
     const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
@@ -108,219 +108,175 @@ export const authAPI = {
   },
 };
 
-// Videos API
-export const videosAPI = {
-  getAll: async () => {
-    return fetchWithAuth(`${API_BASE_URL}/videos`);
-  },
+// ─── Videos API ───────────────────────────────────────────────────────────────
 
-  getMyVideos: async () => {
-    return fetchWithAuth(`${API_BASE_URL}/videos/my-videos`);
-  },
+export const videosAPI = {
+  getAll: async () => fetchWithAuth(`${API_BASE_URL}/videos`),
+
+  getMyVideos: async () => fetchWithAuth(`${API_BASE_URL}/videos/my-videos`),
 
   upload: async (formData: FormData) => {
-    const token = getAuthToken();
-    try {
-      const response = await fetch(`${API_BASE_URL}/videos`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const result = await response.json().catch(() => ({ error: 'Upload failed' }));
-        throw new Error(result.error || `Upload failed with status ${response.status}`);
-      }
-
-      return await response.json();
-    } catch (error: any) {
-      if (error.message.includes('Failed to fetch') || error.message.includes('ERR_CONNECTION_RESET')) {
-        throw new Error('Connection to server failed. Please check if the backend is running.');
-      }
-      throw error;
-    }
+    // ✅ Pass FormData directly — fetchWithAuth handles Content-Type correctly
+    return fetchWithAuth(`${API_BASE_URL}/videos`, { method: 'POST', body: formData });
   },
 
-  delete: async (videoId: string) => {
-    return fetchWithAuth(`${API_BASE_URL}/videos/${videoId}`, {
-      method: 'DELETE',
-    });
-  },
+  delete: async (videoId: string) =>
+    fetchWithAuth(`${API_BASE_URL}/videos/${videoId}`, { method: 'DELETE' }),
 
-  incrementView: async (videoId: string) => {
-    return fetchWithAuth(`${API_BASE_URL}/videos/${videoId}/view`, {
-      method: 'PATCH',
-    });
-  },
+  incrementView: async (videoId: string) =>
+    fetchWithAuth(`${API_BASE_URL}/videos/${videoId}/view`, { method: 'PATCH' }),
 };
 
-// Jobs API
+// ─── Jobs API ─────────────────────────────────────────────────────────────────
+
 export const jobsAPI = {
   getAll: async (filters?: { category?: string; type?: string; location?: string }) => {
     const params = new URLSearchParams();
     if (filters?.category) params.append('category', filters.category);
     if (filters?.type) params.append('type', filters.type);
     if (filters?.location) params.append('location', filters.location);
-
-    const url = `${API_BASE_URL}/jobs${params.toString() ? `?${params.toString()}` : ''}`;
-    return fetchWithAuth(url);
+    const qs = params.toString();
+    return fetchWithAuth(`${API_BASE_URL}/jobs${qs ? `?${qs}` : ''}`);
   },
 
-  getMyJobs: async () => {
-    return fetchWithAuth(`${API_BASE_URL}/jobs/my-jobs`);
-  },
+  getMyJobs: async () => fetchWithAuth(`${API_BASE_URL}/jobs/my-jobs`),
 
-  getById: async (jobId: string) => {
-    return fetchWithAuth(`${API_BASE_URL}/jobs/${jobId}`);
-  },
+  getById: async (jobId: string) => fetchWithAuth(`${API_BASE_URL}/jobs/${jobId}`),
 
-  create: async (jobData: any) => {
-    return fetchWithAuth(`${API_BASE_URL}/jobs`, {
-      method: 'POST',
-      body: JSON.stringify(jobData),
-    });
-  },
+  create: async (jobData: any) =>
+    fetchWithAuth(`${API_BASE_URL}/jobs`, { method: 'POST', body: JSON.stringify(jobData) }),
 
-  update: async (jobId: string, jobData: any) => {
-    return fetchWithAuth(`${API_BASE_URL}/jobs/${jobId}`, {
+  update: async (jobId: string, jobData: any) =>
+    fetchWithAuth(`${API_BASE_URL}/jobs/${jobId}`, {
       method: 'PUT',
       body: JSON.stringify(jobData),
-    });
-  },
+    }),
 
-  updateEngagement: async (jobId: string, data: { likes?: number; comments?: number; shares?: number }) => {
-    return fetchWithAuth(`${API_BASE_URL}/jobs/${jobId}/engagement`, {
+  updateEngagement: async (
+    jobId: string,
+    data: { likes?: number; comments?: number; shares?: number }
+  ) =>
+    fetchWithAuth(`${API_BASE_URL}/jobs/${jobId}/engagement`, {
       method: 'PATCH',
       body: JSON.stringify(data),
-    });
-  },
+    }),
 };
 
-// Applications API
+// ─── Applications API ─────────────────────────────────────────────────────────
+
 export const applicationsAPI = {
-  getMyApplications: async () => {
-    return fetchWithAuth(`${API_BASE_URL}/applications/my-applications`);
-  },
+  getMyApplications: async () =>
+    fetchWithAuth(`${API_BASE_URL}/applications/my-applications`),
+
+  getJobApplications: async (jobId: string) =>
+    fetchWithAuth(`${API_BASE_URL}/applications/job/${jobId}`),
 
   create: async (applicationData: {
     jobId: string;
     coverLetter?: string;
     resumeUrl?: string;
     videoUrl?: string;
-  }) => {
-    return fetchWithAuth(`${API_BASE_URL}/applications`, {
+  }) =>
+    fetchWithAuth(`${API_BASE_URL}/applications`, {
       method: 'POST',
       body: JSON.stringify(applicationData),
-    });
-  },
+    }),
 
-  updateStatus: async (applicationId: string, status: string) => {
-    return fetchWithAuth(`${API_BASE_URL}/applications/${applicationId}/status`, {
+  updateStatus: async (applicationId: string, status: string) =>
+    fetchWithAuth(`${API_BASE_URL}/applications/${applicationId}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
-    });
-  },
+    }),
 };
 
-// Messages API
+// ─── Messages API ─────────────────────────────────────────────────────────────
+
 export const messagesAPI = {
-  getThreads: async () => {
-    return fetchWithAuth(`${API_BASE_URL}/messages/threads`);
-  },
+  getThreads: async () => fetchWithAuth(`${API_BASE_URL}/messages/threads`),
 
-  getThread: async (userId: string) => {
-    return fetchWithAuth(`${API_BASE_URL}/messages/threads/${userId}`);
-  },
+  getThread: async (userId: string) =>
+    fetchWithAuth(`${API_BASE_URL}/messages/threads/${userId}`),
 
-  send: async (receiverId: string, message: string) => {
-    return fetchWithAuth(`${API_BASE_URL}/messages`, {
+  send: async (receiverId: string, message: string) =>
+    fetchWithAuth(`${API_BASE_URL}/messages`, {
       method: 'POST',
       body: JSON.stringify({ receiverId, message }),
-    });
-  },
+    }),
 };
 
-// Notifications API
+// ─── Notifications API ────────────────────────────────────────────────────────
+
 export const notificationsAPI = {
-  getAll: async () => {
-    return fetchWithAuth(`${API_BASE_URL}/notifications`);
-  },
+  getAll: async () => fetchWithAuth(`${API_BASE_URL}/notifications`),
 
-  markAsRead: async (notificationId: string) => {
-    return fetchWithAuth(`${API_BASE_URL}/notifications/${notificationId}/read`, {
+  markAsRead: async (notificationId: string) =>
+    fetchWithAuth(`${API_BASE_URL}/notifications/${notificationId}/read`, {
       method: 'PATCH',
-    });
-  },
+    }),
 
-  markAllAsRead: async () => {
-    return fetchWithAuth(`${API_BASE_URL}/notifications/read-all`, {
-      method: 'PATCH',
-    });
-  },
+  markAllAsRead: async () =>
+    fetchWithAuth(`${API_BASE_URL}/notifications/read-all`, { method: 'PATCH' }),
 };
 
-// Users API
+// ─── Users API ────────────────────────────────────────────────────────────────
+
 export const usersAPI = {
-  search: async (query: string) => {
-    return fetchWithAuth(`${API_BASE_URL}/users/search?q=${encodeURIComponent(query)}`);
-  },
+  search: async (query: string) =>
+    fetchWithAuth(`${API_BASE_URL}/users/search?q=${encodeURIComponent(query)}`),
 
-  getProfile: async (userId: string) => {
-    return fetchWithAuth(`${API_BASE_URL}/users/${userId}`);
-  },
+  getProfile: async (userId: string) =>
+    fetchWithAuth(`${API_BASE_URL}/users/${userId}`),
 
-  updateProfile: async (userId: string, formData: FormData) => {
-    const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      body: formData,
-    });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'Update failed');
-    return result;
-  },
+  updateProfile: async (userId: string, formData: FormData) =>
+    fetchWithAuth(`${API_BASE_URL}/users/${userId}`, { method: 'PATCH', body: formData }),
 
-  updateImages: async (userId: string, data: { avatarUrl?: string; bannerUrl?: string }) => {
-    return fetchWithAuth(`${API_BASE_URL}/users/${userId}/images`, {
+  updateImages: async (userId: string, data: { avatarUrl?: string; bannerUrl?: string }) =>
+    fetchWithAuth(`${API_BASE_URL}/users/${userId}/images`, {
       method: 'PATCH',
       body: JSON.stringify(data),
-    });
-  },
+    }),
 };
 
-// Images API
+// ─── Images API ───────────────────────────────────────────────────────────────
+
 export const imagesAPI = {
-  generateAvatar: async (userId: string, userName: string) => {
-    return fetchWithAuth(`${API_BASE_URL}/images/avatar/${userId}?name=${encodeURIComponent(userName)}`);
-  },
+  generateAvatar: async (userId: string, userName: string) =>
+    fetchWithAuth(
+      `${API_BASE_URL}/images/avatar/${userId}?name=${encodeURIComponent(userName)}`
+    ),
 
-  generateBanner: async (userId: string) => {
-    return fetchWithAuth(`${API_BASE_URL}/images/banner/${userId}`);
-  },
+  generateBanner: async (userId: string) =>
+    fetchWithAuth(`${API_BASE_URL}/images/banner/${userId}`),
 };
 
-// Categories API
+// ─── Categories API ───────────────────────────────────────────────────────────
+
 export const categoriesAPI = {
-  getAll: async () => {
-    return fetchWithAuth(`${API_BASE_URL}/categories`);
-  },
+  getAll: async () => fetchWithAuth(`${API_BASE_URL}/categories`),
 };
 
-// Shorts API
-export const shortsAPI = {
-  getFeed: async () => {
-    return fetchWithAuth(`${API_BASE_URL}/shorts/feed`);
-  },
+// ─── Shorts API ───────────────────────────────────────────────────────────────
 
-  generateAI: async (data: { prompt: string; title?: string; description?: string }) => {
-    return fetchWithAuth(`${API_BASE_URL}/shorts/generate`, {
+export const shortsAPI = {
+  getFeed: async () => fetchWithAuth(`${API_BASE_URL}/shorts/feed`),
+
+  generateAI: async (data: { prompt: string; title?: string; description?: string }) =>
+    fetchWithAuth(`${API_BASE_URL}/shorts/generate`, {
       method: 'POST',
       body: JSON.stringify(data),
-    });
+    }),
+};
+
+// ─── Admin API — ✅ FIXED: now uses fetchWithAuth instead of raw fetch ─────────
+
+export const adminAPI = {
+  getUsers: async (role?: string) => {
+    const qs = role ? `?role=${role}` : '';
+    return fetchWithAuth(`${API_BASE_URL}/admin/users${qs}`);
   },
+
+  getApplications: async () => fetchWithAuth(`${API_BASE_URL}/admin/applications`),
+
+  getUserWithApplications: async (userId: string) =>
+    fetchWithAuth(`${API_BASE_URL}/admin/users/${userId}`),
 };

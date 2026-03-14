@@ -1,14 +1,15 @@
-import type { ReactNode } from 'react';
+// ✅ FIXED: All IDs changed from number → string to match MongoDB ObjectId
+// ✅ FIXED: Removed ReactNode from Job.logo (was breaking localStorage serialization)
 
-export type Page = 
-  | 'login' 
-  | 'signup' 
-  | 'forgot_password' 
-  | 'dashboard' 
-  | 'shorts' 
-  | 'jobs' 
-  | 'profile' 
-  | 'messages' 
+export type Page =
+  | 'login'
+  | 'signup'
+  | 'forgot_password'
+  | 'dashboard'
+  | 'shorts'
+  | 'jobs'
+  | 'profile'
+  | 'messages'
   | 'notifications'
   | 'upload_video'
   | 'job_application'
@@ -18,9 +19,9 @@ export type Page =
   | 'candidates';
 
 export interface User {
-  id: number;
+  id: string; // ✅ was: number
   name: string;
-  avatarUrl: string;
+  avatarUrl?: string;
   title?: string;
 }
 
@@ -35,11 +36,11 @@ export interface CompanyBrief {
 }
 
 export interface Job {
-  id: number;
+  id: string; // ✅ was: number — MongoDB returns string ObjectIds
   title: string;
   company: string;
-  // FIX: Replaced React.ReactNode with imported ReactNode to fix missing namespace error.
-  logo: ReactNode;
+  // ✅ FIXED: Removed logo: ReactNode — ReactNode can't be serialized to localStorage
+  // Logo is now derived from company name initials in the UI
   location: string;
   type: 'Remote' | 'On-site' | 'Hybrid';
   city?: string;
@@ -57,7 +58,7 @@ export interface Job {
 }
 
 export interface ShortVideo {
-  id: number;
+  id: string; // ✅ was: number
   title: string;
   author: User;
   thumbnailUrl: string;
@@ -67,7 +68,7 @@ export interface ShortVideo {
 }
 
 export interface MessageThread {
-  id: number;
+  id: string; // ✅ was: number
   user: User;
   lastMessage: string;
   timestamp: string;
@@ -76,24 +77,40 @@ export interface MessageThread {
 }
 
 export interface Notification {
-  id: number;
-  // FIX: Replaced React.ReactNode with imported ReactNode to fix missing namespace error.
-  icon: ReactNode;
-  // FIX: Replaced React.ReactNode with imported ReactNode to fix missing namespace error.
-  text: ReactNode;
+  id: string; // ✅ was: number
+  type?: string;
+  title?: string;
+  // ✅ FIXED: text is now string (not ReactNode) so it can be serialized safely
+  text: string;
   time: string;
+  isRead?: boolean;
 }
 
 export interface Category {
-  id: number;
+  id: string; // ✅ was: number
   name: string;
 }
 
-export type ApplicationStatus = 'Applied' | 'Interviewing' | 'Offer Received' | 'Rejected';
+export type ApplicationStatus =
+  | 'Applied'
+  | 'Interviewing'
+  | 'Offer Received'
+  | 'Rejected'
+  | 'pending'
+  | 'reviewing'
+  | 'shortlisted'
+  | 'accepted'
+  | 'rejected';
 
 export interface Application {
-  id: number;
-  job: Job;
-  dateApplied: string;
+  id: string; // ✅ was: number
+  _id?: string;
+  job?: Job;
+  jobId?: Job; // populated by backend
+  dateApplied?: string;
+  createdAt?: string;
   status: ApplicationStatus;
+  coverLetter?: string;
+  resumeUrl?: string;
+  videoUrl?: string;
 }

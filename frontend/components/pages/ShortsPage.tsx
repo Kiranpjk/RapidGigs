@@ -52,7 +52,7 @@ const ShortCard: React.FC<ShortCardProps> = ({
     const containerRef = useRef<HTMLDivElement>(null);
 
     // ✅ Hook called at component top-level — this is now legal
-    const swipeState = useSwipeGesture(containerRef, {
+    const swipeState = useSwipeGesture(containerRef as React.RefObject<HTMLElement>, {
         onSwipeLeft: () => {
             if (onNavigateToJobDetail) onNavigateToJobDetail(item.id);
         },

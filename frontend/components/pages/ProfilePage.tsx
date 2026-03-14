@@ -28,6 +28,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
     const { user, refreshUser } = useAuth();
     const { applications: contextApplications, savedJobs, unsaveJob } = useJobs();
     const { modalState, showConfetti, showAlert, showConfirm, showSuccess, closeModal, closeConfetti } = useModal();
+    const BASE_URL = import.meta.env.VITE_API_BASE?.replace('/api', '') || 'http://localhost:3001';
+    const getMediaUrl = (url?: string) => url ? (url.startsWith('http') ? url : `${BASE_URL}${url}`) : '';
     const [applications, setApplications] = useState<Application[]>([]);
     const [myVideos, setMyVideos] = useState<any[]>([]);
     const [stats, setStats] = useState({
@@ -63,7 +65,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
             'from-teal-500 to-green-600',
         ];
         // Use user.id or generate from name if id is not available
-        const seed = user.id || user.name.charCodeAt(0) || 1;
+        const seed = user.id ? parseInt(String(user.id).substring(String(user.id).length - 6), 16) || user.name.charCodeAt(0) : user.name.charCodeAt(0) || 1;
         const index = seed % gradients.length;
         console.log('Banner - User ID:', user.id, 'Seed:', seed, 'Index:', index, 'Gradient:', gradients[index]);
         return gradients[index];
@@ -74,7 +76,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
         if (!user) return '6366f1';
         const colors = ['6366f1', '3b82f6', '8b5cf6', '10b981', 'f59e0b', 'ef4444', 'ec4899', '14b8a6'];
         // Use user.id or generate from name if id is not available
-        const seed = user.id || user.name.charCodeAt(0) || 1;
+        const seed = user.id ? parseInt(String(user.id).substring(String(user.id).length - 6), 16) || user.name.charCodeAt(0) : user.name.charCodeAt(0) || 1;
         const index = seed % colors.length;
         const color = colors[index];
         console.log('Avatar - User ID:', user.id, 'Seed:', seed, 'Index:', index, 'Color:', color);
@@ -119,6 +121,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
                     applicationsSent: contextApplications.length || 0,
                     jobsPosted: 0,
                     videosUploaded: 0,
+                    applicationsReceived: 0,
                 });
             } catch (error) {
                 console.error('Error loading profile data:', error);
@@ -128,6 +131,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
                     applicationsSent: contextApplications.length,
                     jobsPosted: 0,
                     videosUploaded: 0,
+                    applicationsReceived: 0,
                 });
             } finally {
                 setIsLoading(false);
@@ -457,9 +461,19 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
                                         </div>
                                         <div className="flex gap-3">
                                             <button
-                                                onClick={() => {
-                                                    showSuccess('Profile Updated!', 'Your profile information has been saved successfully.');
-                                                    setIsEditingProfile(false);
+                                                onClick={async () => {
+                                                    try {
+                                                        const formData = new FormData();
+                                                        formData.append('name', editedName);
+                                                        formData.append('title', editedTitle);
+                                                        await usersAPI.updateProfile(user.id, formData);
+                                                        await refreshUser();
+                                                        showSuccess('Profile Updated!', 'Your profile information has been saved successfully.');
+                                                        setIsEditingProfile(false);
+                                                    } catch (error) {
+                                                        console.error('Save profile error:', error);
+                                                        showAlert('Error', 'Failed to save profile. Please try again.', 'danger');
+                                                    }
                                                 }}
                                                 className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-6 rounded-lg"
                                             >
@@ -612,7 +626,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
                                                 {myVideos.map((video) => (
                                                     <div key={video._id} className="bg-slate-50 dark:bg-slate-800/50 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700">
                                                         <div className="relative aspect-video bg-slate-200 dark:bg-slate-700">
-                                                            <video src={`https://rapidgigs.onrender.com${video.videoUrl}`} controls className="w-full h-full object-cover" poster={video.thumbnailUrl ? `https://rapidgigs.onrender.com${video.thumbnailUrl}` : undefined} />
+                                                            <video src={getMediaUrl(video.videoUrl)} controls className="w-full h-full object-cover" poster={video.thumbnailUrl ? getMediaUrl(video.thumbnailUrl) : undefined} />
                                                         </div>
                                                         <div className="p-4">
                                                             <h3 className="font-semibold text-slate-800 dark:text-white">{video.title}</h3>
@@ -650,7 +664,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
                                                 {myVideos.map((video) => (
                                                     <div key={video._id} className="bg-slate-50 dark:bg-slate-800/50 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700">
                                                         <div className="relative aspect-video bg-slate-200 dark:bg-slate-700">
-                                                            <video src={`https://rapidgigs.onrender.com${video.videoUrl}`} controls className="w-full h-full object-cover" poster={video.thumbnailUrl ? `https://rapidgigs.onrender.com${video.thumbnailUrl}` : undefined} />
+                                                            <video src={getMediaUrl(video.videoUrl)} controls className="w-full h-full object-cover" poster={video.thumbnailUrl ? getMediaUrl(video.thumbnailUrl) : undefined} />
                                                         </div>
                                                         <div className="p-4">
                                                             <div className="flex justify-between items-start mb-1">
@@ -747,11 +761,11 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
                                                 </thead>
                                                 <tbody>
                                                     {applications.map((app) => {
-                                                        const company = app.job?.company || app.jobId?.company || '—';
-                                                        const title = app.job?.title || app.jobId?.title || '—';
-                                                        const date = app.dateApplied || app.createdAt || new Date().toISOString();
+                                                        const company = app.job?.company || (app as any).jobId?.company || '—';
+                                                        const title = app.job?.title || (app as any).jobId?.title || '—';
+                                                        const date = app.dateApplied || (app as any).createdAt || new Date().toISOString();
                                                         return (
-                                                            <tr key={app.id || app._id} className="border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/70">
+                                                            <tr key={app.id || (app as any)._id} className="border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/70">
                                                                 <th scope="row" className="px-6 py-4 font-medium text-slate-900 dark:text-white whitespace-nowrap">{company}</th>
                                                                 <td className="px-6 py-4">{title}</td>
                                                                 <td className="px-6 py-4">{new Date(date).toLocaleDateString()}</td>
