@@ -1,5 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+
+// Prevent Google GSI from being initialized multiple times
+let googleInitialized = false;
 import { Page } from '../../types';
 import { GoogleIcon, EnvelopeIcon, LogoIcon, LockClosedIcon, UserIcon, ArrowRightIcon, PaperAirplaneIcon } from '../icons/Icons';
 import { useAuth } from '../../context/AuthContext';
@@ -171,26 +174,28 @@ const LoginForm = ({ onSignUpClick, onForgotPasswordClick, onLoginSuccess } : { 
 
     // Initialize Google Sign-In with renderButton (CORRECT METHOD)
     useEffect(() => {
-        if (typeof window !== 'undefined' && (window as any).google) {
-            /* global google */
-            (window as any).google.accounts.id.initialize({
-                client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '186450415044-kmkrm11pkbehl8cguh1eear332jo6l24.apps.googleusercontent.com',
-                callback: handleGoogleResponse,
-            });
-
-            const googleBtnElement = document.getElementById('googleLoginBtn');
-            if (googleBtnElement) {
-                (window as any).google.accounts.id.renderButton(
-                    googleBtnElement,
-                    { 
-                        theme: 'outline', 
-                        size: 'large',
-                        width: '100%',
-                        text: 'continue_with',
-                    }
-                );
+        const tryInit = () => {
+            if (typeof window !== 'undefined' && (window as any).google) {
+                if (!googleInitialized) {
+                    (window as any).google.accounts.id.initialize({
+                        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '186450415044-kmkrm11pkbehl8cguh1eear332jo6l24.apps.googleusercontent.com',
+                        callback: handleGoogleResponse,
+                    });
+                    googleInitialized = true;
+                }
+                const googleBtnElement = document.getElementById('googleLoginBtn');
+                if (googleBtnElement) {
+                    (window as any).google.accounts.id.renderButton(
+                        googleBtnElement,
+                        { theme: 'outline', size: 'large', width: 380, text: 'continue_with' }
+                    );
+                }
+            } else {
+                // GSI script not yet loaded — retry after 300ms
+                setTimeout(tryInit, 300);
             }
-        }
+        };
+        tryInit();
     }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -276,11 +281,18 @@ const SignUpForm = ({ onLoginClick, onSignUpSuccess }: { onLoginClick: () => voi
 
     const handleGoogleResponse = async (response: any) => {
         setError('');
+
+        // Require role selection before Google sign-up
+        if (!isStudent && !isRecruiter) {
+            setError('Please select your role (Student or Recruiter) before signing up with Google.');
+            return;
+        }
+
         setIsLoading(true);
 
         try {
             console.log('JWT token:', response.credential);
-            await googleLogin(response.credential);
+            await googleLogin(response.credential, isRecruiter);
             onSignUpSuccess();
         } catch (err: any) {
             setError(err.message || 'Google sign up failed.');
@@ -291,26 +303,27 @@ const SignUpForm = ({ onLoginClick, onSignUpSuccess }: { onLoginClick: () => voi
 
     // Initialize Google Sign-In with renderButton (CORRECT METHOD)
     useEffect(() => {
-        if (typeof window !== 'undefined' && (window as any).google) {
-            /* global google */
-            (window as any).google.accounts.id.initialize({
-                client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '186450415044-kmkrm11pkbehl8cguh1eear332jo6l24.apps.googleusercontent.com',
-                callback: handleGoogleResponse,
-            });
-
-            const googleBtnElement = document.getElementById('googleSignupBtn');
-            if (googleBtnElement) {
-                (window as any).google.accounts.id.renderButton(
-                    googleBtnElement,
-                    { 
-                        theme: 'outline', 
-                        size: 'large',
-                        width: '100%',
-                        text: 'signup_with',
-                    }
-                );
+        const tryInit = () => {
+            if (typeof window !== 'undefined' && (window as any).google) {
+                if (!googleInitialized) {
+                    (window as any).google.accounts.id.initialize({
+                        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '186450415044-kmkrm11pkbehl8cguh1eear332jo6l24.apps.googleusercontent.com',
+                        callback: handleGoogleResponse,
+                    });
+                    googleInitialized = true;
+                }
+                const googleBtnElement = document.getElementById('googleSignupBtn');
+                if (googleBtnElement) {
+                    (window as any).google.accounts.id.renderButton(
+                        googleBtnElement,
+                        { theme: 'outline', size: 'large', width: 380, text: 'signup_with' }
+                    );
+                }
+            } else {
+                setTimeout(tryInit, 300);
             }
-        }
+        };
+        tryInit();
     }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {

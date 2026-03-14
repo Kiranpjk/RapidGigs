@@ -1,10 +1,12 @@
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { config } from './config/env';
 import { errorHandler } from './middleware/errorhandling';
 import { connectDatabase } from './config/database';
+import { initCloudinary } from './services/cloudinary';
 
 // Routes
 import authRoutes from './routes/auth';
@@ -30,9 +32,19 @@ const io = new Server(httpServer, {
 });
 
 // Middleware
-app.use(cors({ origin: config.cors.origin }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(cors({
+  origin: config.cors.origin,
+  credentials: true,           // Allow cookies cross-origin
+}));
+app.use(cookieParser());       // Parse httpOnly cookies
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Fix Cross-Origin-Opener-Policy for Google OAuth popup/redirect
+app.use((_req, res, next) => {
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+  next();
+});
 
 // Serve uploaded files
 app.use('/uploads', express.static('uploads'));
@@ -85,10 +97,12 @@ io.on('connection', (socket) => {
 // Start server
 const startServer = async () => {
   try {
+    // Init cloud services
+    initCloudinary();
+
     await connectDatabase();
     httpServer.listen(config.port, () => {
-      console.log(`Server running on http://localhost:${config.port}`);
-      console.log(`Environment: ${config.nodeEnv}`);
+      console.log(`✅ Server running on http://localhost:${config.port}`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);

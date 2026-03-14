@@ -1,20 +1,34 @@
-# Core ML Libraries
-torch
-torchvision
-torchaudio
+# ============================================================
+# Helios Video Generation Service — Requirements
+# Install PyTorch FIRST with CUDA support (run setup.bat)
+# ============================================================
+
+# PyTorch with CUDA — installed separately via setup.bat
+# (Listed here for reference only, do not pip install this file directly)
+# torch==2.3.0+cu121
+# torchvision==0.18.0+cu121
+
+# Helios uses the latest diffusers (must be installed from source)
 git+https://github.com/huggingface/diffusers.git
-transformers
-accelerate
+
+# HuggingFace ecosystem
+transformers>=4.40.0
+accelerate>=0.30.0
 sentencepiece
 safetensors
 protobuf
 
-# API & Utils
-fastapi
-uvicorn[standard]
-pydantic
+# API server
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+pydantic>=2.0.0
 python-multipart
+
+# Video processing
 numpy
-opencv-python-headless
 imageio[ffmpeg]
+moviepy
+
+# Utilities
 python-dotenv
+huggingface_hub

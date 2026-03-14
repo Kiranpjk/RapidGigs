@@ -1,48 +1,52 @@
 import multer from 'multer';
-import { config } from '../config/env';
 import * as path from 'path';
 import * as fs from 'fs';
+import { config } from '../config/env';
 
-// Use memory storage to avoid file system issues
-const storage = multer.memoryStorage();
-
+// ─── File type filter ───────────────────────────────────────────────────────
 const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   if (file.fieldname === 'video') {
-    const allowedTypes = /mp4|mov|avi|webm/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
-    if (extname && mimetype) {
+    const allowed = /mp4|mov|avi|webm/;
+    if (allowed.test(path.extname(file.originalname).toLowerCase()) && allowed.test(file.mimetype)) {
       return cb(null, true);
     }
-    cb(new Error('Only video files are allowed'));
-  } else if (file.fieldname === 'resume') {
-    const allowedTypes = /pdf|doc|docx/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    if (extname) {
-      return cb(null, true);
-    }
-    cb(new Error('Only PDF, DOC, or DOCX files are allowed'));
-  } else {
-    cb(null, true);
+    return cb(new Error('Only video files (MP4, MOV, AVI, WEBM) are allowed'));
   }
+
+  if (file.fieldname === 'resume') {
+    const allowed = /pdf|doc|docx/;
+    if (allowed.test(path.extname(file.originalname).toLowerCase())) {
+      return cb(null, true);
+    }
+    return cb(new Error('Only PDF, DOC, or DOCX resumes are allowed'));
+  }
+
+  // Images and anything else
+  cb(null, true);
 };
 
-let uploadMiddleware: multer.Multer;
+// ─── Always use memory storage ───────────────────────────────────────────────
+// We read req.file.buffer in the route and either:
+//   • upload to Cloudinary  (production / when CLOUDINARY_* env vars set)
+//   • write to local disk   (development fallback)
+export const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: config.upload.maxFileSize },
+  fileFilter,
+});
 
-try {
-  uploadMiddleware = multer({
-    storage,
-    limits: {
-      fileSize: config.upload.maxFileSize,
-    },
-    fileFilter,
-  });
-} catch (error) {
-  console.error('Error creating multer instance:', error);
-  // Fallback to basic multer
-  uploadMiddleware = multer({
-    dest: './uploads',
-  });
-}
+// ─── Local-disk fallback helper ──────────────────────────────────────────────
+export const saveToLocalDisk = (
+  buffer: Buffer,
+  subdir: string,         // e.g. 'videos' | 'resumes'
+  originalName: string
+): string => {
+  const uploadsRoot = path.join(process.cwd(), 'uploads', subdir);
+  if (!fs.existsSync(uploadsRoot)) fs.mkdirSync(uploadsRoot, { recursive: true });
 
-export const upload = uploadMiddleware;
+  const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(originalName)}`;
+  const filePath = path.join(uploadsRoot, uniqueName);
+  fs.writeFileSync(filePath, buffer);
+
+  return `/uploads/${subdir}/${uniqueName}`;  // relative URL served by Express static
+};

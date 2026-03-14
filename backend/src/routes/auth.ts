@@ -6,15 +6,22 @@ import { generateToken } from '../utils/jwt';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { getPermissionsForRole } from '../config/permissions';
 import { OAuth2Client } from 'google-auth-library';
+import { config } from '../config/env';
+
+/** Helper — set the JWT as an httpOnly cookie */
+const setTokenCookie = (res: express.Response, token: string) => {
+  res.cookie('token', token, {
+    httpOnly: config.cookie.httpOnly,
+    secure: config.cookie.secure,
+    sameSite: config.cookie.sameSite,
+    maxAge: config.cookie.maxAge,
+  });
+};
 
 const router = express.Router();
 
-// Initialize Google OAuth client
-const googleClient = new OAuth2Client(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5173'
-);
+// Initialize Google OAuth client (only client_id needed for ID token verification)
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // Register
 router.post(
@@ -61,6 +68,9 @@ router.post(
       });
 
       const token = generateToken({ userId: user._id.toString(), email: user.email });
+
+      // Set httpOnly cookie (production) + return token in body (dev / mobile)
+      setTokenCookie(res, token);
 
       res.status(201).json({
         user: {
@@ -112,6 +122,9 @@ router.post(
 
       const token = generateToken({ userId: user._id.toString(), email: user.email });
 
+      // Set httpOnly cookie (production) + return token in body (dev / mobile)
+      setTokenCookie(res, token);
+
       res.json({
         user: {
           id: user._id.toString(),
@@ -132,6 +145,16 @@ router.post(
     }
   }
 );
+
+// Logout — clear cookie
+router.post('/logout', (_req, res) => {
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure: config.cookie.secure,
+    sameSite: config.cookie.sameSite,
+  });
+  res.json({ message: 'Logged out successfully' });
+});
 
 // Get current user
 router.get('/me', authenticate, async (req: AuthRequest, res) => {
@@ -204,13 +227,14 @@ router.post('/google', async (req: express.Request, res: express.Response) => {
     }
 
     const { email, name, picture, sub: googleId } = payload;
+    const isRecruiter = req.body.isRecruiter === true;
 
     // Check if user exists
     let user = await UserModel.findByEmail(email);
 
     if (!user) {
-      // Create new user
-      const role = 'student'; // Default role for Google sign-ups
+      // Create new user — use role passed from the signup form
+      const role = isRecruiter ? 'recruiter' : 'student';
       const permissions = getPermissionsForRole(role);
 
       user = await UserModel.create({
@@ -218,8 +242,8 @@ router.post('/google', async (req: express.Request, res: express.Response) => {
         password: await hashPassword(googleId), // Use Google ID as password (won't be used)
         name: name || email.split('@')[0],
         avatarUrl: picture,
-        isStudent: true,
-        isRecruiter: false,
+        isStudent: !isRecruiter,
+        isRecruiter,
         role,
         permissions,
         isActive: true,

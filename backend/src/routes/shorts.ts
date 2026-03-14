@@ -154,41 +154,120 @@ router.post('/generate', authenticate, async (req: AuthRequest, res) => {
     return res.status(400).json({ error: 'Prompt is required' });
   }
 
+  const HELIOS_URL = process.env.HELIOS_SERVICE_URL || 'http://localhost:8000';
+  const FAL_KEY    = process.env.FAL_KEY || '';
+
+  let videoUrl: string | null = null;
+  let provider = '';
+
+  // ── 1. Try Helios (local GPU) first ───────────────────────────────────────
   try {
-    const HELIOS_SERVICE_URL = process.env.HELIOS_SERVICE_URL || 'http://localhost:8000';
-    
-    // Call Helios Microservice
-    const response = await axios.post(`${HELIOS_SERVICE_URL}/generate`, {
-      prompt,
-      num_frames: 132 // Helios multiple of 33
-    });
+    console.log('🎬 Trying Helios at', HELIOS_URL);
+    const heliosRes = await axios.post(
+      `${HELIOS_URL}/generate`,
+      { prompt, num_frames: 136 },
+      { timeout: 600_000 } // 10 min timeout for GPU generation
+    );
+    videoUrl = heliosRes.data.video_url;
+    // If video_url is relative (e.g. /videos/abc.mp4), make it absolute
+    if (videoUrl && videoUrl.startsWith('/')) {
+      videoUrl = `${HELIOS_URL}${videoUrl}`;
+    }
+    provider = 'helios';
+    console.log('✅ Helios generated:', videoUrl);
 
-    const { video_url } = response.data;
+  } catch (heliosErr: any) {
+    console.warn('⚠️  Helios unavailable:', heliosErr.message);
 
-    // Create a new Short Video entry in DB
-    const newShort = new ShortVideo({
-      userId: req.user!.userId,
-      title: title || 'AI Generated Short',
-      description: description || prompt,
-      videoUrl: `${HELIOS_SERVICE_URL}${video_url}`, // Full URL to Helios service
-      likes: 0,
-      views: 0
-    });
+    // ── 2. Fallback: fal.ai (free cloud API) ──────────────────────────────
+    if (FAL_KEY) {
+      try {
+        console.log('☁️  Falling back to fal.ai (LTX-Video)...');
 
-    await newShort.save();
+        // fal.ai queue API — works completely free with $2.50 credit on signup
+        const falRes = await axios.post(
+          'https://queue.fal.run/fal-ai/ltx-video',
+          {
+            prompt,
+            num_frames: 97,          // ~8s @ 12fps — LTX optimal
+            num_inference_steps: 30,
+            resolution: '640x360',
+          },
+          {
+            headers: {
+              Authorization: `Key ${FAL_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            timeout: 120_000, // 2 min timeout for cloud
+          }
+        );
 
-    res.status(201).json({
-      message: 'Video generated successfully via Helios',
-      short: newShort
-    });
+        // fal.ai returns a request_id — poll for the result
+        const requestId = falRes.data.request_id;
+        if (requestId) {
+          // Poll until done (max 90 seconds)
+          for (let i = 0; i < 18; i++) {
+            await new Promise(r => setTimeout(r, 5000));
+            const pollRes = await axios.get(
+              `https://queue.fal.run/fal-ai/ltx-video/requests/${requestId}`,
+              { headers: { Authorization: `Key ${FAL_KEY}` } }
+            );
+            if (pollRes.data.status === 'COMPLETED') {
+              videoUrl = pollRes.data.output?.video?.url || pollRes.data.output?.video_url;
+              break;
+            }
+            if (pollRes.data.status === 'FAILED') {
+              throw new Error('fal.ai generation failed: ' + pollRes.data.error);
+            }
+          }
+        } else {
+          // Synchronous response (small models)
+          videoUrl = falRes.data.video?.url || falRes.data.video_url;
+        }
 
-  } catch (error: any) {
-    console.error('Helios generation error:', error.message);
-    res.status(500).json({ 
-      error: 'Failed to generate video', 
-      details: error.response?.data?.detail || error.message 
+        provider = 'fal.ai';
+        console.log('✅ fal.ai generated:', videoUrl);
+
+      } catch (falErr: any) {
+        console.error('❌ fal.ai also failed:', falErr.message);
+      }
+    } else {
+      console.log('ℹ️  FAL_KEY not set — fal.ai fallback skipped.');
+    }
+  }
+
+  // ── 3. Both failed → return error ─────────────────────────────────────────
+  if (!videoUrl) {
+    return res.status(503).json({
+      error: 'AI video generation unavailable',
+      details: FAL_KEY
+        ? 'Both Helios and fal.ai failed. Check service logs.'
+        : 'Helios is offline. Set FAL_KEY env var to enable cloud fallback.',
+      helios: HELIOS_URL,
+      tip: 'Sign up at fal.ai and set FAL_KEY to enable cloud video generation.',
     });
   }
+
+  // ── 4. Save to DB and return ───────────────────────────────────────────────
+  const newShort = new ShortVideo({
+    userId: req.user!.userId,
+    title: title || 'AI Generated Short',
+    description: description || prompt,
+    videoUrl,
+    likes: 0,
+    views: 0,
+  });
+
+  await newShort.save();
+
+  res.status(201).json({
+    message: `Video generated via ${provider}`,
+    provider,
+    short: newShort,
+    videoUrl,
+  });
 });
+
+
 
 export default router;

@@ -72,11 +72,11 @@ export const authAPI = {
     return result;
   },
 
-  googleLogin: async (credential: string) => {
+  googleLogin: async (credential: string, isRecruiter?: boolean) => {
     const response = await fetch(`${API_BASE_URL}/auth/google`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ credential }),
+      body: JSON.stringify({ credential, isRecruiter: !!isRecruiter }),
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Google login failed');

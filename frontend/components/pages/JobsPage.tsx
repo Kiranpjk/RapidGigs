@@ -1,13 +1,13 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Job } from '../../types';
 import { 
     MapPinIcon,
     PlayCircleIcon,
     BookmarkIcon,
 } from '../icons/Icons';
-import { ALL_JOBS } from '../../data/mockData';
 import { useJobs } from '../../context/JobContext';
+import { jobsAPI } from '../../services/api';
 
 
 interface JobsPageProps {
@@ -16,7 +16,45 @@ interface JobsPageProps {
 
 const JobsPage: React.FC<JobsPageProps> = ({ onApplyNow }) => {
     const { saveJob, unsaveJob, isJobSaved } = useJobs();
-    
+    const [jobs, setJobs] = useState<Job[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [search, setSearch] = useState('');
+    const [typeFilter, setTypeFilter] = useState('');
+
+    useEffect(() => {
+        jobsAPI.getAll()
+            .then(data => {
+                const arr = Array.isArray(data) ? data : [];
+                const mapped: Job[] = arr.map((j: any) => ({
+                    id: j.id || j._id,
+                    title: j.title,
+                    company: j.company,
+                    logo: null,
+                    location: j.location,
+                    type: j.type || 'Remote',
+                    pay: j.pay,
+                    description: j.description,
+                    postedAgo: j.postedAgo || 'Recently',
+                    category: j.category,
+                    companyVideoUrl: j.companyVideoUrl,
+                    freelancerVideoUrl: j.freelancerVideoUrl,
+                    likes: j.likes || 0,
+                    comments: j.comments || 0,
+                }));
+                setJobs(mapped);
+            })
+            .catch(() => setJobs([]))
+            .finally(() => setIsLoading(false));
+    }, []);
+
+    const filtered = jobs.filter(job => {
+        const matchSearch = !search ||
+            job.title.toLowerCase().includes(search.toLowerCase()) ||
+            job.company.toLowerCase().includes(search.toLowerCase());
+        const matchType = !typeFilter || job.type === typeFilter;
+        return matchSearch && matchType;
+    });
+
     const FilterSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
         <div className="py-4 border-b border-gray-200 dark:border-gray-700">
             <h3 className="font-semibold text-slate-800 dark:text-white mb-3">{title}</h3>
@@ -72,41 +110,49 @@ const JobsPage: React.FC<JobsPageProps> = ({ onApplyNow }) => {
             <aside className="w-64 hidden lg:block flex-shrink-0">
                 <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 p-6 rounded-lg sticky top-24">
                     <h2 className="text-xl font-bold mb-4">Filters</h2>
-                    <FilterSection title="Category">
-                        <CheckboxItem label="Web Development" />
-                        <CheckboxItem label="Mobile Development" />
-                        <CheckboxItem label="UI/UX Design" />
-                        <CheckboxItem label="Data Science" />
-                    </FilterSection>
-                    <FilterSection title="Location">
-                        <CheckboxItem label="Remote" />
-                        <CheckboxItem label="On-site" />
-                        <CheckboxItem label="Hybrid" />
-                    </FilterSection>
-                    <FilterSection title="Pay Rate">
-                        <CheckboxItem label="$10 - $25/hr" />
-                        <CheckboxItem label="$25 - $50/hr" />
-                        <CheckboxItem label="$50+/hr" />
-                    </FilterSection>
+                    <div className="mb-4">
+                        <input
+                            type="text"
+                            placeholder="Search jobs..."
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                    </div>
                     <FilterSection title="Work Type">
-                        <CheckboxItem label="Full-time" />
-                        <CheckboxItem label="Part-time" />
-                        <CheckboxItem label="Contract" />
+                        {['Remote', 'On-site', 'Hybrid'].map(t => (
+                            <label key={t} className="flex items-center text-slate-600 dark:text-slate-300 cursor-pointer gap-2">
+                                <input type="radio" name="type" value={t} checked={typeFilter === t} onChange={() => setTypeFilter(typeFilter === t ? '' : t)} className="text-indigo-500"/>
+                                <span className="text-sm">{t}</span>
+                            </label>
+                        ))}
+                        {typeFilter && <button onClick={() => setTypeFilter('')} className="text-xs text-indigo-500 hover:underline mt-1">Clear</button>}
                     </FilterSection>
-                     <button className="w-full mt-6 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold py-2 px-4 rounded-lg text-sm flex items-center justify-center gap-2">
+                    <button className="w-full mt-6 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold py-2 px-4 rounded-lg text-sm flex items-center justify-center gap-2">
                         <BookmarkIcon className="w-4 h-4" /> Saved Jobs
                     </button>
                 </div>
             </aside>
             <main className="w-full">
                 <h1 className="text-3xl font-bold mb-2 tracking-tighter">Discover Your Next Microgig</h1>
-                <p className="text-slate-500 dark:text-slate-400 mb-6">Showing 12 Available Microgigs</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {ALL_JOBS.map(job => <JobCard key={job.id} job={job}/>)}
-                </div>
-                 <div className="text-center mt-8">
-                    <button className="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold py-2 px-6 rounded-lg transition-colors duration-300">Load More Jobs</button>
-                </div>
+                <p className="text-slate-500 dark:text-slate-400 mb-6">
+                    {isLoading ? 'Loading jobs...' : `Showing ${filtered.length} job${filtered.length !== 1 ? 's' : ''}`}
+                </p>
+                {isLoading ? (
+                    <div className="flex justify-center py-20">
+                        <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                ) : filtered.length === 0 ? (
+                    <div className="text-center py-20">
+                        <div className="text-5xl mb-4">💼</div>
+                        <h2 className="text-xl font-bold text-slate-700 dark:text-white mb-2">No jobs found</h2>
+                        <p className="text-slate-500">Try adjusting your search or filters.</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                        {filtered.map(job => <JobCard key={job.id} job={job}/>)}
+                    </div>
+                )}
             </main>
         </div>
     );

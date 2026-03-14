@@ -8,7 +8,7 @@ import {
     BuildingOffice2Icon,
     CurrencyDollarIcon,
 } from '../icons/Icons';
-import { NEARBY_GIGS, CATEGORIES, SHORT_VIDEOS_INTRO } from '../../data/mockData';
+import { CATEGORIES } from '../../data/mockData';
 import { useAuth } from '../../context/AuthContext';
 import { jobsAPI } from '../../services/api';
 
@@ -20,6 +20,8 @@ interface DashboardPageProps {
 const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) => {
     const [selectedCategory, setSelectedCategory] = useState<string>('All');
     const [liveJobs, setLiveJobs] = useState<Job[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
     const { user } = useAuth();
 
     const isRecruiter = user?.role === 'recruiter';
@@ -49,11 +51,13 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                 }));
                 setLiveJobs(mapped);
             })
-            .catch(() => {});
+            .catch(() => {})
+            .finally(() => setIsLoading(false));
+
     }, []);
 
-    // Combine live jobs with mock data (live jobs appear first)
-    const allJobs = [...liveJobs, ...NEARBY_GIGS];
+    // Use only live API jobs — no mock data fallback
+    const allJobs = liveJobs;
 
 
     const CategoryButton: React.FC<{ children: React.ReactNode; isActive: boolean; onClick: () => void }> = ({ children, isActive, onClick }) => (
@@ -167,20 +171,18 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                         : allJobs.filter(job => job.category === selectedCategory)
                     ).map((job, idx) => <JobCard key={job.id ?? idx} job={job} />)}
                 </div>
-                {selectedCategory !== 'All' && allJobs.filter(job => job.category === selectedCategory).length === 0 && (
-                    <div className="text-center py-12">
-                        <p className="text-slate-500 dark:text-slate-400 text-lg">No gigs found in this category yet.</p>
-                        <p className="text-slate-400 dark:text-slate-500 text-sm mt-2">Check back soon for new opportunities!</p>
+                {(selectedCategory === 'All' 
+                        ? allJobs 
+                        : allJobs.filter(job => job.category === selectedCategory)
+                    ).length === 0 && !isLoading && (
+                    <div className="text-center py-16 col-span-3">
+                        <div className="text-5xl mb-4">💼</div>
+                        <h3 className="text-xl font-bold text-slate-700 dark:text-white mb-2">No jobs posted yet</h3>
+                        <p className="text-slate-400 text-sm">Recruiters haven't posted any jobs yet. Check back soon!</p>
                     </div>
                 )}
             </section>
             
-            <section>
-                <h2 className="text-3xl font-bold mb-6 text-slate-800 dark:text-white">Short Video Introductions</h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
-                    {SHORT_VIDEOS_INTRO.map(video => <VideoIntroCard key={video.id} video={video} />)}
-                </div>
-            </section>
         </div>
     );
 };

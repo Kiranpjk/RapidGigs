@@ -9,73 +9,85 @@ import { canAccessPage, getDefaultPageForRole } from './utils/rbac';
 import AdminLayout from './components/layout/AdminLayout';
 import RecruiterLayout from './components/layout/RecruiterLayout';
 
+// All valid page routes
+const VALID_PAGES: Page[] = [
+  'dashboard', 'shorts', 'jobs', 'profile', 'messages',
+  'notifications', 'upload_video', 'job_application',
+  'admin', 'post_job', 'review_applications', 'candidates',
+];
+
+/** Read the current browser path and return the matching Page, or fallback to dashboard */
+const getPageFromUrl = (): Page => {
+  const path = window.location.pathname.replace(/^\//, '') as Page;
+  return VALID_PAGES.includes(path) ? path : 'dashboard';
+};
+
 const App: React.FC = () => {
-  // Load saved page from localStorage or default to dashboard
-  const [currentPage, setCurrentPage] = useState<Page>(() => {
-    const savedPage = localStorage.getItem('currentPage');
-    return (savedPage as Page) || 'dashboard';
-  });
-  
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    const savedTheme = localStorage.getItem('theme');
-    return (savedTheme as 'light' | 'dark') || 'dark';
-  });
-  
+  const [currentPage, setCurrentPage] = useState<Page>(getPageFromUrl);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() =>
+    (localStorage.getItem('theme') as 'light' | 'dark') || 'dark'
+  );
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalPage, setAuthModalPage] = useState<'login' | 'signup'>('login');
   const [returnPage, setReturnPage] = useState<Page | null>(null);
-  
+
   const { isAuthenticated, isLoading, logout, user } = useAuth();
 
+  // Apply dark/light class
   useEffect(() => {
-    const root = window.document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-    // Save theme to localStorage
+    document.documentElement.classList.toggle('dark', theme === 'dark');
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  const toggleTheme = () => {
-    setTheme(prevTheme => (prevTheme === 'dark' ? 'light' : 'dark'));
-  };
+  // Sync page state → browser URL + document title
+  useEffect(() => {
+    const currentPath = window.location.pathname.replace(/^\//, '');
+    if (currentPath !== currentPage) {
+      window.history.pushState({ page: currentPage }, '', `/${currentPage}`);
+    }
+    document.title = `RapidGig | ${currentPage
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, c => c.toUpperCase())}`;
+  }, [currentPage]);
+
+  // Handle browser back / forward buttons
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      const page = (e.state?.page as Page) || getPageFromUrl();
+      setCurrentPage(page);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // RBAC guard — redirect if user lacks access to current page
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+    if (!canAccessPage(user.role, currentPage)) {
+      setCurrentPage(getDefaultPageForRole(user.role));
+    }
+  }, [isAuthenticated, user, currentPage]);
+
+  const toggleTheme = () => setTheme(p => p === 'dark' ? 'light' : 'dark');
 
   const navigate = (page: Page) => {
-    // Handle login/signup navigation
     if (page === 'login') {
-      setAuthModalPage('login');
-      setShowAuthModal(true);
-      setReturnPage(currentPage);
-      return;
+      setAuthModalPage('login'); setShowAuthModal(true); setReturnPage(currentPage); return;
     }
-
     if (page === 'signup') {
-      setAuthModalPage('signup');
-      setShowAuthModal(true);
-      setReturnPage(currentPage);
-      return;
+      setAuthModalPage('signup'); setShowAuthModal(true); setReturnPage(currentPage); return;
     }
-
     if (isAuthenticated && !canAccessPage(user?.role, page)) {
-      const fallbackPage = getDefaultPageForRole(user?.role);
-      setCurrentPage(fallbackPage);
-      localStorage.setItem('currentPage', fallbackPage);
-      return;
+      setCurrentPage(getDefaultPageForRole(user?.role)); return;
     }
-
     setCurrentPage(page);
-    // Save current page to localStorage
-    localStorage.setItem('currentPage', page);
   };
 
   const handleLogout = () => {
     logout();
-    setCurrentPage(getDefaultPageForRole(user?.role));
+    setCurrentPage('dashboard');
     setShowAuthModal(false);
-    // Clear saved page on logout
-    localStorage.removeItem('currentPage');
+    window.history.pushState({ page: 'dashboard' }, '', '/dashboard');
   };
 
   const requireAuth = (callback: () => void, fromPage?: Page) => {
@@ -89,31 +101,14 @@ const App: React.FC = () => {
 
   const handleAuthSuccess = () => {
     setShowAuthModal(false);
-    if (returnPage) {
-      navigate(returnPage);
-      setReturnPage(null);
-    }
+    if (returnPage) { navigate(returnPage); setReturnPage(null); }
   };
 
-
-  useEffect(() => {
-    if (!isAuthenticated || !user) {
-      return;
-    }
-
-    if (!canAccessPage(user.role, currentPage)) {
-      const fallbackPage = getDefaultPageForRole(user.role);
-      setCurrentPage(fallbackPage);
-      localStorage.setItem('currentPage', fallbackPage);
-    }
-  }, [isAuthenticated, user, currentPage]);
-
-  // Show loading while checking authentication
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto" />
           <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
         </div>
       </div>
@@ -124,52 +119,35 @@ const App: React.FC = () => {
     <JobProvider>
       {user?.role === 'admin' || user?.role === 'moderator' ? (
         <AdminLayout
-          currentPage={currentPage} 
-          navigate={navigate} 
-          onLogout={handleLogout} 
-          theme={theme} 
-          toggleTheme={toggleTheme}
-          isAuthenticated={isAuthenticated}
+          currentPage={currentPage} navigate={navigate} onLogout={handleLogout}
+          theme={theme} toggleTheme={toggleTheme} isAuthenticated={isAuthenticated}
         />
       ) : user?.role === 'recruiter' ? (
         <RecruiterLayout
-          currentPage={currentPage} 
-          navigate={navigate} 
-          onLogout={handleLogout} 
-          theme={theme} 
-          toggleTheme={toggleTheme}
-          isAuthenticated={isAuthenticated}
+          currentPage={currentPage} navigate={navigate} onLogout={handleLogout}
+          theme={theme} toggleTheme={toggleTheme} isAuthenticated={isAuthenticated}
           requireAuth={requireAuth}
         />
       ) : (
-        <MainLayout 
-          currentPage={currentPage} 
-          navigate={navigate} 
-          onLogout={handleLogout} 
-          theme={theme} 
-          toggleTheme={toggleTheme}
-          isAuthenticated={isAuthenticated}
+        <MainLayout
+          currentPage={currentPage} navigate={navigate} onLogout={handleLogout}
+          theme={theme} toggleTheme={toggleTheme} isAuthenticated={isAuthenticated}
           requireAuth={requireAuth}
         />
       )}
-      
-      {/* Auth Modal */}
+
       {showAuthModal && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="relative w-full max-w-6xl mx-auto my-8">
-            {/* Close button OUTSIDE the card */}
             <button
               onClick={() => setShowAuthModal(false)}
               className="absolute -top-4 -right-2 sm:-right-4 w-10 h-10 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors z-10 shadow-lg"
-            >
-              ✕
-            </button>
+            >✕</button>
             <div className="rounded-2xl overflow-hidden">
-              <AuthPage initialPage={authModalPage} navigate={(page) => {
-                if (page === 'dashboard') {
-                  handleAuthSuccess();
-                }
-              }} />
+              <AuthPage
+                initialPage={authModalPage}
+                navigate={(page) => { if (page === 'dashboard') handleAuthSuccess(); }}
+              />
             </div>
           </div>
         </div>

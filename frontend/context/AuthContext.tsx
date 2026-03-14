@@ -20,7 +20,7 @@ interface AuthContextType {
   token: string | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  googleLogin: (credential: string) => Promise<void>;
+  googleLogin: (credential: string, isRecruiter?: boolean) => Promise<void>;
   register: (data: {
     email: string;
     password: string;
@@ -80,9 +80,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const googleLogin = async (credential: string) => {
+  const googleLogin = async (credential: string, isRecruiter?: boolean) => {
     try {
-      const response = await authAPI.googleLogin(credential);
+      const response = await authAPI.googleLogin(credential, isRecruiter);
       setUser(response.user);
       setToken(response.token);
       return response;
