@@ -3,8 +3,8 @@ import { body, validationResult } from 'express-validator';
 import { ShortVideo } from '../models/ShortVideo';
 import { Category } from '../models/Category';
 import { authenticate, AuthRequest } from '../middleware/auth';
-import { upload, saveToLocalDisk } from '../middleware/upload';
-import { uploadToCloudinary, deleteFromCloudinary } from '../services/cloudinary';
+import { upload } from '../middleware/upload';
+import { localStorageService } from '../services/localStorage';
 import { config } from '../config/env';
 import mongoose from 'mongoose';
 
@@ -89,22 +89,10 @@ router.post(
       const { title, description, categoryId } = req.body;
       let videoUrl: string;
 
-      // ── Upload to Cloudinary (production) or local disk (dev) ──
-      if (config.cloudinary.enabled) {
-        console.log('☁️  Uploading video to Cloudinary...');
-        const result = await uploadToCloudinary(req.file.buffer, {
-          folder: 'rapidgigs/videos',
-          resource_type: 'video',
-        });
-        videoUrl = result.url;
-        console.log('✅ Cloudinary video URL:', videoUrl);
-      } else {
-        console.log('💾 Saving video to local disk...');
-        videoUrl = saveToLocalDisk(req.file.buffer, 'videos', req.file.originalname);
-        // Prefix with backend base URL so frontend can reach it
-        const baseUrl = `http://localhost:${config.port}`;
-        videoUrl = `${baseUrl}${videoUrl}`;
-      }
+      // Save video to local disk
+      console.log('Saving video to local disk...');
+      const relativePath = localStorageService.saveFile(req.file.buffer, 'videos', req.file.originalname);
+      videoUrl = localStorageService.getAbsoluteUrl(relativePath);
 
       const video = new ShortVideo({
         userId: new mongoose.Types.ObjectId(req.user!.userId),
@@ -124,7 +112,7 @@ router.post(
         title: video.title,
         videoUrl: video.videoUrl,
         createdAt: video.createdAt,
-        storage: config.cloudinary.enabled ? 'cloudinary' : 'local',
+        storage: 'local',
       });
     } catch (error: any) {
       console.error('Video upload error:', error);
@@ -165,13 +153,10 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res) => {
     if (video.userId.toString() !== req.user!.userId)
       return res.status(403).json({ error: 'Forbidden' });
 
-    // Delete from Cloudinary if URL is from Cloudinary
-    if (config.cloudinary.enabled && video.videoUrl?.includes('cloudinary.com')) {
-      // Extract public_id from URL (format: .../folder/public_id.ext)
-      const parts = video.videoUrl.split('/');
-      const publicIdWithExt = parts.slice(-2).join('/');                // e.g. rapidgigs/videos/abc123.mp4
-      const publicId = publicIdWithExt.replace(/\.[^/.]+$/, '');        // strip extension
-      await deleteFromCloudinary(publicId, 'video');
+    // Delete local file if it's a local URL
+    if (video.videoUrl?.includes('/uploads/')) {
+      const urlPath = new URL(video.videoUrl).pathname;
+      localStorageService.deleteFile(urlPath);
     }
 
     await ShortVideo.findByIdAndDelete(id);

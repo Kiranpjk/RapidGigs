@@ -51,6 +51,9 @@ export interface Job {
   companyVideoUrl?: string;
   freelancerVideoUrl?: string;
   shortVideoUrl?: string;
+  maxSlots?: number;
+  filledSlots?: number;
+  status?: 'Open' | 'Full' | 'Closed';
   likes?: number;
   comments?: number;
   shares?: number;
@@ -92,13 +95,10 @@ export interface Category {
 }
 
 export type ApplicationStatus =
-  | 'Applied'
-  | 'Interviewing'
-  | 'Offer Received'
-  | 'Rejected'
   | 'pending'
   | 'reviewing'
   | 'shortlisted'
+  | 'interviewing'
   | 'accepted'
   | 'rejected';
 

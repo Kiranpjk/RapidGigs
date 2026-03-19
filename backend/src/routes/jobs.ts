@@ -44,6 +44,9 @@ router.get('/', async (req, res) => {
       companyVideoUrl: job.companyVideoUrl,
       freelancerVideoUrl: job.freelancerVideoUrl,
       shortVideoUrl: job.shortVideoUrl,
+      maxSlots: job.maxSlots || 1,
+      filledSlots: job.filledSlots || 0,
+      status: job.status || 'Open',
       likes: job.likes || 0,
       comments: job.comments || 0,
       shares: job.shares || 0,
@@ -71,6 +74,9 @@ router.get('/my-jobs', authenticate, async (req: AuthRequest, res) => {
       type: job.type,
       pay: job.pay,
       description: job.description,
+      maxSlots: job.maxSlots || 1,
+      filledSlots: job.filledSlots || 0,
+      status: job.status || 'Open',
       createdAt: job.createdAt,
     })));
   } catch (error: any) {
@@ -105,6 +111,9 @@ router.get('/:id', async (req, res) => {
       companyVideoUrl: job.companyVideoUrl,
       freelancerVideoUrl: job.freelancerVideoUrl,
       shortVideoUrl: job.shortVideoUrl,
+      maxSlots: job.maxSlots || 1,
+      filledSlots: job.filledSlots || 0,
+      status: job.status || 'Open',
       likes: job.likes || 0,
       comments: job.comments || 0,
       shares: job.shares || 0,
@@ -127,6 +136,7 @@ router.post(
     body('type').isIn(['Remote', 'On-site', 'Hybrid']),
     body('pay').trim().notEmpty(),
     body('description').trim().notEmpty(),
+    body('maxSlots').optional().isInt({ min: 1 }).toInt(),
   ],
   async (req: AuthRequest, res) => {
     try {
@@ -146,6 +156,7 @@ router.post(
         companyVideoUrl,
         freelancerVideoUrl,
         shortVideoUrl,
+        maxSlots,
       } = req.body;
 
       const job = new Job({
@@ -159,6 +170,7 @@ router.post(
         companyVideoUrl,
         freelancerVideoUrl,
         shortVideoUrl,
+        maxSlots: maxSlots || 1,
         postedBy: new mongoose.Types.ObjectId(req.user!.userId),
       });
 
@@ -172,6 +184,9 @@ router.post(
         type: job.type,
         pay: job.pay,
         description: job.description,
+        maxSlots: job.maxSlots,
+        filledSlots: job.filledSlots,
+        status: job.status,
         createdAt: job.createdAt,
       });
     } catch (error: any) {

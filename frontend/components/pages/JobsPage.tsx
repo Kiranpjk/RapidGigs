@@ -38,6 +38,9 @@ const JobsPage: React.FC<JobsPageProps> = ({ onApplyNow }) => {
                     category: j.category,
                     companyVideoUrl: j.companyVideoUrl,
                     freelancerVideoUrl: j.freelancerVideoUrl,
+                    maxSlots: j.maxSlots,
+                    filledSlots: j.filledSlots,
+                    status: j.status,
                     likes: j.likes || 0,
                     comments: j.comments || 0,
                 }));
@@ -81,6 +84,17 @@ const JobsPage: React.FC<JobsPageProps> = ({ onApplyNow }) => {
                 <p className="text-lg font-semibold text-green-600 dark:text-green-400 my-3">{job.pay}</p>
             </div>
             <div className="flex-grow"></div>
+            {(job.maxSlots && job.maxSlots > 1) && (
+                <div className="mb-3 mt-4">
+                    <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+                        <span>{job.filledSlots || 0}/{job.maxSlots} positions filled</span>
+                        <span className={job.status === 'Full' ? 'text-red-500 font-bold' : 'text-green-500 font-bold'}>{job.status === 'Full' ? 'Full' : 'Open'}</span>
+                    </div>
+                    <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5">
+                        <div className={`h-1.5 rounded-full transition-all ${job.status === 'Full' ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${Math.min(100, ((job.filledSlots || 0) / job.maxSlots) * 100)}%` }} />
+                    </div>
+                </div>
+            )}
             <div className="flex justify-between items-center mt-4">
                 <div className="flex items-center gap-2 text-slate-400">
                     {job.companyVideoUrl && <PlayCircleIcon className="w-5 h-5"/>}
@@ -99,7 +113,13 @@ const JobsPage: React.FC<JobsPageProps> = ({ onApplyNow }) => {
                     >
                         <BookmarkIcon className="w-5 h-5" />
                     </button>
-                    <button className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-5 rounded-lg text-sm transition-colors duration-300" onClick={() => onApplyNow(job)}>Apply Now</button>
+                    <button
+                        className={`bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-5 rounded-lg text-sm transition-colors duration-300 ${job.status === 'Full' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        onClick={() => onApplyNow(job)}
+                        disabled={job.status === 'Full'}
+                    >
+                        {job.status === 'Full' ? 'Positions Filled' : 'Apply Now'}
+                    </button>
                 </div>
             </div>
         </div>

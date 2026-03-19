@@ -23,5 +23,18 @@ build/
 # Backend uploads
 backend/uploads/
 
+# AI service outputs
+ai-services/helios/outputs/
+
+# Secrets
+*.pem
+*.key
+credentials.json
+service-account*.json
+
+# Docker volumes
+mongo-data/
+n8n-data/
+
 # Local dev
 .kiro/

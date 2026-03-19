@@ -24,16 +24,11 @@ export const config = {
     maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '52428800', 10), // 50 MB
   },
 
-  cloudinary: {
-    cloudName: process.env.CLOUDINARY_CLOUD_NAME || '',
-    apiKey: process.env.CLOUDINARY_API_KEY || '',
-    apiSecret: process.env.CLOUDINARY_API_SECRET || '',
-    // When all three are present, uploads go to Cloudinary
-    enabled: !!(
-      process.env.CLOUDINARY_CLOUD_NAME &&
-      process.env.CLOUDINARY_API_KEY &&
-      process.env.CLOUDINARY_API_SECRET
-    ),
+  huggingface: {
+    token: process.env.HUGGINGFACE_TOKEN || '',
+    textModel: process.env.HF_TEXT_MODEL || 'HuggingFaceH4/zephyr-7b-beta',
+    videoModel: process.env.HF_VIDEO_MODEL || 'ali-vilab/text-to-video-ms-1.7b',
+    enabled: !!process.env.HUGGINGFACE_TOKEN,
   },
 
   cors: {
@@ -70,6 +65,7 @@ const dbDisplay = config.db.uri.includes('@')
 console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 console.log(`🚀 RapidGigs Backend — ${config.nodeEnv.toUpperCase()}`);
 console.log(`📦 DB    : ${dbDisplay}`);
-console.log(`☁️  Cloud : ${config.cloudinary.enabled ? 'Cloudinary ✅' : 'Local disk ⚠️'}`);
+console.log(`🤗 AI    : ${config.huggingface.enabled ? 'Hugging Face ✅' : 'No HF token ⚠️'}`);
+console.log(`📁 Store : Local disk (${config.upload.dir})`);
 console.log(`🔒 Cookie: secure=${config.cookie.secure}, httpOnly=${config.cookie.httpOnly}`);
 console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');

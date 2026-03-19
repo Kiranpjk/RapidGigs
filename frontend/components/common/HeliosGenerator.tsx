@@ -43,13 +43,35 @@ const HeliosGenerator: React.FC<HeliosGeneratorProps> = ({ onSuccess }) => {
                 description: prompt,
             });
 
-            clearInterval(interval);
-            setProgress(100);
-            setStatusText('Video ready!');
-
-            setTimeout(() => {
-                onSuccess(response.short?.videoUrl || response.videoUrl);
-            }, 500);
+            if (response.jobId) {
+                // Polling loop
+                let isDone = false;
+                while (!isDone) {
+                    await new Promise(r => setTimeout(r, 5000));
+                    const statusRes = await shortsAPI.getJobStatus(response.jobId);
+                    
+                    if (statusRes.status === 'completed') {
+                        clearInterval(interval);
+                        setProgress(100);
+                        setStatusText('Video ready!');
+                        setTimeout(() => {
+                            onSuccess(statusRes.videoUrl);
+                        }, 500);
+                        isDone = true;
+                    } else if (statusRes.status === 'failed') {
+                        throw new Error(statusRes.error || 'Generation failed');
+                    }
+                    // pending or processing -> continue loop
+                }
+            } else {
+                // Backwards compatibility if synchronous
+                clearInterval(interval);
+                setProgress(100);
+                setStatusText('Video ready!');
+                setTimeout(() => {
+                    onSuccess(response.short?.videoUrl || response.videoUrl);
+                }, 500);
+            }
 
         } catch (err: any) {
             clearInterval(interval);

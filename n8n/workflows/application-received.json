@@ -1,0 +1,99 @@
+{
+  "name": "RapidGigs - Application Received Notification",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "minutes", "minutesInterval": 5 }]
+        }
+      },
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.WEBHOOK_URL }}/api/webhooks/new-applications",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "since", "value": "={{ $now.minus(5, 'minutes').toISO() }}" }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-webhook-secret", "value": "={{ $env.N8N_WEBHOOK_SECRET }}" }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Fetch New Applications",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "leftValue": "", "typeValidation": "strict" },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ]
+        }
+      },
+      "name": "Has New Applications?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "={{ $json }}",
+        "options": {}
+      },
+      "name": "Split Applications",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [910, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.WEBHOOK_URL }}/api/webhooks/create-notification",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-webhook-secret", "value": "={{ $env.N8N_WEBHOOK_SECRET }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "userId", "value": "={{ $json.job.recruiterId }}" },
+            { "name": "type", "value": "application" },
+            { "name": "title", "value": "New Application Received" },
+            { "name": "message", "value": "={{ $json.applicant.name }} applied for {{ $json.job.title }} at {{ $json.job.company }}" }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Create Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1130, 200]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": { "main": [[{ "node": "Fetch New Applications", "type": "main", "index": 0 }]] },
+    "Fetch New Applications": { "main": [[{ "node": "Has New Applications?", "type": "main", "index": 0 }]] },
+    "Has New Applications?": { "main": [[{ "node": "Split Applications", "type": "main", "index": 0 }], []] },
+    "Split Applications": { "main": [[{ "node": "Create Notification", "type": "main", "index": 0 }]] }
+  }
+}

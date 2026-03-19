@@ -1,0 +1,101 @@
+{
+  "name": "RapidGigs - Job-Freelancer Matching",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "new-job-posted",
+        "options": {}
+      },
+      "name": "Webhook - New Job",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "rapidgig-job-matching"
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.WEBHOOK_URL }}/api/webhooks/match-freelancers",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-webhook-secret", "value": "={{ $env.N8N_WEBHOOK_SECRET }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "jobId", "value": "={{ $json.body.jobId }}" }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Find Matching Freelancers",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "leftValue": "", "typeValidation": "strict" },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.matchingCandidates.length }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ]
+        }
+      },
+      "name": "Has Matches?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "matchingCandidates",
+        "options": {}
+      },
+      "name": "Split Candidates",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [910, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.WEBHOOK_URL }}/api/webhooks/create-notification",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-webhook-secret", "value": "={{ $env.N8N_WEBHOOK_SECRET }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "userId", "value": "={{ $json.id }}" },
+            { "name": "type", "value": "job_match" },
+            { "name": "title", "value": "New Job Match!" },
+            { "name": "message", "value": "A new job has been posted that matches your profile: {{ $('Find Matching Freelancers').item.json.job.title }} at {{ $('Find Matching Freelancers').item.json.job.company }}" }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Notify Freelancer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1130, 200]
+    }
+  ],
+  "connections": {
+    "Webhook - New Job": { "main": [[{ "node": "Find Matching Freelancers", "type": "main", "index": 0 }]] },
+    "Find Matching Freelancers": { "main": [[{ "node": "Has Matches?", "type": "main", "index": 0 }]] },
+    "Has Matches?": { "main": [[{ "node": "Split Candidates", "type": "main", "index": 0 }], []] },
+    "Split Candidates": { "main": [[{ "node": "Notify Freelancer", "type": "main", "index": 0 }]] }
+  }
+}

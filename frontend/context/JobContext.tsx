@@ -118,7 +118,7 @@ export const JobProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       id: String(Date.now()),
       job,
       dateApplied: new Date().toISOString().split('T')[0],
-      status: 'Applied',
+      status: 'pending',
     };
     setApplications(prev => [...prev, newApplication]);
   };

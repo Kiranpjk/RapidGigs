@@ -45,6 +45,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                     companyVideoUrl: j.companyVideoUrl,
                     freelancerVideoUrl: j.freelancerVideoUrl,
                     shortVideoUrl: j.shortVideoUrl,
+                    maxSlots: j.maxSlots,
+                    filledSlots: j.filledSlots,
+                    status: j.status,
                     likes: j.likes || 0,
                     comments: j.comments || 0,
                     shares: j.shares || 0,
@@ -105,7 +108,25 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                 </div>
             )}
 
-            <button className="w-full mt-auto bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300" onClick={() => onApplyNow(job)}>Apply Now</button>
+            {(job.maxSlots && job.maxSlots > 1) && (
+                <div className="mb-3">
+                    <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+                        <span>{job.filledSlots || 0}/{job.maxSlots} positions filled</span>
+                        <span className={job.status === 'Full' ? 'text-red-500 font-bold' : 'text-green-500 font-bold'}>{job.status === 'Full' ? 'Full' : 'Open'}</span>
+                    </div>
+                    <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5">
+                        <div className={`h-1.5 rounded-full transition-all ${job.status === 'Full' ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${Math.min(100, ((job.filledSlots || 0) / job.maxSlots) * 100)}%` }} />
+                    </div>
+                </div>
+            )}
+
+            <button
+                className={`w-full mt-auto bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 ${job.status === 'Full' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                onClick={() => onApplyNow(job)}
+                disabled={job.status === 'Full'}
+            >
+                {job.status === 'Full' ? 'Positions Filled' : 'Apply Now'}
+            </button>
         </div>
     );
     

@@ -24,6 +24,7 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
     location: '',
     type: 'Remote' as 'Remote' | 'On-site' | 'Hybrid',
     pay: '',
+    maxSlots: '1',
     category: '',
     description: '',
     requirements: '',
@@ -57,6 +58,7 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
         location: form.location,
         type: form.type,
         pay: form.pay,
+        maxSlots: parseInt(form.maxSlots) || 1,
         category: form.category,
         description: form.description,
         requirements: form.requirements ? form.requirements.split('\n').filter(Boolean) : [],
@@ -87,12 +89,28 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
         title: `${form.title} @ ${form.company}`,
         description: form.description,
       });
-      const videoUrl = response.short?.videoUrl || response.videoUrl;
-      if (videoUrl) {
-        setForm(prev => ({ ...prev, shortVideoUrl: videoUrl }));
+      
+      if (response.jobId) {
+        // Polling loop
+        let isDone = false;
+        while (!isDone) {
+          await new Promise(r => setTimeout(r, 5000)); // poll every 5 seconds
+          const statusRes = await shortsAPI.getJobStatus(response.jobId);
+          if (statusRes.status === 'completed') {
+            setForm(prev => ({ ...prev, shortVideoUrl: statusRes.videoUrl }));
+            setVideoSource('ai');
+            isDone = true;
+          } else if (statusRes.status === 'failed') {
+            throw new Error(statusRes.error || 'Video generation failed');
+          }
+          // if 'pending' or 'processing', do nothing, continue loop
+        }
+      } else if (response.short?.videoUrl || response.videoUrl) {
+        // fallback in case synchronous behavior is still triggered
+        setForm(prev => ({ ...prev, shortVideoUrl: response.short?.videoUrl || response.videoUrl }));
         setVideoSource('ai');
       } else {
-        throw new Error('No video URL returned');
+        throw new Error('No video URL or job ID returned');
       }
     } catch (err: any) {
       // ✅ Only fall back to sample if AI service is unavailable (503 / connection error)
@@ -190,6 +208,14 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
             <label className={LabelClass} htmlFor="pay">Salary / Pay Rate *</label>
             <input id="pay" name="pay" type="text" required placeholder="e.g. $40–60/hr" className={InputClass} value={form.pay} onChange={handleChange} />
           </div>
+          <div>
+            <label className={LabelClass} htmlFor="maxSlots">Number of Positions</label>
+            <input id="maxSlots" name="maxSlots" type="number" min="1" max="100" placeholder="e.g. 5" className={InputClass} value={form.maxSlots} onChange={handleChange} />
+            <p className="text-xs text-slate-400 mt-1">How many freelancers do you need for this job?</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className={LabelClass} htmlFor="category">Category</label>
             <select id="category" name="category" className={InputClass} value={form.category} onChange={handleChange}>

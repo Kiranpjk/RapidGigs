@@ -12,6 +12,9 @@ export interface IJob extends Document {
   freelancerVideoUrl?: string;
   shortVideoUrl?: string;
   postedBy: mongoose.Types.ObjectId;
+  maxSlots: number;
+  filledSlots: number;
+  status: 'Open' | 'Full' | 'Closed';
   likes: number;
   comments: number;
   shares: number;
@@ -67,6 +70,21 @@ const JobSchema: Schema = new Schema(
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
+    },
+    maxSlots: {
+      type: Number,
+      default: 1,
+      min: 1,
+    },
+    filledSlots: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    status: {
+      type: String,
+      enum: ['Open', 'Full', 'Closed'],
+      default: 'Open',
     },
     likes: {
       type: Number,

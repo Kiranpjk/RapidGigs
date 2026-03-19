@@ -6,7 +6,7 @@ export interface IApplication extends Document {
   coverLetter?: string;
   resumeUrl?: string;
   videoUrl?: string;
-  status: 'Applied' | 'Interviewing' | 'Offer Received' | 'Rejected' | 'pending' | 'reviewing' | 'shortlisted' | 'accepted' | 'rejected';
+  status: 'pending' | 'reviewing' | 'shortlisted' | 'interviewing' | 'accepted' | 'rejected';
   dateApplied: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -35,8 +35,8 @@ const ApplicationSchema: Schema = new Schema(
     },
     status: {
       type: String,
-      enum: ['Applied', 'Interviewing', 'Offer Received', 'Rejected', 'pending', 'reviewing', 'shortlisted', 'accepted', 'rejected'],
-      default: 'Applied',
+      enum: ['pending', 'reviewing', 'shortlisted', 'interviewing', 'accepted', 'rejected'],
+      default: 'pending',
     },
     dateApplied: {
       type: Date,

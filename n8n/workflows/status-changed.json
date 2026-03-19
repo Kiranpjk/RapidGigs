@@ -1,0 +1,99 @@
+{
+  "name": "RapidGigs - Application Status Changed",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "minutes", "minutesInterval": 5 }]
+        }
+      },
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.WEBHOOK_URL }}/api/webhooks/status-changes",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "since", "value": "={{ $now.minus(5, 'minutes').toISO() }}" }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-webhook-secret", "value": "={{ $env.N8N_WEBHOOK_SECRET }}" }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Fetch Status Changes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "leftValue": "", "typeValidation": "strict" },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ]
+        }
+      },
+      "name": "Has Changes?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "={{ $json }}",
+        "options": {}
+      },
+      "name": "Split Changes",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [910, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.WEBHOOK_URL }}/api/webhooks/create-notification",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-webhook-secret", "value": "={{ $env.N8N_WEBHOOK_SECRET }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "userId", "value": "={{ $json.applicant.id }}" },
+            { "name": "type", "value": "status_update" },
+            { "name": "title", "value": "Application Status Updated" },
+            { "name": "message", "value": "Your application for {{ $json.job.title }} at {{ $json.job.company }} has been updated to: {{ $json.status }}" }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Notify Applicant",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1130, 200]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": { "main": [[{ "node": "Fetch Status Changes", "type": "main", "index": 0 }]] },
+    "Fetch Status Changes": { "main": [[{ "node": "Has Changes?", "type": "main", "index": 0 }]] },
+    "Has Changes?": { "main": [[{ "node": "Split Changes", "type": "main", "index": 0 }], []] },
+    "Split Changes": { "main": [[{ "node": "Notify Applicant", "type": "main", "index": 0 }]] }
+  }
+}

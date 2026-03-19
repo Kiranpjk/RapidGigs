@@ -84,7 +84,6 @@ const ReviewApplicationsPage: React.FC = () => {
     };
 
     const statusColors: Record<string, string> = {
-        'Applied':      'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
         'pending':      'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
         'reviewing':    'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
         'shortlisted':  'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400',
@@ -168,6 +167,21 @@ const ReviewApplicationsPage: React.FC = () => {
                                     Edit Job
                                 </button>
                             </div>
+
+                            {(() => {
+                                const selectedJob = jobs.find(j => j._id === selectedJobId || j.id === selectedJobId);
+                                return selectedJob?.maxSlots && selectedJob.maxSlots > 1 ? (
+                                    <div className="bg-white dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-sm">
+                                        <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+                                            <span>{selectedJob.filledSlots || 0}/{selectedJob.maxSlots} positions filled</span>
+                                            <span className={selectedJob.status === 'Full' ? 'text-red-500 font-bold' : 'text-green-500 font-bold'}>{selectedJob.status === 'Full' ? 'Full' : 'Open'}</span>
+                                        </div>
+                                        <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5">
+                                            <div className={`h-1.5 rounded-full transition-all ${selectedJob.status === 'Full' ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${Math.min(100, ((selectedJob.filledSlots || 0) / selectedJob.maxSlots) * 100)}%` }} />
+                                        </div>
+                                    </div>
+                                ) : null;
+                            })()}
 
                             {/* Edit Modal Overlay */}
                             {isEditingJob && editingForm && (

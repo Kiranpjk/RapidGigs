@@ -265,6 +265,30 @@ export const shortsAPI = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  getJobStatus: async (jobId: string) =>
+    fetchWithAuth(`${API_BASE_URL}/shorts/status/${jobId}`),
+
+  generateFromJob: async (jobId: string) =>
+    fetchWithAuth(`${API_BASE_URL}/shorts/from-job/${jobId}`, {
+      method: 'POST',
+    }),
+};
+
+// ─── AI API ───────────────────────────────────────────────────────────────────
+
+export const aiAPI = {
+  enhancePrompt: async (text: string) =>
+    fetchWithAuth(`${API_BASE_URL}/ai/enhance-prompt`, {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    }),
+
+  generateText: async (prompt: string) =>
+    fetchWithAuth(`${API_BASE_URL}/ai/generate-text`, {
+      method: 'POST',
+      body: JSON.stringify({ prompt }),
+    }),
 };
 
 // ─── Admin API — ✅ FIXED: now uses fetchWithAuth instead of raw fetch ─────────

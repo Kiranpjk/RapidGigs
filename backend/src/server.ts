@@ -6,7 +6,6 @@ import { Server } from 'socket.io';
 import { config } from './config/env';
 import { errorHandler } from './middleware/errorhandling';
 import { connectDatabase } from './config/database';
-import { initCloudinary } from './services/cloudinary';
 
 // Routes
 import authRoutes from './routes/auth';
@@ -21,6 +20,8 @@ import roleRoutes from './routes/roles';
 import imageRoutes from './routes/images';
 import adminRoutes from './routes/admin';
 import shortsRoutes from './routes/shorts';
+import aiRoutes from './routes/ai';
+import webhookRoutes from './routes/webhooks';
 
 const app = express();
 const httpServer = createServer(app);
@@ -62,6 +63,11 @@ app.use('/api/roles', roleRoutes);
 app.use('/api/images', imageRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/shorts', shortsRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/webhooks', webhookRoutes);
+
+// Error handling middleware - must be LAST middleware after all routes
+app.use(errorHandler);
 
 // WebSocket for real-time messaging
 io.on('connection', (socket) => {
@@ -97,9 +103,6 @@ io.on('connection', (socket) => {
 // Start server
 const startServer = async () => {
   try {
-    // Init cloud services
-    initCloudinary();
-
     await connectDatabase();
     httpServer.listen(config.port, () => {
       console.log(`✅ Server running on http://localhost:${config.port}`);

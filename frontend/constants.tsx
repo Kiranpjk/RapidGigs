@@ -163,24 +163,24 @@ export const MY_APPLICATIONS: Application[] = [
     id: '1',
     job: ALL_JOBS[1], // UI/UX Design Intern
     dateApplied: '2023-10-15',
-    status: 'Interviewing',
+    status: 'interviewing',
   },
   {
     id: '2',
     job: ALL_JOBS[0], // Junior React Developer
     dateApplied: '2023-10-12',
-    status: 'Applied',
+    status: 'pending',
   },
   {
     id: '3',
     job: ALL_JOBS[4], // Social Media Coordinator
     dateApplied: '2023-10-10',
-    status: 'Rejected',
+    status: 'rejected',
   },
   {
     id: '4',
     job: ALL_JOBS[2], // Data Science Assistant
     dateApplied: '2023-10-05',
-    status: 'Offer Received',
+    status: 'accepted',
   },
 ];

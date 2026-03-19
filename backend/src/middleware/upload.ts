@@ -26,9 +26,7 @@ const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCa
 };
 
 // ─── Always use memory storage ───────────────────────────────────────────────
-// We read req.file.buffer in the route and either:
-//   • upload to Cloudinary  (production / when CLOUDINARY_* env vars set)
-//   • write to local disk   (development fallback)
+// We read req.file.buffer in the route and write to local disk via localStorageService.
 export const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: config.upload.maxFileSize },

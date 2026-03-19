@@ -437,17 +437,14 @@ const ProfilePage: React.FC<{}> = () => {
     const StatusBadge: React.FC<{ status: ApplicationStatus }> = ({ status }) => {
         const baseClasses = "text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full inline-block";
         const statusClasses: Record<string, string> = {
-            Applied: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
-            Interviewing: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
-            'Offer Received': "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300",
-            Rejected: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
             pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300",
             reviewing: "bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-300",
             shortlisted: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300",
+            interviewing: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
             accepted: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300",
             rejected: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
         };
-        const cls = statusClasses[status as string] || statusClasses['Applied'];
+        const cls = statusClasses[status as string] || statusClasses['pending'];
         return <span className={`${baseClasses} ${cls}`}>{status}</span>;
     };
 

@@ -166,6 +166,6 @@ export const NOTIFICATIONS: Notification[] = [
 
 // ─── APPLICATIONS ─────────────────────────────────────────────────────────────
 export const MY_APPLICATIONS: Application[] = [
-  { id: '1', job: ALL_JOBS[1], dateApplied: '2023-10-15', status: 'Interviewing' },
-  { id: '2', job: ALL_JOBS[0], dateApplied: '2023-10-12', status: 'Applied' },
+  { id: '1', job: ALL_JOBS[1], dateApplied: '2023-10-15', status: 'interviewing' },
+  { id: '2', job: ALL_JOBS[0], dateApplied: '2023-10-12', status: 'pending' },
 ];
