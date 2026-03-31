@@ -1,22 +1,26 @@
-// ✅ FIXED: "Generate AI Marketing Video" now calls the real /api/shorts/generate endpoint
-//           Falls back to sample video only when the AI service is unavailable (503)
-//           so the button label is no longer misleading
+// ✅ WIRED: "Post Job & Generate Video" now saves job first, then triggers
+//           background video generation via /api/shorts/from-job/:jobId
+//           User can navigate away immediately — VideoGenIndicator tracks progress
 
 import React, { useState, useEffect } from 'react';
 import { Page } from '../../types';
 import { jobsAPI, categoriesAPI, shortsAPI } from '../../services/api';
 import { VideoCameraIcon, CheckCircleIcon, TrashIcon } from '../icons/Icons';
 import { SparklesIcon } from '../icons/Icons';
+import { useVideoGen } from '../../context/VideoGenContext';
 
 interface PostJobPageProps {
   navigate: (page: Page) => void;
 }
 
 const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
+  const { startJob, jobs: videoJobs } = useVideoGen();
   const [categories, setCategories] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [postedJobId, setPostedJobId] = useState<string | null>(null);
+  const [generateVideoOnPost, setGenerateVideoOnPost] = useState(true);
 
   const [form, setForm] = useState({
     title: '',
@@ -47,12 +51,13 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
+  // ── "Post Job Only" (no video) ──────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
     try {
-      await jobsAPI.create({
+      const result = await jobsAPI.create({
         title: form.title,
         company: form.company,
         location: form.location,
@@ -64,6 +69,14 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
         requirements: form.requirements ? form.requirements.split('\n').filter(Boolean) : [],
         shortVideoUrl: form.shortVideoUrl,
       });
+
+      setPostedJobId(result.id || result._id);
+
+      // If "generate video" toggle is ON and no video yet, trigger background gen
+      if (generateVideoOnPost && !form.shortVideoUrl && result.id) {
+        triggerBackgroundVideoGen(result.id, form.title, form.company);
+      }
+
       setSuccess(true);
     } catch (err: any) {
       setError(err.message || 'Failed to post job. Please try again.');
@@ -72,7 +85,22 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
     }
   };
 
-  // ✅ FIXED: Try real AI endpoint first, fall back to sample only on service unavailability
+  // ── Trigger background video gen from saved job ──────────────────────────
+  const triggerBackgroundVideoGen = async (jobId: string, title: string, company: string) => {
+    try {
+      const response = await shortsAPI.generateFromJob(jobId);
+      if (response.jobId) {
+        // This fires the floating background indicator in the header!
+        startJob(response.jobId, `${title} @ ${company}`);
+        console.log(`🎬 Background video generation started for "${title}" (tracking ID: ${response.jobId})`);
+      }
+    } catch (err: any) {
+      // Don't fail the job post — video gen is best-effort
+      console.warn('Background video generation failed to start:', err.message);
+    }
+  };
+
+  // ── Standalone "Generate Video" button (before posting) ──────────────────
   const handleGenerateVideo = async () => {
     if (!form.description) {
       setError('Please provide a job description first so the AI can generate a relevant video.');
@@ -89,31 +117,19 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
         title: `${form.title} @ ${form.company}`,
         description: form.description,
       });
-      
+
       if (response.jobId) {
-        // Polling loop
-        let isDone = false;
-        while (!isDone) {
-          await new Promise(r => setTimeout(r, 5000)); // poll every 5 seconds
-          const statusRes = await shortsAPI.getJobStatus(response.jobId);
-          if (statusRes.status === 'completed') {
-            setForm(prev => ({ ...prev, shortVideoUrl: statusRes.videoUrl }));
-            setVideoSource('ai');
-            isDone = true;
-          } else if (statusRes.status === 'failed') {
-            throw new Error(statusRes.error || 'Video generation failed');
-          }
-          // if 'pending' or 'processing', do nothing, continue loop
-        }
+        // ✅ Fire background tracking — user can navigate away!
+        startJob(response.jobId, `${form.title} @ ${form.company}`);
+        setVideoSource('ai');
+        // Note: shortVideoUrl will be set by the indicator on completion
       } else if (response.short?.videoUrl || response.videoUrl) {
-        // fallback in case synchronous behavior is still triggered
         setForm(prev => ({ ...prev, shortVideoUrl: response.short?.videoUrl || response.videoUrl }));
         setVideoSource('ai');
       } else {
         throw new Error('No video URL or job ID returned');
       }
     } catch (err: any) {
-      // ✅ Only fall back to sample if AI service is unavailable (503 / connection error)
       const isServiceDown =
         err.message?.includes('503') ||
         err.message?.includes('unavailable') ||
@@ -139,19 +155,62 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
     }
   };
 
+  // Check if any of our video jobs completed — update form with the URL
+  useEffect(() => {
+    const completedJob = videoJobs.find(j => j.status === 'completed' && j.videoUrl);
+    if (completedJob && !form.shortVideoUrl) {
+      setForm(prev => ({ ...prev, shortVideoUrl: completedJob.videoUrl! }));
+      setVideoSource('ai');
+    }
+  }, [videoJobs, form.shortVideoUrl]);
+
+  // ── Check if a background video is currently processing ──────────────────
+  const isVideoProcessing = videoJobs.some(j => j.status === 'processing');
+
   if (success) {
     return (
       <div className="container mx-auto max-w-2xl px-4 py-16 text-center">
         <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 p-12 rounded-2xl shadow-xl">
           <div className="text-6xl mb-4">🎉</div>
           <h2 className="text-3xl font-bold text-slate-800 dark:text-white mb-3">Job Posted Successfully!</h2>
-          <p className="text-slate-500 dark:text-slate-400 mb-8">Your job is now live and visible to students on the platform.</p>
-          <div className="flex gap-3 justify-center">
-            <button onClick={() => setSuccess(false)} className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition-colors">
+          <p className="text-slate-500 dark:text-slate-400 mb-4">Your job is now live and visible to students on the platform.</p>
+          
+          {/* Show video generation status */}
+          {isVideoProcessing && (
+            <div className="mb-6 p-4 bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/50 rounded-xl">
+              <div className="flex items-center justify-center gap-2 text-indigo-600 dark:text-indigo-400 mb-1">
+                <div className="w-4 h-4 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin" />
+                <span className="font-semibold text-sm">AI Video Generating in Background</span>
+              </div>
+              <p className="text-xs text-indigo-500/70 dark:text-indigo-400/70">
+                You can navigate freely — check the <span className="font-bold">🎬 indicator</span> in the header to track progress.
+                The video will be automatically attached to your job when ready.
+              </p>
+            </div>
+          )}
+
+          <div className="flex gap-3 justify-center flex-wrap">
+            <button
+              onClick={() => {
+                setSuccess(false);
+                setPostedJobId(null);
+                setForm({
+                  title: '', company: '', location: '', type: 'Remote',
+                  pay: '', maxSlots: '1', category: '', description: '',
+                  requirements: '', shortVideoUrl: '',
+                });
+                setVideoSource(null);
+                setGenerateVideoOnPost(true);
+              }}
+              className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition-colors"
+            >
               Post Another Job
             </button>
             <button onClick={() => navigate('review_applications')} className="px-6 py-3 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold rounded-lg transition-colors">
               View Applications
+            </button>
+            <button onClick={() => navigate('dashboard')} className="px-6 py-3 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold rounded-lg transition-colors">
+              Go to Dashboard
             </button>
           </div>
         </div>
@@ -246,19 +305,23 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
                 {isGeneratingVideo ? (
                   <>
                     <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Generating Video...
+                    Starting...
                   </>
                 ) : (
                   <>
                     <SparklesIcon className="w-3.5 h-3.5" />
-                    Generate Job Video
+                    Generate Video Now
                   </>
                 )}
               </button>
+            ) : videoJobs.some(j => j.status === 'processing') ? (
+              <div className="flex items-center gap-2 text-xs font-bold text-indigo-500 dark:text-indigo-400 animate-pulse">
+                <div className="w-3 h-3 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin" />
+                Video generating in background — you can navigate away!
+              </div>
             ) : (
               <div className="flex items-center gap-2 text-xs font-bold text-green-600 dark:text-green-400">
                 <CheckCircleIcon className="w-4 h-4" />
-                {/* ✅ Shows honest label depending on source */}
                 {videoSource === 'ai' ? 'AI Video Generated!' : 'Sample Video Added'}
               </div>
             )}
@@ -307,12 +370,58 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
           />
         </div>
 
+        {/* ── AI Video Toggle ────────────────────────────────────────────────── */}
+        {!form.shortVideoUrl && (
+          <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 border border-indigo-200/50 dark:border-indigo-800/30 rounded-xl">
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={generateVideoOnPost}
+                onChange={(e) => setGenerateVideoOnPost(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-500 rounded-full peer dark:bg-slate-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
+            </label>
+            <div>
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                <SparklesIcon className="w-4 h-4 inline-block mr-1 text-indigo-500" />
+                Auto-generate AI marketing video on post
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                The AI reads your job details and creates a cinematic video in the background. You can navigate freely while it generates.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="flex justify-end gap-4 pt-2">
           <button type="button" onClick={() => navigate('dashboard')} className="px-6 py-3 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold rounded-lg transition-colors">
             Cancel
           </button>
-          <button type="submit" disabled={isLoading} className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold rounded-lg transition-all transform hover:scale-105 shadow-lg shadow-indigo-500/20">
-            {isLoading ? 'Posting...' : '🚀 Post Job'}
+
+          {/* Main submit button — changes label based on video toggle */}
+          <button
+            type="submit"
+            disabled={isLoading}
+            className={`px-8 py-3 text-white font-bold rounded-lg transition-all transform hover:scale-105 shadow-lg disabled:opacity-50 ${
+              generateVideoOnPost && !form.shortVideoUrl
+                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-indigo-500/20'
+                : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-500/20'
+            }`}
+          >
+            {isLoading ? (
+              <span className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Posting...
+              </span>
+            ) : generateVideoOnPost && !form.shortVideoUrl ? (
+              <span className="flex items-center gap-2">
+                <SparklesIcon className="w-4 h-4" />
+                🚀 Post Job & Generate Video
+              </span>
+            ) : (
+              '🚀 Post Job'
+            )}
           </button>
         </div>
       </form>

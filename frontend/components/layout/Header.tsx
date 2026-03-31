@@ -18,6 +18,7 @@ import {
 } from '../icons/Icons';
 import Modal from '../common/Modal';
 import useModal from '../../hooks/useModal';
+import { VideoGenIndicator } from '../common/VideoGenIndicator';
 
 interface User {
     id: string;
@@ -134,6 +135,7 @@ const Header: React.FC<HeaderProps> = ({ navigate, onLogout, currentPage, theme,
                                     <BellIcon className="h-6 w-6 text-slate-600 dark:text-slate-300" />
                                 </button>
                             )}
+                            {isAuthenticated && <VideoGenIndicator onNavigate={navigate} />}
                             {!isAuthenticated ? (
                                 <div className="flex items-center gap-2">
                                     <button

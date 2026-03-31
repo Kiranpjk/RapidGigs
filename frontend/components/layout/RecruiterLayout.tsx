@@ -24,6 +24,7 @@ import JobApplicationPage from '../pages/JobApplicationPage';
 import UploadVideoPage from '../pages/UploadVideoPage';
 import { Job } from '../../types';
 import { ALL_JOBS } from '../../data/mockData';
+import { VideoGenIndicator } from '../common/VideoGenIndicator';
 
 interface RecruiterLayoutProps {
     currentPage: Page;
@@ -172,6 +173,9 @@ const RecruiterLayout: React.FC<RecruiterLayoutProps> = ({
                             <button className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" onClick={() => navigate('notifications')}>
                                 <BellIcon className="h-6 w-6 text-slate-600 dark:text-slate-300" />
                             </button>
+
+                            {/* Video generation progress indicator — Chrome download style */}
+                            <VideoGenIndicator onNavigate={navigate} />
 
                             <div className="relative">
                                 <button onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}>

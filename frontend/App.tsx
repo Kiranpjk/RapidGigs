@@ -5,6 +5,7 @@ import AuthPage from './components/auth/AuthPage';
 import MainLayout from './components/layout/MainLayout';
 import { useAuth } from './context/AuthContext';
 import { JobProvider } from './context/JobContext';
+import { VideoGenProvider } from './context/VideoGenContext';
 import { canAccessPage, getDefaultPageForRole } from './utils/rbac';
 import AdminLayout from './components/layout/AdminLayout';
 import RecruiterLayout from './components/layout/RecruiterLayout';
@@ -116,6 +117,7 @@ const App: React.FC = () => {
   }
 
   return (
+    <VideoGenProvider>
     <JobProvider>
       {user?.role === 'admin' || user?.role === 'moderator' ? (
         <AdminLayout
@@ -153,6 +155,7 @@ const App: React.FC = () => {
         </div>
       )}
     </JobProvider>
+    </VideoGenProvider>
   );
 };
 

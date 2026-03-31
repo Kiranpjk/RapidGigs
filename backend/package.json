@@ -4,7 +4,7 @@
     "description": "Backend API for RapidGig platform",
     "main": "dist/server.js",
     "scripts": {
-        "dev": "node node_modules/tsx/dist/cli.mjs watch src/server.ts",
+        "dev": "\"C:\\Program Files\\nodejs\\node.exe\" node_modules/tsx/dist/cli.mjs watch src/server.ts",
         "build": "tsc",
         "start": "node dist/server.js",
         "migrate": "node node_modules/tsx/dist/cli.mjs src/config/database.ts"
