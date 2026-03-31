@@ -4,10 +4,10 @@
     "description": "Backend API for RapidGig platform",
     "main": "dist/server.js",
     "scripts": {
-        "dev": "npx tsx watch src/server.ts",
+        "dev": "node node_modules/tsx/dist/cli.mjs watch src/server.ts",
         "build": "tsc",
         "start": "node dist/server.js",
-        "migrate": "npx tsx src/config/database.ts"
+        "migrate": "node node_modules/tsx/dist/cli.mjs src/config/database.ts"
     },
     "dependencies": {
         "@fal-ai/client": "^1.9.4",
