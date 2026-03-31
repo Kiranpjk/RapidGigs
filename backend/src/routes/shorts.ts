@@ -607,16 +607,10 @@ router.post('/generate', authenticate, async (req: AuthRequest, res) => {
         return;
       }
 
-      // Step 3: Save to MongoDB
-      const newShort = new ShortVideo({
-        userId: req.user!.userId,
-        title: title || 'AI Generated Short',
-        description: description || prompt,
-        videoUrl: result.videoUrl,
-        likes: 0,
-        views: 0,
-      });
-      await newShort.save();
+      // Step 3: Mark completed — do NOT save to ShortVideo here.
+      // Videos only appear in the Shorts feed when created via /from-job
+      // (which runs after the job is actually posted to the DB).
+      // The standalone /generate is for pre-post preview only.
 
       jobStore.set(jobId, {
         ...jobStore.get(jobId)!,
@@ -842,6 +836,7 @@ router.get('/feed', authenticate, async (req: AuthRequest, res) => {
       feedItems = jobsWithVideos.map(job => ({
         type: 'job',
         id: job._id.toString(),
+        jobId: job._id.toString(),
         title: job.title,
         company: job.company,
         description: job.description,
@@ -852,19 +847,28 @@ router.get('/feed', authenticate, async (req: AuthRequest, res) => {
         shares: job.shares || 0,
         pay: job.pay,
         createdAt: job.createdAt,
+        postedById: job.postedBy ? (job.postedBy as any)._id?.toString() || job.postedBy.toString() : null,
         author: {
+          id: job.postedBy ? (job.postedBy as any)._id?.toString() || job.postedBy.toString() : null,
           name: job.company,
-          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company)}`,
+          avatar: (job.postedBy as any)?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company)}`,
         }
       }));
     } else if (isRecruiter) {
+      // 1. Fetch candidate videos (students)
       const candidateVideos = await ShortVideo.find()
-        .populate({ path: 'userId', match: { role: 'student' }, select: 'name avatarUrl title' })
+        .populate({ path: 'userId', select: 'name avatarUrl title role' })
         .sort({ createdAt: -1 })
-        .limit(40);
+        .limit(30);
 
-      feedItems = candidateVideos
-        .filter(v => v.userId !== null)
+      // 2. Fetch the recruiter's *own* jobs that have videos so they can preview them
+      const myJobsWithVideos = await Job.find({ 
+        postedBy: user._id, 
+        shortVideoUrl: { $exists: true, $ne: '' } 
+      }).populate('postedBy', 'name avatarUrl').sort({ updatedAt: -1 }).limit(10);
+
+      const formattedCandidates = candidateVideos
+        .filter(v => (v.userId as any)?.role === 'student')
         .map(v => ({
           type: 'candidate_intro',
           id: v._id.toString(),
@@ -874,11 +878,38 @@ router.get('/feed', authenticate, async (req: AuthRequest, res) => {
           likes: v.likes || 0,
           views: v.views || 0,
           createdAt: v.createdAt,
+          authorId: (v.userId as any)._id?.toString(),
           author: {
+            id: (v.userId as any)._id?.toString(),
             name: (v.userId as any).name,
             avatar: (v.userId as any).avatarUrl,
+            title: (v.userId as any).title || '',
           }
         }));
+
+      const formattedJobs = myJobsWithVideos.map(job => ({
+        type: 'job',
+        id: job._id.toString(),
+        jobId: job._id.toString(),
+        title: job.title,
+        company: job.company,
+        description: job.description,
+        videoUrl: job.shortVideoUrl,
+        likes: job.likes || 10,
+        views: (job.likes || 0) * 5 + 50,
+        comments: job.comments || 0,
+        shares: job.shares || 0,
+        pay: job.pay,
+        createdAt: job.createdAt,
+        postedById: job.postedBy ? (job.postedBy as any)._id?.toString() || job.postedBy.toString() : null,
+        author: {
+          id: job.postedBy ? (job.postedBy as any)._id?.toString() || job.postedBy.toString() : null,
+          name: job.company,
+          avatar: (job.postedBy as any)?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company)}`,
+        }
+      }));
+
+      feedItems = [...formattedCandidates, ...formattedJobs];
     }
 
     const now = new Date();

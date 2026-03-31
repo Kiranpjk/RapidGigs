@@ -10,6 +10,7 @@ import {
 import { shortsAPI } from '../../services/api';
 import { useSwipeGesture } from '../../hooks/useSwipeGesture';
 import { useAuth } from '../../context/AuthContext';
+import { fetchWithAuth } from '../../services/api';
 
 interface ShortsPageProps {
     onApplyNow: (job: any) => void;
@@ -33,6 +34,7 @@ interface ShortCardProps {
     onApplyNow: (item: any) => void;
     onNavigateToJobDetail?: (jobId: string) => void;
     onNavigate?: (page: Page) => void;
+    onViewProfile: (authorId: string) => void;
 }
 
 const ShortCard: React.FC<ShortCardProps> = ({
@@ -48,8 +50,10 @@ const ShortCard: React.FC<ShortCardProps> = ({
     onApplyNow,
     onNavigateToJobDetail,
     onNavigate,
+    onViewProfile,
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
+    const [connectState, setConnectState] = useState<'idle' | 'sending' | 'sent'>('idle');
 
     // ✅ Hook called at component top-level — this is now legal
     const swipeState = useSwipeGesture(containerRef as React.RefObject<HTMLElement>, {
@@ -129,15 +133,26 @@ const ShortCard: React.FC<ShortCardProps> = ({
                         <img
                             src={item.author?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.author?.name || 'A')}`}
                             alt={item.author?.name}
-                            className="w-11 h-11 rounded-full border-2 border-white/50 object-cover"
+                            onClick={() => { if (item.author?.id) onViewProfile(item.author.id); }}
+                            className="w-11 h-11 rounded-full border-2 border-white/50 object-cover cursor-pointer hover:scale-105 transition-transform"
                         />
                         <div>
-                            <p className="font-bold text-lg leading-tight">{item.author?.name}</p>
+                            <p onClick={() => { if (item.author?.id) onViewProfile(item.author.id); }} className="font-bold text-lg leading-tight cursor-pointer hover:underline">{item.author?.name}</p>
                             <p className="text-xs text-white/70">@{(item.author?.name || 'user').toLowerCase().replace(/\s+/g, '')}</p>
                         </div>
                         {!isJob && (
-                            <button className="bg-indigo-600/80 hover:bg-indigo-600 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider ml-1">
-                                Connect
+                            <button
+                                onClick={() => {
+                                    if (connectState !== 'idle') return;
+                                    setConnectState('sending');
+                                    setTimeout(() => setConnectState('sent'), 1000);
+                                }}
+                                className={`text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider ml-1 transition-colors ${
+                                    connectState === 'sent' ? 'bg-green-600 text-white' :
+                                    connectState === 'sending' ? 'bg-indigo-400 text-white' : 'bg-indigo-600/80 hover:bg-indigo-600 text-white'
+                                }`}
+                            >
+                                {connectState === 'sent' ? 'Sent!' : connectState === 'sending' ? 'Sending...' : 'Connect'}
                             </button>
                         )}
                     </div>
@@ -202,8 +217,11 @@ const ShortCard: React.FC<ShortCardProps> = ({
                     <button
                         className="bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white p-4 rounded-2xl shadow-2xl transition-all duration-300 transform hover:scale-110 hover:rotate-3"
                         onClick={() => {
-                            if (isJob) onApplyNow(item);
-                            else if (onNavigate) onNavigate('profile');
+                            if (isJob) {
+                                if (item.jobId) onNavigateToJobDetail?.(item.jobId);
+                                else onApplyNow(item);
+                            }
+                            else if (item.author?.id) onViewProfile(item.author.id);
                         }}
                     >
                         <PaperAirplaneIcon className="w-7 h-7 rotate-45" />
@@ -226,6 +244,25 @@ const ShortsPage: React.FC<ShortsPageProps> = ({ onApplyNow, onNavigateToJobDeta
     const [showHint, setShowHint] = useState<boolean>(() => {
         return !localStorage.getItem('shortsSwipeHintSeen');
     });
+
+    const [viewingProfile, setViewingProfile] = useState<any>(null);
+    const [viewingStats, setViewingStats] = useState<any>(null);
+    const [loadingProfile, setLoadingProfile] = useState(false);
+    const API_BASE = (import.meta.env.VITE_API_BASE as string) || 'http://localhost:3001/api';
+
+    const handleViewProfile = async (authorId: string) => {
+        if (!authorId) return;
+        setLoadingProfile(true);
+        try {
+            const data = await fetchWithAuth(`${API_BASE}/users/${authorId}`);
+            setViewingProfile(data.user || data);
+            setViewingStats(data.stats);
+        } catch {
+            // fallback generic profile info if failing
+            setViewingProfile({ id: authorId, name: 'Candidate', role: 'student' });
+        }
+        setLoadingProfile(false);
+    };
 
     // Load feed
     useEffect(() => {
@@ -253,6 +290,7 @@ const ShortsPage: React.FC<ShortsPageProps> = ({ onApplyNow, onNavigateToJobDeta
                     const video = entry.target as HTMLVideoElement;
                     if (entry.isIntersecting) {
                         video.play().catch(() => {});
+                        // Optional: Mark as viewed in DB here if you want real tracking
                     } else {
                         video.pause();
                         video.currentTime = 0;
@@ -339,8 +377,69 @@ const ShortsPage: React.FC<ShortsPageProps> = ({ onApplyNow, onNavigateToJobDeta
         );
     }
 
+    const avatarUrl = (name?: string, url?: string) =>
+        url || `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'U')}&size=80&background=6366f1&color=fff`;
+
     return (
         <div className="relative h-[calc(100vh-64px)] w-full overflow-y-auto snap-y snap-mandatory scroll-smooth bg-black">
+            {/* Profile Drawer */}
+            {viewingProfile && (
+                <div className="fixed inset-0 z-[60] flex justify-end">
+                    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setViewingProfile(null)} />
+                    <div className="relative w-full max-w-md bg-white dark:bg-slate-900 h-full overflow-y-auto shadow-2xl animate-slide-in">
+                        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 h-36 relative">
+                            <button
+                                onClick={() => setViewingProfile(null)}
+                                className="absolute top-4 right-4 w-8 h-8 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white transition-colors"
+                            >✕</button>
+                        </div>
+                        <div className="px-6 pb-8 -mt-12">
+                            <div className="flex items-end gap-4 mb-4">
+                                <img src={avatarUrl(viewingProfile.name, viewingProfile.avatarUrl)} alt={viewingProfile.name} className="w-20 h-20 rounded-2xl ring-4 ring-white dark:ring-slate-900 object-cover shadow-lg" />
+                                <div className="pb-1">
+                                    <h2 className="text-xl font-bold text-slate-800 dark:text-white">{viewingProfile.name}</h2>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">{viewingProfile.title || (viewingProfile.role === 'recruiter' ? 'Recruiter' : 'Student')}</p>
+                                </div>
+                            </div>
+                            <div className="space-y-4">
+                                <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4">
+                                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3">Contact Info</p>
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-2 text-sm">
+                                            <span className="text-slate-400">📧</span>
+                                            <span className="text-slate-700 dark:text-slate-300">{viewingProfile.email || 'Contact via message'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                {loadingProfile ? (
+                                    <div className="text-center py-6 text-slate-400 text-sm">Loading stats...</div>
+                                ) : viewingStats && (
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-xl p-4 text-center">
+                                            <p className="text-3xl font-extrabold text-indigo-600 dark:text-indigo-400">{viewingStats.applicationsSent ?? 0}</p>
+                                            <p className="text-xs text-indigo-500 dark:text-indigo-300 mt-1">Applications</p>
+                                        </div>
+                                        <div className="bg-pink-50 dark:bg-pink-900/20 rounded-xl p-4 text-center">
+                                            <p className="text-3xl font-extrabold text-pink-600 dark:text-pink-400">{viewingStats.videosUploaded ?? 0}</p>
+                                            <p className="text-xs text-pink-500 dark:text-pink-300 mt-1">Videos</p>
+                                        </div>
+                                    </div>
+                                )}
+                                <button
+                                    onClick={() => {
+                                        setViewingProfile(null);
+                                        if (onNavigate) onNavigate('messages');
+                                    }}
+                                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-colors shadow-lg shadow-indigo-500/20"
+                                >
+                                    💬 Message {viewingProfile.name?.split(' ')[0]}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Swipe Hint */}
             {showHint && (
                 <div
@@ -377,6 +476,7 @@ const ShortsPage: React.FC<ShortsPageProps> = ({ onApplyNow, onNavigateToJobDeta
                     onApplyNow={onApplyNow}
                     onNavigateToJobDetail={onNavigateToJobDetail}
                     onNavigate={onNavigate}
+                    onViewProfile={handleViewProfile}
                 />
             ))}
         </div>

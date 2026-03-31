@@ -206,16 +206,13 @@ const RecruiterDashboardPage: React.FC<RecruiterDashboardPageProps> = ({ navigat
                     <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-5">
                         {myVideos.map(video => (
                             <div key={video._id} className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 group">
-                                <div className="relative aspect-video bg-slate-200 dark:bg-slate-800">
+                                <div className="relative aspect-video bg-slate-200 dark:bg-slate-800 rounded-t-xl overflow-hidden shadow-inner">
                                     <video
                                         src={getMediaUrl(video.videoUrl)}
                                         className="w-full h-full object-cover"
-                                        controls={false}
+                                        controls
                                         preload="metadata"
                                     />
-                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
-                                        <span className="text-white text-4xl">▶</span>
-                                    </div>
                                 </div>
                                 <div className="p-3">
                                     <h3 className="text-sm font-semibold text-slate-800 dark:text-white truncate">{video.title}</h3>

@@ -1,13 +1,86 @@
-// ✅ WIRED: "Post Job & Generate Video" now saves job first, then triggers
-//           background video generation via /api/shorts/from-job/:jobId
-//           User can navigate away immediately — VideoGenIndicator tracks progress
+// ✅ FIXED: Form state now persists in localStorage across navigation.
+//           Navigate away to Shorts/Dashboard and come back — all your fields are intact.
+//           Video only appears in Shorts AFTER you post the job (via from-job endpoint).
+//           Draft is auto-cleared on successful post or "Post Another Job".
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Page } from '../../types';
 import { jobsAPI, categoriesAPI, shortsAPI } from '../../services/api';
 import { VideoCameraIcon, CheckCircleIcon, TrashIcon } from '../icons/Icons';
 import { SparklesIcon } from '../icons/Icons';
 import { useVideoGen } from '../../context/VideoGenContext';
+
+// ── Local storage key for draft persistence ────────────────────────────────
+const DRAFT_KEY = 'rapidgig_postjob_draft';
+
+interface FormState {
+  title: string;
+  company: string;
+  location: string;
+  type: 'Remote' | 'On-site' | 'Hybrid';
+  pay: string;
+  maxSlots: string;
+  category: string;
+  description: string;
+  requirements: string;
+  shortVideoUrl: string;
+}
+
+interface DraftState {
+  form: FormState;
+  videoSource: 'ai' | 'sample' | null;
+  generateVideoOnPost: boolean;
+  success: boolean;
+  postedJobId: string | null;
+}
+
+const EMPTY_FORM: FormState = {
+  title: '',
+  company: '',
+  location: '',
+  type: 'Remote',
+  pay: '',
+  maxSlots: '1',
+  category: '',
+  description: '',
+  requirements: '',
+  shortVideoUrl: '',
+};
+
+/** Load draft from localStorage (or return defaults) */
+function loadDraft(): DraftState {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as DraftState;
+      // Validate it has the expected shape
+      if (parsed.form && typeof parsed.form.title === 'string') {
+        return parsed;
+      }
+    }
+  } catch { /* corrupted — ignore */ }
+  return {
+    form: { ...EMPTY_FORM },
+    videoSource: null,
+    generateVideoOnPost: true,
+    success: false,
+    postedJobId: null,
+  };
+}
+
+/** Save draft to localStorage */
+function saveDraft(draft: DraftState) {
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  } catch { /* quota exceeded — ignore */ }
+}
+
+/** Clear draft from localStorage */
+function clearDraft() {
+  localStorage.removeItem(DRAFT_KEY);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 interface PostJobPageProps {
   navigate: (page: Page) => void;
@@ -17,41 +90,47 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
   const { startJob, jobs: videoJobs } = useVideoGen();
   const [categories, setCategories] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
-  const [postedJobId, setPostedJobId] = useState<string | null>(null);
-  const [generateVideoOnPost, setGenerateVideoOnPost] = useState(true);
 
-  const [form, setForm] = useState({
-    title: '',
-    company: '',
-    location: '',
-    type: 'Remote' as 'Remote' | 'On-site' | 'Hybrid',
-    pay: '',
-    maxSlots: '1',
-    category: '',
-    description: '',
-    requirements: '',
-    shortVideoUrl: '',
-  });
-
+  // ── Restore draft from localStorage on mount ────────────────────────────
+  const initial = useRef(loadDraft());
+  const [form, setForm] = useState<FormState>(initial.current.form);
+  const [videoSource, setVideoSource] = useState<'ai' | 'sample' | null>(initial.current.videoSource);
+  const [generateVideoOnPost, setGenerateVideoOnPost] = useState(initial.current.generateVideoOnPost);
+  const [success, setSuccess] = useState(initial.current.success);
+  const [postedJobId, setPostedJobId] = useState<string | null>(initial.current.postedJobId);
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
-  // ✅ Track whether video came from real AI or sample fallback
-  const [videoSource, setVideoSource] = useState<'ai' | 'sample' | null>(null);
 
+  // ── Persist draft to localStorage on every change ───────────────────────
+  useEffect(() => {
+    saveDraft({ form, videoSource, generateVideoOnPost, success, postedJobId });
+  }, [form, videoSource, generateVideoOnPost, success, postedJobId]);
+
+  // ── Load categories ─────────────────────────────────────────────────────
   useEffect(() => {
     categoriesAPI.getAll()
       .then(data => setCategories(Array.isArray(data) ? data : []))
       .catch(() => {});
   }, []);
 
-  const handleChange = (
+  const handleChange = useCallback((
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
-  };
+  }, []);
 
-  // ── "Post Job Only" (no video) ──────────────────────────────────────────
+  // ── Reset form to blank (for "Post Another Job") ────────────────────────
+  const resetForm = useCallback(() => {
+    setForm({ ...EMPTY_FORM });
+    setVideoSource(null);
+    setGenerateVideoOnPost(true);
+    setSuccess(false);
+    setPostedJobId(null);
+    setError('');
+    clearDraft();
+  }, []);
+
+  // ── Submit: Save job → optionally trigger background video gen ──────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -70,14 +149,16 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
         shortVideoUrl: form.shortVideoUrl,
       });
 
-      setPostedJobId(result.id || result._id);
+      const savedJobId = result.id || result._id;
+      setPostedJobId(savedJobId);
 
       // If "generate video" toggle is ON and no video yet, trigger background gen
-      if (generateVideoOnPost && !form.shortVideoUrl && result.id) {
-        triggerBackgroundVideoGen(result.id, form.title, form.company);
+      if (generateVideoOnPost && !form.shortVideoUrl && savedJobId) {
+        triggerBackgroundVideoGen(savedJobId, form.title, form.company);
       }
 
       setSuccess(true);
+      // Draft is kept in localStorage in "success" state so it persists across nav
     } catch (err: any) {
       setError(err.message || 'Failed to post job. Please try again.');
     } finally {
@@ -119,10 +200,8 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
       });
 
       if (response.jobId) {
-        // ✅ Fire background tracking — user can navigate away!
         startJob(response.jobId, `${form.title} @ ${form.company}`);
         setVideoSource('ai');
-        // Note: shortVideoUrl will be set by the indicator on completion
       } else if (response.short?.videoUrl || response.videoUrl) {
         setForm(prev => ({ ...prev, shortVideoUrl: response.short?.videoUrl || response.videoUrl }));
         setVideoSource('ai');
@@ -167,6 +246,9 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
   // ── Check if a background video is currently processing ──────────────────
   const isVideoProcessing = videoJobs.some(j => j.status === 'processing');
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // SUCCESS SCREEN — also persisted, so coming back from Shorts still shows it
+  // ══════════════════════════════════════════════════════════════════════════
   if (success) {
     return (
       <div className="container mx-auto max-w-2xl px-4 py-16 text-center">
@@ -189,19 +271,35 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
             </div>
           )}
 
+          {/* Show if video completed */}
+          {!isVideoProcessing && videoJobs.some(j => j.status === 'completed') && form.shortVideoUrl && (
+            <div className="mb-6 overflow-hidden bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800/50 rounded-xl shadow-inner">
+              <div className="p-4 border-b border-green-200 dark:border-green-800/50 flex flex-col items-center justify-center gap-2 text-green-600 dark:text-green-400">
+                <div className="flex items-center gap-2">
+                  <CheckCircleIcon className="w-5 h-5" />
+                  <span className="font-semibold text-sm">AI Video Ready & Attached to Your Job!</span>
+                </div>
+                <p className="text-xs text-green-500/80 dark:text-green-400/80 text-center max-w-sm">
+                  Your job is now standing out in the Shorts feed. Preview your AI-generated marketing video below.
+                </p>
+              </div>
+              <div className="relative aspect-[9/16] bg-black max-w-[200px] mx-auto m-4 rounded-lg overflow-hidden shadow-lg border-2 border-green-300 dark:border-green-700/50">
+                <video
+                  src={form.shortVideoUrl.startsWith('http') ? form.shortVideoUrl : `${import.meta.env.VITE_API_BASE?.replace('/api', '') || 'http://localhost:3001'}${form.shortVideoUrl}`}
+                  className="w-full h-full object-cover"
+                  loop
+                  muted
+                  autoPlay
+                  playsInline
+                  controls
+                />
+              </div>
+            </div>
+          )}
+
           <div className="flex gap-3 justify-center flex-wrap">
             <button
-              onClick={() => {
-                setSuccess(false);
-                setPostedJobId(null);
-                setForm({
-                  title: '', company: '', location: '', type: 'Remote',
-                  pay: '', maxSlots: '1', category: '', description: '',
-                  requirements: '', shortVideoUrl: '',
-                });
-                setVideoSource(null);
-                setGenerateVideoOnPost(true);
-              }}
+              onClick={resetForm}
               className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition-colors"
             >
               Post Another Job
@@ -218,16 +316,42 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
     );
   }
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // FORM — all fields persist across navigation via localStorage
+  // ══════════════════════════════════════════════════════════════════════════
   const InputClass =
     'w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg py-3 px-4 text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all';
   const LabelClass = 'block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2';
 
+  // Check if the form has any user-entered data (for showing "clear draft" button)
+  const hasFormData = form.title || form.company || form.description || form.location || form.pay;
+
   return (
     <div className="container mx-auto max-w-3xl px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-extrabold text-slate-800 dark:text-white tracking-tighter">Post a Job</h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-1">Fill in the details below to reach top talent on RapidGig.</p>
+      <div className="mb-8 flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-extrabold text-slate-800 dark:text-white tracking-tighter">Post a Job</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">Fill in the details below to reach top talent on RapidGig.</p>
+        </div>
+        {hasFormData && (
+          <button
+            type="button"
+            onClick={resetForm}
+            className="flex items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-red-500 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20"
+          >
+            <TrashIcon className="w-3.5 h-3.5" />
+            Clear Draft
+          </button>
+        )}
       </div>
+
+      {/* Saved draft indicator */}
+      {hasFormData && (
+        <div className="mb-4 flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
+          <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+          Draft auto-saved — your form is safe even if you navigate away
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-2xl p-8 shadow-lg space-y-6">
         {error && (
@@ -314,7 +438,7 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
                   </>
                 )}
               </button>
-            ) : videoJobs.some(j => j.status === 'processing') ? (
+            ) : isVideoProcessing ? (
               <div className="flex items-center gap-2 text-xs font-bold text-indigo-500 dark:text-indigo-400 animate-pulse">
                 <div className="w-3 h-3 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin" />
                 Video generating in background — you can navigate away!
@@ -399,7 +523,7 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
             Cancel
           </button>
 
-          {/* Main submit button — changes label based on video toggle */}
+          {/* Main submit button */}
           <button
             type="submit"
             disabled={isLoading}
