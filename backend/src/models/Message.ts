@@ -23,4 +23,7 @@ const MessageSchema: Schema = new Schema(
   { timestamps: true }
 );
 
+MessageSchema.index({ senderId: 1, receiverId: 1, createdAt: -1 });
+MessageSchema.index({ receiverId: 1, senderId: 1, isRead: 1 });
+
 export const Message: Model<IMessage> = mongoose.model<IMessage>('Message', MessageSchema);

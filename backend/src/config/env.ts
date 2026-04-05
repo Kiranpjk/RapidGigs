@@ -7,7 +7,13 @@ export const config = {
   isProduction: process.env.NODE_ENV === 'production',
 
   jwt: {
-    secret: process.env.JWT_SECRET || 'your-secret-key',
+    secret: (() => {
+      const s = process.env.JWT_SECRET;
+      if (!s && process.env.NODE_ENV === 'production') {
+        throw new Error('FATAL: JWT_SECRET must be set in production');
+      }
+      return s || 'dev-only-secret-key';
+    })(),
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   },
 
@@ -54,6 +60,14 @@ export const config = {
     clientId: process.env.GOOGLE_CLIENT_ID || '',
     clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
     redirectUri: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5173',
+  },
+
+  email: {
+    host: process.env.SMTP_HOST || '',
+    port: parseInt(process.env.SMTP_PORT || '587', 10),
+    user: process.env.SMTP_USER || '',
+    pass: process.env.SMTP_PASS || '',
+    from: process.env.SMTP_FROM || 'noreply@rapidgig.local',
   },
 };
 

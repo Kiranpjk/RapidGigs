@@ -10,6 +10,16 @@ import mongoose from 'mongoose';
 
 const router = express.Router();
 
+// List students (for recruiters)
+router.get('/', authenticate, async (req: AuthRequest, res: express.Response) => {
+  try {
+    const users = await UserModel.findByRole('student');
+    res.json(users);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Search users by email or user ID
 router.get('/search', authenticate, async (req: AuthRequest, res: express.Response) => {
   try {
@@ -116,7 +126,9 @@ router.patch(
       if (req.body.name) updateData.name = req.body.name;
       if (req.body.title !== undefined) updateData.title = req.body.title;
       if (req.file) {
-        updateData.avatarUrl = `/uploads/avatars/${req.file.filename}`;
+        const { localStorageService } = await import('../services/localStorage');
+        const relativePath = localStorageService.saveFile(req.file.buffer, 'avatars', req.file.originalname);
+        updateData.avatarUrl = relativePath;
       }
 
       const user = await UserModel.update(req.user!.userId, updateData);

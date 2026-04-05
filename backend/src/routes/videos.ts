@@ -16,7 +16,8 @@ router.get('/', async (req, res) => {
     const videos = await ShortVideo.find()
       .populate('userId', 'name avatarUrl')
       .populate('categoryId', 'name')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .limit(100);
 
     res.json(videos.map(video => ({
       id: video._id.toString(),
@@ -24,11 +25,11 @@ router.get('/', async (req, res) => {
       description: video.description,
       videoUrl: video.videoUrl,
       thumbnailUrl: video.thumbnailUrl,
-      author: {
+      author: video.userId ? {
         id: (video.userId as any)._id.toString(),
         name: (video.userId as any).name,
         avatarUrl: (video.userId as any).avatarUrl,
-      },
+      } : { id: '', name: 'Deleted User', avatarUrl: null },
       category: (video.categoryId as any)?.name || null,
       views: video.views || 0,
       likes: video.likes || 0,
@@ -155,7 +156,12 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res) => {
 
     // Delete local file if it's a local URL
     if (video.videoUrl?.includes('/uploads/')) {
-      const urlPath = new URL(video.videoUrl).pathname;
+      let urlPath: string;
+      try {
+        urlPath = new URL(video.videoUrl).pathname;
+      } catch {
+        urlPath = video.videoUrl;
+      }
       localStorageService.deleteFile(urlPath);
     }
 

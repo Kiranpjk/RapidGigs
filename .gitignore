@@ -38,3 +38,19 @@ n8n-data/
 
 # Local dev
 .kiro/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# TypeScript build logs
+tsc-output*.txt
+tsc-errors.txt
+tsc.log
+
+# Git diagnostic files
+dangling.txt
+fsck.txt
+
+# Deployment logs
+modal.log

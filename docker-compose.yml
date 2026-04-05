@@ -4,8 +4,9 @@ services:
   # ─── MongoDB ───────────────────────────────────────────────────────────────
   mongodb:
     image: mongo:7
-    ports:
-      - "27017:27017"
+    # DO NOT expose in production — use Docker network only
+    expose:
+      - "27017"
     volumes:
       - mongo-data:/data/db
     restart: unless-stopped
@@ -14,6 +15,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - app-net
 
   # ─── Backend API ───────────────────────────────────────────────────────────
   backend:
@@ -24,23 +27,28 @@ services:
       - MONGO_URI=mongodb://mongodb:27017/rapidgig
       - NODE_ENV=production
       - PORT=3001
-      - JWT_SECRET=${JWT_SECRET:-rapidgig-change-me-in-production}
+      - JWT_SECRET=${JWT_SECRET:?You must set JWT_SECRET in your environment}
       - JWT_EXPIRES_IN=7d
       - HELIOS_SERVICE_URL=http://helios:8000
       - HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN:-}
       - HF_TEXT_MODEL=${HF_TEXT_MODEL:-HuggingFaceH4/zephyr-7b-beta}
       - HF_VIDEO_MODEL=${HF_VIDEO_MODEL:-ali-vilab/text-to-video-ms-1.7b}
-      - CORS_ORIGIN=http://localhost
-      - N8N_WEBHOOK_SECRET=${N8N_WEBHOOK_SECRET:-rapidgig-webhook-secret}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173,http://localhost:80,http://localhost}
+      - N8N_WEBHOOK_SECRET=${N8N_WEBHOOK_SECRET:?You must set N8N_WEBHOOK_SECRET in your environment}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
-      - GOOGLE_REDIRECT_URI=http://localhost
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:-http://localhost:5173/api/auth/google/callback}
     volumes:
       - uploads:/app/uploads
     depends_on:
       mongodb:
         condition: service_healthy
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ─── Frontend (Nginx) ─────────────────────────────────────────────────────
   frontend:
@@ -74,7 +82,7 @@ services:
 
   # ─── n8n Workflow Automation (optional) ────────────────────────────────────
   n8n:
-    image: n8nio/n8n
+    image: n8nio/n8n:1.70.0
     ports:
       - "5678:5678"
     environment:

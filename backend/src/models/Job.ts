@@ -107,5 +107,9 @@ const JobSchema: Schema = new Schema(
   }
 );
 
+JobSchema.index({ postedBy: 1, createdAt: -1 });
+JobSchema.index({ categoryId: 1, status: 1, createdAt: -1 });
+JobSchema.index({ status: 1, createdAt: -1 });
+
 export const Job: Model<IJob> = mongoose.model<IJob>('Job', JobSchema);
 

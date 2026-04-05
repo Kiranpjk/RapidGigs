@@ -8,13 +8,9 @@
  *   4. Helios (local GPU, if HELIOS_SERVICE_URL set)
  *   5. fal.ai (pay-per-use direct, if FAL_KEY set)
  *
- * Prompt enhancement:
- *   1. Ollama + Qwen 3.5 (local, free, no rate limits)
- *   2. Groq (cloud, free tier)
- *   3. Raw description fallback
- *
+ * Prompt enhancement: see ../services/promptBuilder.ts
  * Flow:
- *   Job description → Ollama/Groq → cinematic prompt → video provider → MP4
+ *   Job description → Ollama → Groq → OpenRouter → cinematic prompt → video provider → MP4
  *
  * NOTE: HuggingFace changed its API in 2025.
  *   - Old:  https://api-inference.huggingface.co  ← DEPRECATED (410)
@@ -33,6 +29,17 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 import mongoose from 'mongoose';
 import fs from 'fs';
 import path from 'path';
+import { buildVideoPrompt } from '../services/promptBuilder';
+
+/**
+ * Build a video-specific prompt optimized for video models.
+ * Reuses the shared cinematic prompt system but adds video-model-specific quality directives.
+ */
+function buildVideoModelPrompt(jobDescription: string, enhancedPrompt: string): string {
+  // If we got a good enhanced prompt, optimize it further for video models
+  // by adding pixel-perfect quality directives
+  return `${enhancedPrompt || jobDescription}. Shot in 4K resolution, ultra-detailed photorealistic, smooth cinematic motion, professional color grading with warm golden tones, film grain texture, 24fps cinematic look.`;
+}
 
 const router = express.Router();
 
@@ -62,127 +69,6 @@ setInterval(() => {
 
 const generateJobId = () =>
   `vj_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-
-// ── Prompt system message (shared between Ollama and Groq) ────────────────────
-const PROMPT_SYSTEM = `You are an expert at converting job descriptions into vivid, specific cinematic video prompts for text-to-video AI models.
-
-Rules:
-- Output ONLY the video prompt. No explanation, no quotes, no headers, no thinking tags.
-- 2-3 sentences maximum.
-- Be SPECIFIC to the actual job role — not generic. A nurse job should show medical settings, a developer job should show the specific tech stack or product, a chef job should show the kitchen, etc.
-- Reflect seniority/experience level through the scene (junior = learning/collaborative, senior = leading/confident).
-- Reflect salary/prestige through environment quality (entry-level = coworking space, senior/high-pay = premium office or specialized lab).
-- Include the core skill or activity the job involves as the central visual action.
-- No text overlays, no subtitles, no UI mockups. Pure visual cinematic scene only.
-- Professional, inspiring, realistic mood.`;
-
-function buildPromptUserMsg(jobDescription: string): string {
-  return `Convert this job description into a specific cinematic video prompt that visually represents what this job ACTUALLY LOOKS LIKE day-to-day — the work environment, the core activity, and the seniority/calibre of the person doing it. Extract key details: role title, required skills, experience level, and salary if mentioned — use these to drive the visual scene.
-
-Job Description:
-"""
-${jobDescription.slice(0, 600)}
-"""
-
-Output only the video prompt (2-3 sentences, visuals only, no text overlays):`;
-}
-
-// ── Step 1a: Use Ollama + Qwen 3.5 (local, free) ─────────────────────────────
-async function buildVideoPromptOllama(jobDescription: string): Promise<string | null> {
-  const OLLAMA_URL = process.env.OLLAMA_URL || 'http://127.0.0.1:11434';
-  try {
-    // Quick health check first (1s timeout) to avoid waiting 90s if Ollama is down
-    try {
-      await axios.get(`${OLLAMA_URL}/api/tags`, { timeout: 2_000 });
-    } catch {
-      console.warn('Ollama not reachable, skipping...');
-      return null;
-    }
-
-    console.log('Trying Ollama (Qwen 3.5) for prompt enhancement...');
-    const res = await axios.post(
-      `${OLLAMA_URL}/api/chat`,
-      {
-        model: process.env.OLLAMA_MODEL || 'qwen3.5',
-        messages: [
-          { role: 'system', content: PROMPT_SYSTEM },
-          { role: 'user', content: buildPromptUserMsg(jobDescription) },
-          // Prefill assistant with empty think block to skip reasoning
-          { role: 'assistant', content: '<think>\n\n</think>\n' },
-        ],
-        stream: false,
-        options: { temperature: 0.7, num_predict: 150, think: false },
-      },
-      { timeout: 90_000 } // 90s — generous for cold start + model loading
-    );
-    let prompt = res.data?.message?.content?.trim();
-    // Strip any <think>...</think> tags Qwen might still add
-    if (prompt) {
-      prompt = prompt.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-    }
-    if (prompt) {
-      console.log(`Ollama prompt: "${prompt}"`);
-      return prompt;
-    }
-    console.warn('Ollama returned empty content');
-    return null;
-  } catch (err: any) {
-    console.warn('Ollama prompt generation failed:', err.message);
-    return null;
-  }
-}
-
-// ── Step 1b: Groq fallback ────────────────────────────────────────────────────
-async function buildVideoPromptGroq(jobDescription: string): Promise<string | null> {
-  const GROQ_KEY = process.env.GROQ_API_KEY;
-  if (!GROQ_KEY) return null;
-
-  try {
-    console.log('Trying Groq for prompt enhancement...');
-    const res = await axios.post(
-      'https://api.groq.com/openai/v1/chat/completions',
-      {
-        model: 'llama-3.3-70b-versatile',
-        max_tokens: 120,
-        temperature: 0.7,
-        messages: [
-          { role: 'system', content: PROMPT_SYSTEM },
-          { role: 'user', content: buildPromptUserMsg(jobDescription) },
-        ],
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${GROQ_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        timeout: 15_000,
-      }
-    );
-    const prompt = res.data.choices[0]?.message?.content?.trim();
-    if (prompt) {
-      console.log(`Groq prompt: "${prompt}"`);
-      return prompt;
-    }
-    return null;
-  } catch (err: any) {
-    console.warn('Groq prompt generation failed:', err.message);
-    return null;
-  }
-}
-
-// ── Combined prompt builder: Ollama → Groq → raw fallback ────────────────────
-async function buildVideoPrompt(jobDescription: string): Promise<string> {
-  // Try Ollama first (local, free, no rate limits)
-  const ollamaPrompt = await buildVideoPromptOllama(jobDescription);
-  if (ollamaPrompt) return ollamaPrompt;
-
-  // Fallback to Groq (cloud, free tier)
-  const groqPrompt = await buildVideoPromptGroq(jobDescription);
-  if (groqPrompt) return groqPrompt;
-
-  console.log('All prompt enhancers failed — using raw description');
-  return jobDescription;
-}
 
 
 // ── Step 2: Try each video provider in order ──────────────────────────────────
@@ -763,10 +649,103 @@ router.get('/status/:jobId', authenticate, async (req: AuthRequest, res) => {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
+// POST /api/shorts/generate-long
+// Generate a ~30-second video by stitching 3×10s clips (multi-provider)
+//
+// Providers tried per clip (in order):
+//   1. Pollinations.ai  (free)
+//   2. Replicate         (free credits)
+//   3. HuggingFace       (router → fal-ai / wavespeed)
+//   4. fal.ai            (Kling 3.0 / Hunyuan — pay-per-use)
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/generate-long', authenticate, async (req: AuthRequest, res) => {
+  const { prompt, description, segments = 3, segmentDuration = 10 } = req.body;
+
+  if (!prompt && !description) {
+    return res.status(400).json({ error: 'prompt or description is required' });
+  }
+
+  // Validate segment config
+  const numSegments = Math.min(Math.max(Number(segments) || 3, 2), 5);
+  const clipDuration = Math.min(Math.max(Number(segmentDuration) || 10, 5), 15);
+
+  const jobId = uuidv4();
+  const userId = req.user!.userId;
+  const videoPrompt = prompt || description;
+
+  // Create job entry
+  jobStore.set(jobId, {
+    id: jobId,
+    status: 'processing',
+    prompt: videoPrompt,
+    userId,
+    createdAt: new Date(),
+    provider: 'multi-provider-stitched',
+  });
+
+  // Return job ID immediately — video generates in background
+  res.json({ jobId, status: 'processing', estimatedDuration: numSegments * clipDuration });
+
+  // Run generation async
+  (async () => {
+    try {
+      const enhancedPrompt = await buildVideoPrompt(videoPrompt);
+
+      const { generateStitchedVideo } = await import('../services/videoStitcher');
+      const result = await generateStitchedVideo({
+        prompt: enhancedPrompt,
+        segments: numSegments,
+        segmentDuration: clipDuration,
+        onProgress: (step, progress) => {
+          console.log(`[StitchedVideo ${jobId}] ${step} (${Math.round(progress * 100)}%)`);
+        },
+      });
+
+      // Save to database
+      const short = new ShortVideo({
+        title: videoPrompt.substring(0, 100),
+        description: videoPrompt,
+        videoUrl: result.videoUrl,
+        userId: new mongoose.Types.ObjectId(userId),
+        duration: result.duration,
+        status: 'ready',
+      });
+      await short.save();
+
+      // Update job store
+      const jobEntry = jobStore.get(jobId);
+      if (jobEntry) {
+        jobEntry.status = 'completed';
+        jobEntry.videoUrl = result.videoUrl;
+        jobEntry.provider = result.providers.join(' → ');
+      }
+
+      console.log(`[StitchedVideo ${jobId}] ✅ Done — ${result.clips} clips, ${result.duration}s total`);
+      console.log(`[StitchedVideo ${jobId}] Providers: ${result.providers.join(' → ')}`);
+    } catch (err: any) {
+      console.error(`[StitchedVideo ${jobId}] ❌ Failed:`, err.message);
+      const jobEntry = jobStore.get(jobId);
+      if (jobEntry) {
+        jobEntry.status = 'failed';
+        jobEntry.error = err.message;
+      }
+    }
+  })();
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
 // POST /api/shorts/callback
 // Called by Modal, n8n, or Helios when async generation completes
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/callback', async (req, res) => {
+  // Verify callback secret
+  const secret = req.headers['x-callback-secret'] || req.headers['x-webhook-secret'];
+  const expectedSecret = process.env.CALLBACK_SECRET || process.env.N8N_WEBHOOK_SECRET;
+  if (expectedSecret && secret !== expectedSecret) {
+    return res.status(403).json({ error: 'Unauthorized callback' });
+  }
+
   const { job_id, status, video_url, user_id, title, description } = req.body;
 
   if (!job_id) return res.status(400).json({ error: 'job_id required' });
@@ -824,7 +803,7 @@ router.get('/feed', authenticate, async (req: AuthRequest, res) => {
   try {
     const user = await User.findById(req.user!.userId);
     const isStudent = user?.role === 'student' || user?.isStudent;
-    const isRecruiter = user?.role === 'recruiter' || user?.isRecruiter;
+    const isRecruiter = user?.role === 'recruiter' || user?.role === 'admin' || user?.isRecruiter;
     let feedItems: any[] = [];
 
     if (isStudent) {

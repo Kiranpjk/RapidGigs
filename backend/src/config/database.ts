@@ -69,6 +69,8 @@ export const connectDatabase = async (): Promise<void> => {
     
       // Create a default admin user for development (only when in-memory DB or when explicitly requested)
       const ensureDevAdmin = async () => {
+        // NEVER create dev admin in production
+        if (config.isProduction) return;
         try {
           const { User } = await import('../models/User');
           const { hashPassword } = await import('../utils/password');
@@ -82,18 +84,19 @@ export const connectDatabase = async (): Promise<void> => {
         
           const pwd = process.env.DEV_ADMIN_PASSWORD || 'adminpass';
           const hashed = await hashPassword(pwd);
+          const permissions = getPermissionsForRole('admin');
           const admin = new User({
             email: adminEmail,
             password: hashed,
             name: 'Dev Admin',
             role: 'admin',
-            permissions: ['*'],
+            permissions,
             isActive: true,
             isRecruiter: false,
             isStudent: false,
           });
           await admin.save();
-          console.log('Created development admin:', adminEmail, 'password:', pwd);
+          console.log('Created development admin:', adminEmail);
         } catch (error) {
           // ignore errors
         }

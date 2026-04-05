@@ -1,6 +1,7 @@
 import express from 'express';
 import { Notification } from '../models/Notification';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { formatTimestamp } from '../utils/formatTimestamp';
 import mongoose from 'mongoose';
 
 const router = express.Router();
@@ -66,19 +67,6 @@ router.patch('/read-all', authenticate, async (req: AuthRequest, res) => {
   }
 });
 
-function formatTimestamp(timestamp: Date | string): string {
-  const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp;
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
-
-  if (minutes < 1) return 'Just now';
-  if (minutes < 60) return `${minutes} minutes ago`;
-  if (hours < 24) return `${hours} hours ago`;
-  if (days < 7) return `${days} days ago`;
-  return date.toLocaleDateString();
-}
 
 export default router;
+

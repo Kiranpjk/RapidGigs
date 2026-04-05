@@ -1,4 +1,5 @@
 import express from 'express';
+import crypto from 'crypto';
 import { Notification } from '../models/Notification';
 import { Application } from '../models/Application';
 import { Job } from '../models/Job';
@@ -6,10 +7,14 @@ import { User } from '../models/User';
 
 const router = express.Router();
 
-// Verify webhook secret for all endpoints
+// Verify webhook secret for all endpoints — timing-safe comparison
 router.use((req, res, next) => {
   const secret = req.headers['x-webhook-secret'];
-  if (secret !== process.env.N8N_WEBHOOK_SECRET) {
+  const expectedSecret = process.env.N8N_WEBHOOK_SECRET;
+  if (!expectedSecret || typeof secret !== 'string') {
+    return res.status(403).json({ error: 'Invalid webhook secret' });
+  }
+  if (!crypto.timingSafeEqual(Buffer.from(secret), Buffer.from(expectedSecret))) {
     return res.status(403).json({ error: 'Invalid webhook secret' });
   }
   next();

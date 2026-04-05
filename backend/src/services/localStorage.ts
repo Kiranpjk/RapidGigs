@@ -36,6 +36,7 @@ export const localStorageService = {
    * Convert a relative path to an absolute URL using the server's port.
    */
   getAbsoluteUrl(relativePath: string): string {
-    return `http://localhost:${config.port}${relativePath}`;
+    const baseUrl = process.env.API_BASE_URL || `http://localhost:${config.port}`;
+    return `${baseUrl}${relativePath}`;
   },
 };

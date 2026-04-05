@@ -56,5 +56,7 @@ const ShortVideoSchema: Schema = new Schema(
   }
 );
 
+ShortVideoSchema.index({ userId: 1, createdAt: -1 });
+
 export const ShortVideo: Model<IShortVideo> = mongoose.model<IShortVideo>('ShortVideo', ShortVideoSchema);
 

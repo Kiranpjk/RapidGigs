@@ -2,6 +2,10 @@ import express from 'express';
 import { geminiService } from '../services/gemini';
 import { authenticate } from '../middleware/auth';
 
+// Hash a string to a positive integer (for deterministic avatar/banner selection)
+const hashCode = (s: string): number =>
+  Math.abs([...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 0));
+
 const router = express.Router();
 
 /**
@@ -11,7 +15,7 @@ const router = express.Router();
  */
 router.get('/avatar/:userId', async (req, res) => {
   try {
-    const userId = parseInt(req.params.userId);
+    const userId = hashCode(req.params.userId);
     const userName = req.query.name as string || 'User';
     
     const avatarUrl = await geminiService.generateAvatar(userName, userId);
@@ -36,7 +40,7 @@ router.get('/avatar/:userId', async (req, res) => {
  */
 router.get('/banner/:userId', async (req, res) => {
   try {
-    const userId = parseInt(req.params.userId);
+    const userId = hashCode(req.params.userId);
     
     const bannerGradient = geminiService.generateBannerGradient(userId);
     

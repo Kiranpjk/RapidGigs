@@ -38,5 +38,7 @@ const NotificationSchema: Schema = new Schema(
   }
 );
 
+NotificationSchema.index({ userId: 1, createdAt: -1 });
+
 export const Notification: Model<INotification> = mongoose.model<INotification>('Notification', NotificationSchema);
 

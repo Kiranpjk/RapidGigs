@@ -1,17 +1,20 @@
 import express from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
-import { huggingfaceService } from '../services/huggingface';
+import { buildVideoPrompt, enhanceAsVideoPrompt } from '../services/promptBuilder';
 
 const router = express.Router();
 
-// Generate enhanced video prompt from text
+// Generate enhanced cinematic video prompt from text
 router.post('/enhance-prompt', authenticate, async (req: AuthRequest, res) => {
   try {
     const { text } = req.body;
     if (!text) {
       return res.status(400).json({ error: 'Text is required' });
     }
-    const enhanced = await huggingfaceService.enhancePrompt(text);
+    if (typeof text !== 'string' || text.length > 2000) {
+      return res.status(400).json({ error: 'Text must be a string under 2000 characters' });
+    }
+    const enhanced = await enhanceAsVideoPrompt(text);
     res.json({ prompt: enhanced });
   } catch (error: any) {
     console.error('Enhance prompt error:', error.message);
@@ -19,14 +22,18 @@ router.post('/enhance-prompt', authenticate, async (req: AuthRequest, res) => {
   }
 });
 
-// Generate text completion
+// Generate text completion using Ollama → Groq → OpenRouter chain
 router.post('/generate-text', authenticate, async (req: AuthRequest, res) => {
   try {
     const { prompt } = req.body;
     if (!prompt) {
       return res.status(400).json({ error: 'Prompt is required' });
     }
-    const result = await huggingfaceService.generateText(prompt);
+    if (typeof prompt !== 'string' || prompt.length > 2000) {
+      return res.status(400).json({ error: 'Prompt must be a string under 2000 characters' });
+    }
+    // Reuse buildVideoPrompt which tries Ollama → Groq → OpenRouter
+    const result = await buildVideoPrompt(prompt);
     res.json({ text: result });
   } catch (error: any) {
     console.error('Text generation error:', error.message);

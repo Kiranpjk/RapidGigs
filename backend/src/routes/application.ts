@@ -14,7 +14,9 @@ router.get('/my-applications', authenticate, async (req: AuthRequest, res) => {
       .populate('jobId')
       .sort({ dateApplied: -1 });
 
-    res.json(applications.map(app => ({
+    res.json(applications
+      .filter(app => app.jobId != null)
+      .map(app => ({
       id: app._id.toString(),
       job: {
         id: (app.jobId as any)._id.toString(),
@@ -41,6 +43,15 @@ router.get('/job/:jobId', authenticate, async (req: AuthRequest, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.jobId)) {
       return res.status(400).json({ error: 'Invalid job ID' });
+    }
+
+    // Verify the current user owns this job
+    const job = await Job.findById(req.params.jobId);
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    if (job.postedBy.toString() !== req.user!.userId) {
+      return res.status(403).json({ error: 'Only the job poster can view applications' });
     }
 
     const applications = await Application.find({ jobId: new mongoose.Types.ObjectId(req.params.jobId) })
@@ -156,6 +167,15 @@ router.patch(
       }
 
       const previousStatus = currentApp.status;
+
+      // Verify the current user owns the job
+      const jobForAuth = await Job.findById(currentApp.jobId);
+      if (!jobForAuth) {
+        return res.status(404).json({ error: 'Associated job not found' });
+      }
+      if (jobForAuth.postedBy.toString() !== req.user!.userId) {
+        return res.status(403).json({ error: 'Only the job poster can update application status' });
+      }
 
       // Handle accepting: atomically increment filledSlots, reject if full
       if (status === 'accepted' && previousStatus !== 'accepted') {

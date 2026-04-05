@@ -3,6 +3,7 @@ import { body, validationResult } from 'express-validator';
 import { Job } from '../models/Job';
 import { Category } from '../models/Category';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { formatTimestamp } from '../utils/formatTimestamp';
 import mongoose from 'mongoose';
 
 const router = express.Router();
@@ -24,13 +25,15 @@ router.get('/', async (req, res) => {
     }
 
     if (req.query.location) {
-      query.location = { $regex: req.query.location, $options: 'i' };
+      const escaped = (req.query.location as string).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      query.location = { $regex: escaped, $options: 'i' };
     }
 
     const jobs = await Job.find(query)
       .populate('categoryId', 'name')
       .populate('postedBy', 'name avatarUrl')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .limit(100);
 
     res.json(jobs.map(job => ({
       id: job._id.toString(),
@@ -50,7 +53,7 @@ router.get('/', async (req, res) => {
       likes: job.likes || 0,
       comments: job.comments || 0,
       shares: job.shares || 0,
-      postedAgo: job.postedAgo,
+      postedAgo: formatTimestamp(job.createdAt),
       createdAt: job.createdAt,
     })));
   } catch (error: any) {
@@ -117,7 +120,7 @@ router.get('/:id', async (req, res) => {
       likes: job.likes || 0,
       comments: job.comments || 0,
       shares: job.shares || 0,
-      postedAgo: job.postedAgo,
+      postedAgo: formatTimestamp(job.createdAt),
       createdAt: job.createdAt,
     });
   } catch (error: any) {
@@ -196,7 +199,7 @@ router.post(
 );
 
 // Update job likes/comments/shares
-router.patch('/:id/engagement', async (req, res) => {
+router.patch('/:id/engagement', authenticate, async (req: AuthRequest, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ error: 'Invalid job ID' });

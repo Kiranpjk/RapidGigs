@@ -30,6 +30,7 @@ const UserSchema: Schema = new Schema(
     password: {
       type: String,
       required: true,
+      select: false, // Never return password in queries unless explicitly selected
     },
     name: {
       type: String,
@@ -81,6 +82,10 @@ export const User: Model<IUser> = mongoose.model<IUser>('User', UserSchema);
 export const UserModel = {
   async findByEmail(email: string): Promise<IUser | null> {
     return User.findOne({ email: email.toLowerCase() });
+  },
+
+  async findByRole(role: string): Promise<IUser[]> {
+    return User.find({ role }).select('-password');
   },
 
   async findById(id: string): Promise<IUser | null> {

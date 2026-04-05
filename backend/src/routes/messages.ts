@@ -3,7 +3,7 @@ import { body, validationResult } from 'express-validator';
 import { Message } from '../models/Message';
 import { User } from '../models/User';
 import { authenticate, AuthRequest } from '../middleware/auth';
-import { v4 as uuidv4 } from 'uuid';
+import { formatTimestamp } from '../utils/formatTimestamp';
 import mongoose from 'mongoose';
 
 const router = express.Router();
@@ -131,7 +131,8 @@ router.post(
         return res.status(400).json({ error: 'Invalid receiver ID' });
       }
 
-      const threadId = uuidv4();
+      const [id1, id2] = [req.user!.userId, receiverId].sort();
+      const threadId = `thread_${id1}_${id2}`;
 
       const newMessage = new Message({
         threadId,
@@ -154,19 +155,6 @@ router.post(
   }
 );
 
-function formatTimestamp(timestamp: Date | string): string {
-  const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp;
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
 
-  if (minutes < 1) return 'Just now';
-  if (minutes < 60) return `${minutes} minutes ago`;
-  if (hours < 24) return `${hours} hours ago`;
-  if (days < 7) return `${days} days ago`;
-  return date.toLocaleDateString();
-}
 
 export default router;

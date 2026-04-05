@@ -92,19 +92,16 @@ export const huggingfaceService = {
   },
 
   /**
-   * Enhance a job description into a cinematic video prompt.
+   * Enhance a text into a cinematic video prompt.
+   * Delegates to the shared promptBuilder service.
    */
-  async enhancePrompt(jobDescription: string): Promise<string> {
-    const prompt = `<|system|>You are a video prompt engineer. Given a job description, create a short cinematic video prompt under 50 words focusing on professional imagery related to the role. Only output the prompt, nothing else.</s>
-<|user|>${jobDescription}</s>
-<|assistant|>`;
-
+  async enhancePrompt(text: string): Promise<string> {
     try {
-      const enhanced = await this.generateText(prompt);
-      return enhanced || jobDescription.slice(0, 200);
+      const { buildVideoPrompt } = await import('./promptBuilder');
+      return await buildVideoPrompt(text);
     } catch {
-      // Fallback: use a trimmed version of the description itself
-      return `Professional workplace scene: ${jobDescription.slice(0, 150)}`;
+      // Fallback: use a trimmed version of the text itself
+      return `Professional workplace scene: ${text.slice(0, 150)}`;
     }
   },
 };
