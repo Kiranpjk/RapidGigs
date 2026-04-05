@@ -1,5 +1,0 @@
-﻿components/auth/AuthPage.tsx(17,40): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
-components/pages/AdminPage.tsx(45,35): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
-components/pages/DashboardPage.tsx(132,57): error TS2339: Property 'category' does not exist on type 'Job'.
-components/pages/DashboardPage.tsx(135,78): error TS2339: Property 'category' does not exist on type 'Job'.
-services/api.ts(1,35): error TS2339: Property 'env' does not exist on type 'ImportMeta'.

@@ -30,11 +30,22 @@ export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   const response = await fetch(url, { ...options, headers: mergedHeaders });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Request failed' }));
-    throw new Error(error.error || `Request failed with status ${response.status}`);
+    let errorMessage = `Request failed with status ${response.status}`;
+    try {
+      const errorBody = await response.json();
+      errorMessage = errorBody.error || errorMessage;
+    } catch {
+      // Non-JSON response, use generic message
+    }
+    throw new Error(errorMessage);
   }
 
-  return response.json();
+  // Handle empty responses
+  const contentType = response.headers.get('content-type');
+  if (contentType?.includes('application/json')) {
+    return response.json();
+  }
+  return {};
 };
 
 // ─── Auth API ─────────────────────────────────────────────────────────────────
@@ -53,7 +64,10 @@ export const authAPI = {
       body: JSON.stringify(data),
     });
     const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'Registration failed');
+    if (!response.ok) {
+      const msg = result.error || (result.errors && result.errors[0]?.msg) || 'Registration failed';
+      throw new Error(msg);
+    }
     if (result.token) {
       localStorage.setItem('authToken', result.token);
       localStorage.setItem('user', JSON.stringify(result.user));
@@ -68,7 +82,10 @@ export const authAPI = {
       body: JSON.stringify({ email, password }),
     });
     const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'Login failed');
+    if (!response.ok) {
+      const msg = result.error || (result.errors && result.errors[0]?.msg) || 'Login failed';
+      throw new Error(msg);
+    }
     if (result.token) {
       localStorage.setItem('authToken', result.token);
       localStorage.setItem('user', JSON.stringify(result.user));
@@ -83,7 +100,10 @@ export const authAPI = {
       body: JSON.stringify({ credential, isRecruiter: !!isRecruiter }),
     });
     const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'Google login failed');
+    if (!response.ok) {
+      const msg = result.error || (result.errors && result.errors[0]?.msg) || 'Google login failed';
+      throw new Error(msg);
+    }
     if (result.token) {
       localStorage.setItem('authToken', result.token);
       localStorage.setItem('user', JSON.stringify(result.user));
@@ -104,6 +124,10 @@ export const authAPI = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
     });
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({ error: 'Failed to send reset link' }));
+      throw new Error(result.error || 'Failed to send reset link');
+    }
     return response.json();
   },
 };
@@ -262,6 +286,18 @@ export const shortsAPI = {
 
   generateAI: async (data: { prompt: string; title?: string; description?: string }) =>
     fetchWithAuth(`${API_BASE_URL}/shorts/generate`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  /** Generate a 30-second video by stitching 3×10s clips (multi-provider) */
+  generateLong: async (data: {
+    prompt: string;
+    description?: string;
+    segments?: number;
+    segmentDuration?: number;
+  }) =>
+    fetchWithAuth(`${API_BASE_URL}/shorts/generate-long`, {
       method: 'POST',
       body: JSON.stringify(data),
     }),

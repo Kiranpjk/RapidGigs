@@ -10,7 +10,6 @@ import MessagesPage from '../pages/MessagesPage';
 import UploadVideoPage from '../pages/UploadVideoPage';
 import JobApplicationPage from '../pages/JobApplicationPage';
 import AdminPage from '../pages/AdminPage';
-import { ALL_JOBS } from '../../data/mockData';
 import { useAuth } from '../../context/AuthContext';
 import { canAccessPage } from '../../utils/rbac';
 
@@ -38,13 +37,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ currentPage, navigate, onLogout
         }, currentPage);
     };
 
-    const handleNavigateToJobDetail = (jobId: string) => {
-        // Now handles string IDs for backend compatibility
-        const job = ALL_JOBS.find((j: Job) => j.id.toString() === jobId);
-        if (job) {
-            setSelectedJob(job);
-            navigate('job_application');
-        }
+    const handleNavigateToJobDetail = (_jobId: string) => {
+        // Navigate to jobs page since jobs now come from the backend
+        navigate('jobs');
     };
 
     const renderContent = () => {

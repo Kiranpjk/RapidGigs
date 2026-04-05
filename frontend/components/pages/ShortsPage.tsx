@@ -248,6 +248,7 @@ const ShortsPage: React.FC<ShortsPageProps> = ({ onApplyNow, onNavigateToJobDeta
     const [viewingProfile, setViewingProfile] = useState<any>(null);
     const [viewingStats, setViewingStats] = useState<any>(null);
     const [loadingProfile, setLoadingProfile] = useState(false);
+    const viewedRefs = useRef<Set<string>>(new Set());
     const API_BASE = (import.meta.env.VITE_API_BASE as string) || 'http://localhost:3001/api';
 
     const handleViewProfile = async (authorId: string) => {
@@ -290,7 +291,11 @@ const ShortsPage: React.FC<ShortsPageProps> = ({ onApplyNow, onNavigateToJobDeta
                     const video = entry.target as HTMLVideoElement;
                     if (entry.isIntersecting) {
                         video.play().catch(() => {});
-                        // Optional: Mark as viewed in DB here if you want real tracking
+                        const id = video.dataset.id || video.getAttribute('data-id');
+                        if (id && !viewedRefs.current.has(id)) {
+                            viewedRefs.current.add(id);
+                            setShorts(prev => prev.map(s => s.id === id ? { ...s, views: (s.views || 0) + 1 } : s));
+                        }
                     } else {
                         video.pause();
                         video.currentTime = 0;
@@ -329,9 +334,13 @@ const ShortsPage: React.FC<ShortsPageProps> = ({ onApplyNow, onNavigateToJobDeta
     const handleLike = (id: string) => {
         setLikedJobs(prev => {
             const next = new Set(prev);
-            if (next.has(id)) { next.delete(id); }
+            if (next.has(id)) { 
+                next.delete(id); 
+                setShorts(prevShorts => prevShorts.map(s => s.id === id ? { ...s, likes: Math.max(0, (s.likes || 0) - 1) } : s));
+            }
             else {
                 next.add(id);
+                setShorts(prevShorts => prevShorts.map(s => s.id === id ? { ...s, likes: (s.likes || 0) + 1 } : s));
                 setShowHeartAnimation(id);
                 setTimeout(() => setShowHeartAnimation(null), 1000);
             }

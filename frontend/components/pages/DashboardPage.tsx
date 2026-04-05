@@ -1,16 +1,42 @@
 
 import React, { useState, useEffect } from 'react';
 import { Page, Job, ShortVideo } from '../../types';
-import { 
+import {
     ArrowUpOnSquareIcon,
     MapPinIcon,
     PlayCircleIcon,
     BuildingOffice2Icon,
     CurrencyDollarIcon,
+    BriefcaseIcon,
 } from '../icons/Icons';
 import { CATEGORIES } from '../../data/mockData';
 import { useAuth } from '../../context/AuthContext';
 import { jobsAPI } from '../../services/api';
+
+// Generate a consistent HSL color from a company name
+function stringToColor(str: string): string {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    const h = Math.abs(hash) % 360;
+    return `hsl(${h}, 55%, 45%)`;
+}
+
+// Get initials from company name
+function getInitials(name: string): string {
+    return name.split(/[^a-zA-Z]+/).filter(Boolean).map(w => w[0].toUpperCase()).slice(0, 2).join('');
+}
+
+// JobLogo component — outlined circle (transparent fill, colored border) + briefcase badge
+const JobLogo: React.FC<{ company: string }> = ({ company }) => (
+    <div className="relative flex-shrink-0">
+        <div className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-base shadow-sm border-2" style={{ borderColor: stringToColor(company), color: stringToColor(company) }} title={company}>
+            {getInitials(company)}
+        </div>
+        <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-indigo-500 rounded-full flex items-center justify-center shadow-sm ring-1 ring-white dark:ring-gray-800">
+            <BriefcaseIcon className="w-3 h-3 text-white" />
+        </div>
+    </div>
+);
 
 interface DashboardPageProps {
     navigate: (page: Page) => void;
@@ -79,7 +105,11 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
     const JobCard: React.FC<{ job: Job }> = ({ job }) => (
         <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg p-6 flex flex-col shadow-lg hover:shadow-indigo-500/10 hover:ring-2 hover:ring-indigo-500/50 transition-all duration-300 transform hover:-translate-y-1">
             <div className="flex items-start gap-4 mb-4">
-                <div className="w-12 h-12 bg-slate-100 dark:bg-gray-700 rounded-lg flex items-center justify-center font-bold text-indigo-500 dark:text-indigo-400 text-lg">{job.company.substring(0,2)}</div>
+                <JobLogo company={job.company} />
+                <div>
+                    <h3 className="font-bold text-slate-800 dark:text-white text-lg">{job.title}</h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1"><BuildingOffice2Icon className="w-4 h-4"/> {job.company}</p>
+                </div>
                 <div>
                     <h3 className="font-bold text-slate-800 dark:text-white text-lg">{job.title}</h3>
                     <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1"><BuildingOffice2Icon className="w-4 h-4"/> {job.company}</p>

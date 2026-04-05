@@ -57,12 +57,21 @@ export const VideoGenProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [jobs, setJobs] = useState<VideoGenJob[]>([]);
   const pollingRefs = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
   const progressRefs = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
+  const autoDismissRefs = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const jobsRef = useRef<VideoGenJob[]>([]);
+
+  // Keep ref synced with state
+  useEffect(() => {
+    jobsRef.current = jobs;
+  }, [jobs]);
 
   const stopPolling = useCallback((jobId: string) => {
     const p = pollingRefs.current.get(jobId);
     if (p) { clearInterval(p); pollingRefs.current.delete(jobId); }
     const pr = progressRefs.current.get(jobId);
     if (pr) { clearInterval(pr); progressRefs.current.delete(jobId); }
+    const timeout = autoDismissRefs.current.get(jobId);
+    if (timeout) { clearTimeout(timeout); autoDismissRefs.current.delete(jobId); }
   }, []);
 
   const startJob = useCallback((jobId: string, title: string) => {
@@ -103,10 +112,12 @@ export const VideoGenProvider: React.FC<{ children: React.ReactNode }> = ({ chil
               ? { ...j, status: 'completed', progress: 100, videoUrl: data.videoUrl, provider: data.provider }
               : j
           ));
-          // Auto-dismiss after 8 seconds
-          setTimeout(() => {
+          // Auto-dismiss after 8 seconds (now with proper cleanup)
+          const timeout = setTimeout(() => {
             setJobs(prev => prev.filter(j => j.jobId !== jobId));
+            autoDismissRefs.current.delete(jobId);
           }, 8000);
+          autoDismissRefs.current.set(jobId, timeout);
         } else if (data.status === 'failed') {
           stopPolling(jobId);
           setJobs(prev => prev.map(j =>
@@ -129,15 +140,18 @@ export const VideoGenProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [stopPolling]);
 
   const dismissAll = useCallback(() => {
-    jobs.forEach(j => stopPolling(j.jobId));
+    // Use ref to get current jobs, not state (avoids stale closure)
+    const currentJobs = jobsRef.current;
+    currentJobs.forEach(j => stopPolling(j.jobId));
     setJobs([]);
-  }, [jobs, stopPolling]);
+  }, [stopPolling]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       pollingRefs.current.forEach(clearInterval);
       progressRefs.current.forEach(clearInterval);
+      autoDismissRefs.current.forEach(clearTimeout);
     };
   }, []);
 

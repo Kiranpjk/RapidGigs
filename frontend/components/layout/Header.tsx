@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Page } from '../../types';
 import {
     LogoIcon,
@@ -37,12 +36,47 @@ interface HeaderProps {
     user: User | null;
 }
 
+interface NavLinkItem {
+    name: string;
+    page: Page;
+    icon: React.ReactNode;
+    requiresAuth?: boolean;
+}
+
+const NavLink: React.FC<{ item: NavLinkItem; isActive: boolean; onClick: () => void }> = ({ item, isActive, onClick }) => (
+    <button
+        onClick={onClick}
+        className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium cursor-pointer transition-all duration-200 border-none bg-transparent ${isActive
+            ? 'bg-indigo-600 text-white'
+            : 'text-slate-500 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white'
+            }`}
+    >
+        {item.icon} {item.name}
+    </button>
+);
+
 const Header: React.FC<HeaderProps> = ({ navigate, onLogout, currentPage, theme, toggleTheme, isAuthenticated, user }) => {
     const { modalState, showAlert, closeModal } = useModal();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const profileMenuRef = useRef<HTMLDivElement>(null);
     const mobileMenuRef = useRef<HTMLDivElement>(null);
+
+    const navItems: NavLinkItem[] = [
+        { name: 'Home', page: 'dashboard', icon: <HomeIcon className="w-5 h-5" /> },
+        { name: 'Shorts', page: 'shorts', icon: <VideoCameraIcon className="w-5 h-5" /> },
+        { name: 'Jobs', page: 'jobs', icon: <BriefcaseSolidIcon className="w-5 h-5" /> },
+        ...(user && (user.role === 'admin' || user.role === 'moderator')
+            ? [{ name: 'Admin', page: 'admin', icon: <Cog6ToothIcon className="w-5 h-5" />, requiresAuth: true }]
+            : []),
+        { name: 'Profile', page: 'profile', icon: <UserCircleIcon className="w-5 h-5" />, requiresAuth: true },
+        { name: 'Messages', page: 'messages', icon: <MessageSquareIcon className="w-5 h-5" />, requiresAuth: true },
+    ];
+
+    const handleNav = useCallback((page: Page) => {
+        navigate(page);
+        setIsMenuOpen(false);
+    }, [navigate]);
 
     // Close profile menu when clicking outside
     useEffect(() => {
@@ -78,36 +112,6 @@ const Header: React.FC<HeaderProps> = ({ navigate, onLogout, currentPage, theme,
         };
     }, [isMenuOpen]);
 
-    const allNavItems: { name: string; page: Page, icon: React.ReactNode, requiresAuth?: boolean }[] = [
-        { name: 'Home', page: 'dashboard', icon: <HomeIcon className="w-5 h-5" /> },
-        { name: 'Shorts', page: 'shorts', icon: <VideoCameraIcon className="w-5 h-5" /> },
-        { name: 'Jobs', page: 'jobs', icon: <BriefcaseSolidIcon className="w-5 h-5" /> },
-        { name: 'Profile', page: 'profile', icon: <UserCircleIcon className="w-5 h-5" />, requiresAuth: true },
-        { name: 'Messages', page: 'messages', icon: <MessageSquareIcon className="w-5 h-5" />, requiresAuth: true },
-    ];
-
-    // If user is admin or moderator, add Admin nav item
-    if (user && (user.role === 'admin' || user.role === 'moderator')) {
-        allNavItems.splice(3, 0, { name: 'Admin', page: 'admin', icon: <Cog6ToothIcon className="w-5 h-5" />, requiresAuth: true });
-    }
-
-    // Filter nav items based on authentication
-    const navItems = allNavItems.filter(item => !item.requiresAuth || isAuthenticated);
-
-    const NavLink: React.FC<{ item: typeof navItems[0] }> = ({ item }) => {
-        const isActive = currentPage === item.page;
-        return (
-            <a onClick={() => { navigate(item.page); setIsMenuOpen(false); }}
-                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium cursor-pointer transition-all duration-200 ${isActive
-                    ? 'bg-indigo-600 text-white'
-                    : 'text-slate-500 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white'
-                    }`}
-            >
-                {item.icon} {item.name}
-            </a>
-        );
-    };
-
     return (
         <>
             <header className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-lg sticky top-0 z-50 shadow-lg border-b border-gray-200/50 dark:border-gray-700/50">
@@ -119,7 +123,11 @@ const Header: React.FC<HeaderProps> = ({ navigate, onLogout, currentPage, theme,
                                 <span className="text-xl font-bold text-slate-800 dark:text-white tracking-tighter">RapidGig</span>
                             </div>
                             <nav className="hidden md:flex items-center space-x-1">
-                                {navItems.map(item => <NavLink key={item.name} item={item} />)}
+                                {navItems.map(item => (
+                                    !item.requiresAuth || isAuthenticated ? (
+                                        <NavLink key={item.name} item={item} isActive={currentPage === item.page} onClick={() => handleNav(item.page)} />
+                                    ) : null
+                                ))}
                             </nav>
                         </div>
                         <div className="flex items-center gap-2 md:gap-4">
@@ -162,10 +170,10 @@ const Header: React.FC<HeaderProps> = ({ navigate, onLogout, currentPage, theme,
                                     </button>
                                     {isProfileMenuOpen && (
                                         <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-700 rounded-md shadow-lg py-1 z-50 ring-1 ring-black/5">
-                                            <a onClick={() => { navigate('profile'); setIsProfileMenuOpen(false); }} className="block px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer">Your Profile</a>
-                                            <a onClick={() => { showAlert("Coming Soon", "Settings page is under development!", "info"); setIsProfileMenuOpen(false); }} className="block px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer">Settings</a>
+                                            <button onClick={() => { navigate('profile'); setIsProfileMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer">Your Profile</button>
+                                            <button onClick={() => { showAlert("Coming Soon", "Settings page is under development!", "info"); setIsProfileMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer">Settings</button>
                                             <div className="border-t border-slate-200 dark:border-slate-600 my-1"></div>
-                                            <a onClick={() => { onLogout(); setIsProfileMenuOpen(false); }} className="block px-4 py-2 text-sm text-red-500 dark:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer">Sign out</a>
+                                            <button onClick={() => { onLogout(); setIsProfileMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-red-500 dark:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer">Sign out</button>
                                         </div>
                                     )}
                                 </div>
@@ -179,7 +187,11 @@ const Header: React.FC<HeaderProps> = ({ navigate, onLogout, currentPage, theme,
                     </div>
                     {isMenuOpen && (
                         <div ref={mobileMenuRef} className="md:hidden pb-4 space-y-1">
-                            {navItems.map(item => <NavLink key={item.name} item={item} />)}
+                            {navItems.map(item => (
+                                !item.requiresAuth || isAuthenticated ? (
+                                    <NavLink key={item.name} item={item} isActive={currentPage === item.page} onClick={() => handleNav(item.page)} />
+                                ) : null
+                            ))}
                         </div>
                     )}
                 </div>

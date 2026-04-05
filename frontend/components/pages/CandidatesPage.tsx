@@ -30,13 +30,13 @@ const CandidatesPage: React.FC<CandidatesPageProps> = ({ navigate }) => {
     const [loadingProfile, setLoadingProfile] = useState(false);
 
     useEffect(() => {
-        fetchWithAuth(`${API_BASE}/admin/users?role=student&limit=50`)
+        // Try recruiting endpoint first (recruiter/admin), fall back to public users
+        fetchWithAuth(`${API_BASE}/users`)
             .then(data => {
                 const users = Array.isArray(data) ? data : (data.users || []);
                 setCandidates(users.filter((u: any) => u.role === 'student' || u.isStudent));
             })
             .catch(() => {
-                // Fallback: use the public users search
                 setCandidates([]);
             })
             .finally(() => setLoading(false));

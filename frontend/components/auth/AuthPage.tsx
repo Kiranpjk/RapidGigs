@@ -163,41 +163,62 @@ const FormContainer: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 // ✅ FIXED: Google button renderer — each form instance manages its own
 // initialization state via a ref, avoiding the shared module-level singleton
 // bug that caused the wrong callback to fire when both forms were mounted.
+// Track Google initialization state within the current page lifecycle.
+// We don't use sessionStorage because window.google is reset on page refresh,
+// but sessionStorage persists, which would cause us to skip initialization
+// and lead to "Failed to render button before calling initialize()" errors.
+let googleInitialized = false;
+
+const currentGoogleCallbackRef = { current: null as ((response: any) => void) | null };
+
 const useGoogleButton = (
   buttonElementId: string,
   callback: (response: any) => void,
   buttonText: 'continue_with' | 'signup_with'
 ) => {
   const callbackRef = useRef(callback);
-  // Keep ref current so the stable callback always calls the latest version
-  useEffect(() => { callbackRef.current = callback; }, [callback]);
+  useEffect(() => {
+    callbackRef.current = callback;
+    currentGoogleCallbackRef.current = callback;
+  }, [callback]);
 
   useEffect(() => {
-    const stableCallback = (response: any) => callbackRef.current(response);
-
+    let checkInterval: NodeJS.Timeout;
     const tryInit = () => {
       const g = (window as any).google;
-      if (!g) { setTimeout(tryInit, 300); return; }
-
-      // ✅ Always re-initialize with the current form's callback
-      g.accounts.id.initialize({
-        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-        callback: stableCallback,
-      });
+      // Wait until the GSI script is loaded and the accounts.id object is available
+      if (!g?.accounts?.id) return;
 
       const el = document.getElementById(buttonElementId);
-      if (el) {
-        g.accounts.id.renderButton(el, {
-          theme: 'outline',
-          size: 'large',
-          width: 380,
-          text: buttonText,
-        });
-      }
+      // Wait until the target element is in the DOM
+      if (!el) return;
+
+      // Stop checking once we have what we need
+      if (checkInterval) clearInterval(checkInterval);
+
+      // ALWAYS call initialize to ensure the callback is correctly registered
+      // for this specific form instance (Login or SignUp), or just use the global
+      // ref we established. Since initialize is safe to call multiple times,
+      // it's better to ensure it's done before renderButton.
+      g.accounts.id.initialize({
+        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+        callback: (response: any) => currentGoogleCallbackRef.current?.(response),
+      });
+
+      g.accounts.id.renderButton(el, {
+        theme: 'outline',
+        size: 'large',
+        width: 380,
+        text: buttonText,
+      });
     };
 
+    checkInterval = setInterval(tryInit, 300);
     tryInit();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    return () => {
+      if (checkInterval) clearInterval(checkInterval);
+    };
   }, [buttonElementId, buttonText]);
 };
 
@@ -277,12 +298,13 @@ const LoginForm = ({
             <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" htmlFor="password">
               Password
             </label>
-            <a
+            <button
+              type="button"
               onClick={onForgotPasswordClick}
               className="text-sm text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 cursor-pointer"
             >
               Forgot?
-            </a>
+            </button>
           </div>
           <InputField
             id="password"
@@ -306,13 +328,14 @@ const LoginForm = ({
         </div>
         <div id="googleLoginBtn" className="w-full flex justify-center" />
         <p className="text-center text-gray-600 dark:text-gray-400 text-sm mt-8">
-          Don't have an account?{' '}
-          <a
+          Don&apos;t have an account?{' '}
+          <button
+            type="button"
             onClick={onSignUpClick}
             className="font-bold text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 cursor-pointer"
           >
             Sign Up
-          </a>
+          </button>
         </p>
       </form>
     </FormContainer>
@@ -360,8 +383,11 @@ const SignUpForm = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    if (!isStudent && !isRecruiter) { setError('Please select your role (Student or Recruiter)'); return; }
     if (password !== confirmPassword) { setError('Passwords do not match'); return; }
-    if (password.length < 6) { setError('Password must be at least 6 characters'); return; }
+    if (password.length < 8) { setError('Password must be at least 8 characters'); return; }
+    if (!/[A-Z]/.test(password)) { setError('Password must contain at least one uppercase letter'); return; }
+    if (!/[0-9]/.test(password)) { setError('Password must contain at least one number'); return; }
     setIsLoading(true);
     try {
       await register({ email, password, name, isStudent, isRecruiter });
@@ -398,14 +424,14 @@ const SignUpForm = ({
               onClick={() => { setIsStudent(true); setIsRecruiter(false); }}
               className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all duration-200 text-sm font-semibold ${isStudent ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400' : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-indigo-300'}`}
             >
-              🎓 Student
+              Student
             </button>
             <button
               type="button"
               onClick={() => { setIsRecruiter(true); setIsStudent(false); }}
               className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all duration-200 text-sm font-semibold ${isRecruiter ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400' : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-indigo-300'}`}
             >
-              💼 Recruiter
+              Recruiter
             </button>
           </div>
         </div>
@@ -422,9 +448,13 @@ const SignUpForm = ({
         <div id="googleSignupBtn" className="w-full flex justify-center" />
         <p className="text-center text-gray-600 dark:text-gray-400 text-sm pt-4">
           Already have an account?{' '}
-          <a onClick={onLoginClick} className="font-bold text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 cursor-pointer">
+          <button
+            type="button"
+            onClick={onLoginClick}
+            className="font-bold text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 cursor-pointer"
+          >
             Login
-          </a>
+          </button>
         </p>
       </form>
     </FormContainer>
@@ -439,43 +469,67 @@ const ForgotPasswordForm = ({
 }: {
   onBackToLoginClick: () => void;
   showSuccess: (title: string, message: string, onConfirm?: () => void) => void;
-}) => (
-  <FormContainer>
-    <div className="text-center mb-8">
-      <LogoIcon className="w-12 h-12 text-indigo-500 mx-auto" />
-      <h1 className="text-4xl font-bold tracking-tighter mt-4">Forgot Password?</h1>
-      <p className="text-gray-600 dark:text-gray-400 mt-2 max-w-xs mx-auto">
-        No worries, we'll send you reset instructions.
-      </p>
-    </div>
-    <form
-      onSubmit={e => {
-        e.preventDefault();
-        showSuccess('Reset Link Sent!', 'Check your email for password reset instructions.');
-        setTimeout(() => onBackToLoginClick(), 2000);
-      }}
-      className="space-y-6"
-    >
-      <InputField
-        id="email-forgot"
-        type="email"
-        placeholder="your.email@example.com"
-        icon={<EnvelopeIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />}
-      />
-      <PrimaryButton type="submit">
-        Send Reset Link{' '}
-        <PaperAirplaneIcon className="w-5 h-5 transform transition-transform duration-300 group-hover:rotate-45" />
-      </PrimaryButton>
-      <div className="text-center mt-6">
-        <a
-          onClick={onBackToLoginClick}
-          className="font-bold text-sm text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 cursor-pointer"
-        >
-          ← Back to Login
-        </a>
+}) => {
+  const [email, setEmail] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  return (
+    <FormContainer>
+      <div className="text-center mb-8">
+        <LogoIcon className="w-12 h-12 text-indigo-500 mx-auto" />
+        <h1 className="text-4xl font-bold tracking-tighter mt-4">Forgot Password?</h1>
+        <p className="text-gray-600 dark:text-gray-400 mt-2 max-w-xs mx-auto">
+          No worries, we&apos;ll send you reset instructions.
+        </p>
       </div>
-    </form>
-  </FormContainer>
-);
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setError('');
+          setIsLoading(true);
+          try {
+            const { authAPI } = await import('../../services/api');
+            await authAPI.forgotPassword(email);
+            showSuccess('Reset Link Sent!', 'Check your email for password reset instructions.');
+            setTimeout(() => onBackToLoginClick(), 2000);
+          } catch (err: any) {
+            setError(err.message || 'Failed to send reset link.');
+          } finally {
+            setIsLoading(false);
+          }
+        }}
+        className="space-y-6"
+      >
+        {error && (
+          <div className="bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-400 px-4 py-3 rounded">
+            {error}
+          </div>
+        )}
+        <InputField
+          id="email-forgot"
+          type="email"
+          placeholder="your.email@example.com"
+          icon={<EnvelopeIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />}
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+        />
+        <PrimaryButton type="submit">
+          {isLoading ? 'Sending...' : 'Send Reset Link'}{' '}
+          {!isLoading && <PaperAirplaneIcon className="w-5 h-5 transform transition-transform duration-300 group-hover:rotate-45" />}
+        </PrimaryButton>
+        <div className="text-center mt-6">
+          <button
+            type="button"
+            onClick={onBackToLoginClick}
+            className="font-bold text-sm text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 cursor-pointer"
+          >
+            &larr; Back to Login
+          </button>
+        </div>
+      </form>
+    </FormContainer>
+  );
+};
 
 export default AuthPage;

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Page } from '../../types';
 import { useAuth } from '../../context/AuthContext';
-import { 
-    LogoIcon, 
+import {
+    LogoIcon,
     UserCircleIcon,
     BriefcaseSolidIcon,
     Cog6ToothIcon,
@@ -25,35 +25,43 @@ interface AdminLayoutProps {
     isAuthenticated: boolean;
 }
 
+interface NavLinkItem {
+    name: string;
+    page: Page;
+    icon: React.ReactNode;
+}
+
+const NavLink: React.FC<{ item: NavLinkItem; isActive: boolean; onClick: () => void }> = ({ item, isActive, onClick }) => (
+    <button
+        onClick={onClick}
+        className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium cursor-pointer transition-all duration-200 border-none bg-transparent w-full text-left ${isActive
+            ? 'bg-indigo-600 text-white shadow-md'
+            : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white'
+            }`}
+    >
+        {item.icon} {item.name}
+    </button>
+);
+
 const AdminLayout: React.FC<AdminLayoutProps> = ({ currentPage, navigate, onLogout, theme, toggleTheme, isAuthenticated }) => {
     const { user } = useAuth();
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-    const navItems = [
+    const navItems: NavLinkItem[] = [
         { name: 'Dashboard', page: 'admin', icon: <HomeIcon className="w-5 h-5" /> },
-        // Later we can add more pages if needed like 'admin_users', 'admin_jobs', etc.
     ];
 
-    const NavLink: React.FC<{ item: any }> = ({ item }) => {
-        const isActive = currentPage === item.page;
-        return (
-            <a onClick={() => { navigate(item.page); setIsSidebarOpen(false); }}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium cursor-pointer transition-all duration-200 ${isActive
-                    ? 'bg-indigo-600 text-white shadow-md'
-                    : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white'
-                    }`}
-            >
-                {item.icon} {item.name}
-            </a>
-        );
+    const handleNav = (page: Page) => {
+        navigate(page);
+        setIsSidebarOpen(false);
     };
 
     return (
         <div className="flex h-screen bg-slate-50 dark:bg-gray-900 overflow-hidden">
             {/* Mobile Sidebar Overlay */}
             {isSidebarOpen && (
-                <div 
-                    className="fixed inset-0 z-20 bg-black/50 md:hidden" 
+                <div
+                    className="fixed inset-0 z-20 bg-black/50 md:hidden"
                     onClick={() => setIsSidebarOpen(false)}
                 />
             )}
@@ -71,7 +79,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ currentPage, navigate, onLogo
                 </div>
 
                 <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-                    {navItems.map(item => <NavLink key={item.name} item={item} />)}
+                    {navItems.map(item => <NavLink key={item.name} item={item} isActive={currentPage === item.page} onClick={() => handleNav(item.page)} />)}
                 </div>
 
                 <div className="p-4 border-t border-slate-200 dark:border-slate-700/50">
@@ -86,8 +94,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ currentPage, navigate, onLogo
                             <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user?.email}</p>
                         </div>
                     </div>
-                    <button 
-                        onClick={onLogout} 
+                    <button
+                        onClick={onLogout}
                         className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg transition-colors"
                     >
                         Sign out
@@ -100,8 +108,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ currentPage, navigate, onLogo
                 {/* Header */}
                 <header className="bg-white dark:bg-gray-800 border-b border-slate-200 dark:border-slate-700/50 flex-shrink-0">
                     <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
-                        <button 
-                            onClick={() => setIsSidebarOpen(true)} 
+                        <button
+                            onClick={() => setIsSidebarOpen(true)}
                             className="md:hidden p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white rounded-md"
                         >
                             <Bars3Icon className="w-6 h-6" />
