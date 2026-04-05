@@ -481,8 +481,9 @@ async function generateClipWithFallback(opts: {
   totalClips: number;
   imageUrl?: string;
   preferredProvider?: string; // Try this provider first (warm from previous clip)
+  onProgress?: (step: string, progress: number) => void;
 }): Promise<ClipResult> {
-  const { prompt, duration, clipIndex, totalClips, imageUrl, preferredProvider } = opts;
+  const { prompt, duration, clipIndex, totalClips, imageUrl, preferredProvider, onProgress } = opts;
   const clipId = `${uuidv4()}-${clipIndex}`;
 
   console.log(`\n[VideoStitcher] ── Generating clip ${clipIndex + 1}/${totalClips} ──`);
@@ -503,12 +504,16 @@ async function generateClipWithFallback(opts: {
   // Try each provider
   for (const provider of orderedProviders) {
     try {
+      onProgress?.(`Trying ${provider.name} for clip ${clipIndex + 1}...`, (clipIndex / totalClips) + 0.05);
       const result = await provider.fn({ prompt, duration, clipId, imageUrl });
       if (result) {
         return result;
       }
+      onProgress?.(`${provider.name} skipped (nil)`, (clipIndex / totalClips) + 0.08);
     } catch (e: any) {
-      console.warn(`  [clip] ${provider.name} threw:`, e.message);
+      const err = e.message || 'unknown error';
+      onProgress?.(`${provider.name} failed: ${err}`, (clipIndex / totalClips) + 0.08);
+      console.warn(`  [clip] ${provider.name} threw:`, err);
     }
   }
 
@@ -553,6 +558,7 @@ export async function generateStitchedVideo(options: {
         totalClips: segments,
         imageUrl: lastFrameUrl,
         preferredProvider: warmProvider,
+        onProgress,
       });
 
       clipPaths.push(clipResult.localPath);

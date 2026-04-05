@@ -55,6 +55,8 @@ interface VideoJob {
   userId: string;
   createdAt: Date;
   provider?: string;
+  progress?: number;
+  debugInfo?: string;
 }
 
 const jobStore = new Map<string, VideoJob>();
@@ -638,13 +640,7 @@ router.get('/status/:jobId', authenticate, async (req: AuthRequest, res) => {
     return res.status(403).json({ error: 'Forbidden' });
   }
 
-  res.json({
-    jobId: job.id,
-    status: job.status,
-    videoUrl: job.videoUrl || null,
-    error: job.error || null,
-    provider: job.provider || null,
-  });
+  res.json(job);
 });
 
 
@@ -698,6 +694,11 @@ router.post('/generate-long', authenticate, async (req: AuthRequest, res) => {
         segmentDuration: clipDuration,
         onProgress: (step, progress) => {
           console.log(`[StitchedVideo ${jobId}] ${step} (${Math.round(progress * 100)}%)`);
+          const jobEntry = jobStore.get(jobId);
+          if (jobEntry) {
+            jobEntry.progress = progress;
+            jobEntry.debugInfo = step;
+          }
         },
       });
 
