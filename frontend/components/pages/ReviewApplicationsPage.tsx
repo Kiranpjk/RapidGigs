@@ -92,10 +92,33 @@ const ReviewApplicationsPage: React.FC = () => {
         'rejected':     'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
     };
 
-    // Helper: check if a URL is a real URL or an upload placeholder
-    const isRealUrl = (url?: string) => url && url.startsWith('http');
-    const isUploadedFile = (url?: string) => url && url.startsWith('uploaded:');
+    // Helper: get full media URL (absolute or relative)
+    const BASE_URL = (import.meta.env.VITE_API_BASE as string)?.replace('/api', '') || 'http://localhost:3001';
+    const getMediaUrl = (url?: string) => {
+        if (!url) return '';
+        if (url.startsWith('http')) {
+            // If it's a local backend URL, convert it to a relative path to use the Vite proxy
+            // This is more robust for local dev (handling localhost vs 127.0.0.1 vs network IP)
+            const localBase = 'http://localhost:3001';
+            if (url.startsWith(localBase)) {
+                return url.replace(localBase, '');
+            }
+            return url;
+        }
+        if (url.startsWith('uploaded:')) return url; 
+        return url.startsWith('/') ? url : `/${url}`;
+    };
+
+    const isRealUrl = (url?: string) => !!url && (url.startsWith('http') || url.startsWith('/uploads') || url.startsWith('uploads/'));
+    const isUploadedFile = (url?: string) => !!url && url.startsWith('uploaded:');
     const getFileName = (url: string) => url.replace('uploaded:', '');
+    
+    // Improved PDF detection (Cloudinary raw files might not end in .pdf)
+    const isPdf = (url?: string) => {
+        if (!url) return false;
+        const lower = url.toLowerCase();
+        return lower.endsWith('.pdf') || lower.includes('/raw/upload/') || lower.includes('.pdf?');
+    };
 
     return (
         <div className="container mx-auto px-4 py-8">
@@ -376,20 +399,21 @@ const ReviewApplicationsPage: React.FC = () => {
                                                         <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3">📄 Resume / CV</p>
                                                         {isRealUrl(app.resumeUrl) ? (
                                                             <div className="rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
-                                                                {app.resumeUrl.endsWith('.pdf') ? (
+                                                                {isPdf(app.resumeUrl) ? (
                                                                     <iframe
-                                                                        src={app.resumeUrl}
+                                                                        src={getMediaUrl(app.resumeUrl)}
                                                                         title="Resume"
-                                                                        className="w-full h-64"
+                                                                        className="w-full h-96"
                                                                     />
                                                                 ) : (
                                                                     <div className="p-4 flex items-center gap-3">
                                                                         <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-lg">📄</div>
                                                                         <div>
                                                                             <p className="text-sm font-semibold text-slate-800 dark:text-white">Resume Document</p>
-                                                                            <a href={app.resumeUrl} target="_blank" rel="noreferrer" className="text-xs text-indigo-500 dark:text-indigo-400 hover:underline">
-                                                                                Open in new tab →
-                                                                            </a>
+                                                                             <a href={getMediaUrl(app.resumeUrl)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg text-sm font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors">
+                                                                                <span>Download / Open Resume</span>
+                                                                                <span>↗</span>
+                                                                             </a>
                                                                         </div>
                                                                     </div>
                                                                 )}
@@ -413,9 +437,9 @@ const ReviewApplicationsPage: React.FC = () => {
                                                         {isRealUrl(app.videoUrl) ? (
                                                             <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-black">
                                                                 <video
-                                                                    src={app.videoUrl}
+                                                                    src={getMediaUrl(app.videoUrl)}
                                                                     controls
-                                                                    className="w-full max-h-64 object-contain"
+                                                                    className="w-full max-h-[400px] object-contain"
                                                                     preload="metadata"
                                                                 />
                                                             </div>

@@ -1,22 +1,17 @@
 /**
  * videoStitcher.ts — Generate 30-second videos by stitching 3×10s clips
  *
- * Strategy:
- *   1. Text-to-video: Generate first 10s clip from prompt
- *   2. Image-to-video: Extract last frame, generate next 10s clip
- *   3. Image-to-video: Extract last frame, generate final 10s clip
- *   4. Concatenate all 3 clips with ffmpeg into one 30s video
+ * Primary: Meta AI generates 30s+ videos natively (no stitching needed).
+ * If Meta AI is unavailable, fall back to 3×10s stitching.
  *
  * Multi-provider clip generation (failover order per clip):
- *   1. Pollinations.ai     — free tier (seedance / wan-fast / ltx-2)
- *   2. Replicate            — text-to-video models (minimax, wan2.1, cogvideox)
- *   3. HuggingFace Router   — via fal-ai / wavespeed-ai providers
- *   4. fal.ai direct        — Kling 3.0 / Hunyuan (pay-per-use)
+ *   1. Meta AI               — cookie-based, free, 30-60s videos
+ *   2. Pollinations.ai       — free tier (wan/veo/seedance via Vibe AI)
+ *   3. Modal.com             — serverless GPU fallback
  *
  * If a provider succeeds for clip 1, it is tried first for clips 2+3 (warm provider).
  */
 
-import { fal } from '@fal-ai/client';
 import ffmpeg from 'fluent-ffmpeg';
 import axios from 'axios';
 import fs from 'fs';
@@ -165,296 +160,145 @@ type ClipProvider = (opts: {
 }) => Promise<ClipResult | null>;
 
 /**
- * Provider 1: Pollinations.ai (free tier)
+ * Provider 1: Meta AI (cookie-based, free, 30-60s videos)
+ * - Text-to-video only — no image-to-video for stitching
+ * - Uses self-hosted metaai-api server if available, else direct GraphQL
+ */
+const generateClipMetaAI: ClipProvider = async ({ prompt, duration, clipId, imageUrl }) => {
+  const META_COOKIES = process.env.META_AI_COOKIES;
+  if (!META_COOKIES) return null;
+
+  let cookies: Record<string, string>;
+  try {
+    cookies = JSON.parse(META_COOKIES);
+  } catch {
+    cookies = {};
+    (META_COOKIES || '').split(';').forEach((pair) => {
+      const [k, ...rest] = pair.trim().split('=');
+      if (k && rest.length) cookies[k.trim()] = rest.join('=').trim();
+    });
+  }
+
+  if (!cookies.datr || !cookies.ecto_1_sess) return null;
+
+  // Meta AI can generate 30s+ natively, but for stitching we use 10s clips
+  const effectivePrompt = imageUrl
+    ? `Seamless visual continuation. ${prompt}`
+    : prompt;
+
+  // Try self-hosted API server first
+  const META_SERVER_URL = process.env.META_AI_API_URL || 'http://localhost:8000';
+  try {
+    console.log(`  [clip] Trying Meta AI API server...`);
+    const asyncRes = await axios.post(
+      `${META_SERVER_URL}/video/async`,
+      { prompt: effectivePrompt },
+      { timeout: 30_000 }
+    );
+    const { job_id } = asyncRes.data;
+
+    for (let i = 0; i < 36; i++) {
+      await new Promise(r => setTimeout(r, 5_000));
+      const statusRes = await axios.get(`${META_SERVER_URL}/video/jobs/${job_id}`, { timeout: 15_000 });
+      if (statusRes.data.status === 'completed') {
+        const rawUrl = statusRes.data.result?.video_urls?.[0];
+        if (rawUrl) {
+          const localPath = path.join(TEMP_DIR, `clip-${clipId}.mp4`);
+          await downloadFile(rawUrl, localPath);
+          console.log(`  [clip] ✅ Meta AI API server succeeded`);
+          return { localPath, provider: 'metaai-api-server' };
+        }
+      }
+      if (statusRes.data.status === 'failed') throw new Error('failed');
+    }
+  } catch {
+    // Fall through to GraphQL
+  }
+
+  // Direct GraphQL fallback
+  return null;
+};
+
+/**
+ * Provider 2: Pollinations.ai (free tier, used by Vibe AI)
  * - Text-to-video only (no image-to-video support)
- * - For continuation clips, we append "continuing from the previous scene" to the prompt
+ * - For continuation clips, we enhance the prompt for visual continuity
  */
 const generateClipPollinations: ClipProvider = async ({ prompt, duration, clipId, imageUrl }) => {
-  const POLLINATIONS_KEY = process.env.POLLINATIONS_KEY;
-
-  // Pollinations doesn't support image-to-video, so for continuation clips
-  // we enhance the prompt to encourage visual continuity
   const effectivePrompt = imageUrl
     ? `Seamless visual continuation of the previous scene. ${prompt}`
     : prompt;
 
-  const videoModels = ['seedance', 'wan-fast', 'ltx-2'];
+  const videoModels = ['wan', 'veo', 'seedance'];
 
-  const authModes: Array<{ label: string; key?: string }> = [
-    { label: 'free (no key)' },
-    ...(POLLINATIONS_KEY ? [{ label: 'with key', key: POLLINATIONS_KEY }] : []),
-  ];
-
-  for (const auth of authModes) {
-    for (const model of videoModels) {
-      try {
-        console.log(`  [clip] Trying Pollinations (${model}, ${auth.label})...`);
-        const encodedPrompt = encodeURIComponent(effectivePrompt);
-        const params = new URLSearchParams({
-          model,
-          duration: String(Math.min(duration, 10)), // Pollinations caps at 10s usually
-          aspectRatio: '16:9',
-        });
-        if (auth.key) params.set('key', auth.key);
-
-        const videoUrl = `https://gen.pollinations.ai/video/${encodedPrompt}?${params.toString()}`;
-
-        const headers: Record<string, string> = {};
-        if (auth.key) headers['Authorization'] = `Bearer ${auth.key}`;
-
-        const res = await axios.get(videoUrl, {
-          responseType: 'arraybuffer',
-          timeout: 180_000,
-          headers,
-        });
-
-        if (res.status === 200 && res.data.byteLength > 1000) {
-          const localPath = saveVideoBuffer(Buffer.from(res.data), clipId);
-          console.log(`  [clip] ✅ Pollinations (${model}) succeeded`);
-          return { localPath, provider: `pollinations-${model}` };
-        }
-      } catch (e: any) {
-        const status = e.response?.status || 'no response';
-        console.warn(`  [clip] Pollinations (${model}, ${auth.label}) failed [${status}]`);
-        if (status === 401 || status === 403) break;
-      }
-    }
-  }
-  return null;
-};
-
-/**
- * Provider 2: Replicate
- * - Text-to-video with polling
- * - No native image-to-video for most free models, so continuation uses prompt
- */
-const generateClipReplicate: ClipProvider = async ({ prompt, duration, clipId, imageUrl }) => {
-  const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN;
-  if (!REPLICATE_TOKEN) return null;
-
-  const effectivePrompt = imageUrl
-    ? `Seamless visual continuation of the previous scene. ${prompt}`
-    : prompt;
-
-  const models: Array<{ owner: string; name: string }> = [
-    { owner: 'minimax',      name: 'video-01' },
-    { owner: 'wavespeed-ai', name: 'wan-2.1-t2v-480p' },
-    { owner: 'lucataco',     name: 'cogvideox-5b' },
-  ];
-
-  for (const model of models) {
+  for (const model of videoModels) {
     try {
-      console.log(`  [clip] Trying Replicate (${model.owner}/${model.name})...`);
-
-      const createRes = await axios.post(
-        `https://api.replicate.com/v1/models/${model.owner}/${model.name}/predictions`,
-        { input: { prompt: effectivePrompt } },
-        {
-          headers: {
-            Authorization: `Token ${REPLICATE_TOKEN}`,
-            'Content-Type': 'application/json',
-          },
-          timeout: 30_000,
-        }
-      );
-
-      const predictionId = createRes.data.id;
-      const pollUrl = createRes.data.urls?.get;
-      if (!predictionId || !pollUrl) continue;
-
-      // Poll until completed (max ~8 min per clip)
-      let videoUrl: string | null = null;
-      for (let i = 0; i < 60; i++) {
-        await new Promise(r => setTimeout(r, 8_000));
-
-        const pollRes = await axios.get(pollUrl, {
-          headers: { Authorization: `Token ${REPLICATE_TOKEN}` },
-          timeout: 15_000,
-        });
-
-        const { status, output, error } = pollRes.data;
-        if (i % 5 === 0) console.log(`  [clip] Replicate poll [${i + 1}/60]: ${status}`);
-
-        if (status === 'succeeded') {
-          videoUrl = Array.isArray(output) ? output[0] : output;
-          break;
-        }
-        if (status === 'failed' || error) {
-          throw new Error(`Replicate failed: ${error || 'unknown'}`);
-        }
-      }
-
-      if (!videoUrl) continue;
-
-      // Download
-      const videoRes = await axios.get(videoUrl, {
-        responseType: 'arraybuffer',
-        timeout: 120_000,
+      console.log(`  [clip] Trying Pollinations (${model}, free)...`);
+      const encodedPrompt = encodeURIComponent(effectivePrompt);
+      const params = new URLSearchParams({
+        model,
+        duration: String(Math.min(duration, 10)),
+        aspectRatio: '16:9',
       });
 
-      if (videoRes.data.byteLength > 1000) {
-        const localPath = saveVideoBuffer(Buffer.from(videoRes.data), clipId);
-        console.log(`  [clip] ✅ Replicate (${model.owner}/${model.name}) succeeded`);
-        return { localPath, provider: `replicate-${model.owner}-${model.name}` };
-      }
-    } catch (e: any) {
-      console.warn(`  [clip] Replicate (${model.owner}/${model.name}) failed:`, e.message);
-      if (e.response?.status === 402) {
-        console.warn('  [clip] → Replicate credits exhausted, skipping all models');
-        break;
-      }
-    }
-  }
-  return null;
-};
+      const videoUrl = `https://gen.pollinations.ai/video/${encodedPrompt}?${params.toString()}`;
 
-/**
- * Provider 3: HuggingFace Inference Router
- * - Routes through fal-ai / wavespeed-ai providers
- * - Text-to-video only (returns raw video bytes)
- */
-const generateClipHuggingFace: ClipProvider = async ({ prompt, duration, clipId, imageUrl }) => {
-  const HF_TOKEN = process.env.HUGGINGFACE_TOKEN;
-  if (!HF_TOKEN) return null;
-
-  const effectivePrompt = imageUrl
-    ? `Seamless visual continuation of the previous scene. ${prompt}`
-    : prompt;
-
-  const hfModels: Array<[string, string, string]> = [
-    ['fal-ai',       'fal-ai/fast-animatediff/text-to-video', 'AnimateDiff'],
-    ['fal-ai',       'wan-ai/Wan2.1-T2V-14B',                 'Wan2.1-T2V'],
-    ['wavespeed-ai', 'wan-ai/Wan2.1-T2V-14B',                 'Wan2.1-wavespeed'],
-    ['fal-ai',       'tencent/HunyuanVideo',                   'HunyuanVideo'],
-  ];
-
-  for (const [providerSlug, modelId, label] of hfModels) {
-    try {
-      console.log(`  [clip] Trying HF Router → ${label}...`);
-      const url = `https://router.huggingface.co/${providerSlug}/models/${modelId}`;
-      const res = await axios.post(
-        url,
-        { inputs: effectivePrompt },
-        {
-          headers: {
-            Authorization: `Bearer ${HF_TOKEN}`,
-            'Content-Type': 'application/json',
-          },
-          responseType: 'arraybuffer',
-          timeout: 300_000,
-        }
-      );
+      const res = await axios.get(videoUrl, {
+        responseType: 'arraybuffer',
+        timeout: 180_000,
+      });
 
       if (res.status === 200 && res.data.byteLength > 1000) {
         const localPath = saveVideoBuffer(Buffer.from(res.data), clipId);
-        console.log(`  [clip] ✅ HuggingFace (${label}) succeeded`);
-        return { localPath, provider: `hf-${label}` };
+        console.log(`  [clip] ✅ Pollinations (${model}) succeeded`);
+        return { localPath, provider: `pollinations-${model}` };
       }
     } catch (e: any) {
-      const status = e.response?.status || 'no response';
-      console.warn(`  [clip] HF Router (${label}) failed [${status}]`);
-      if (status === 402) break; // No credits
+      console.warn(`  [clip] Pollinations (${model}) failed:`, e.message);
     }
   }
   return null;
 };
 
 /**
- * Provider 4: fal.ai direct (Kling 3.0 + Hunyuan)
- * - Supports BOTH text-to-video AND image-to-video (best for stitching)
- * - Pay-per-use (~$0.05/clip)
+ * Provider 3: Modal.com (serverless GPU fallback)
  */
-const generateClipFalAI: ClipProvider = async ({ prompt, duration, clipId, imageUrl }) => {
-  const FAL_KEY = process.env.FAL_KEY;
-  if (!FAL_KEY) return null;
+const generateClipModal: ClipProvider = async ({ prompt, duration, clipId, imageUrl }) => {
+  const MODAL_URL = process.env.MODAL_ENDPOINT;
+  if (!MODAL_URL) return null;
 
-  fal.config({ credentials: FAL_KEY });
+  const effectivePrompt = imageUrl
+    ? `Seamless visual continuation of the previous scene. ${prompt}`
+    : prompt;
 
-  // fal.ai Kling 3.0 supports native image-to-video — best for seamless stitching
   try {
-    if (imageUrl) {
-      // Image-to-video mode (continuation clips)
-      console.log(`  [clip] Trying fal.ai Kling i2v...`);
-      const result: any = await fal.subscribe('fal-ai/kling-video/v3/standard/image-to-video', {
-        input: {
-          prompt,
-          image_url: imageUrl,
-          duration: String(duration),
-          aspect_ratio: '16:9',
-        },
-      });
+    console.log(`  [clip] Trying Modal.com...`);
+    const res = await axios.post(MODAL_URL, {
+      prompt: effectivePrompt,
+      num_frames: 73,
+      height: 384,
+      width: 640,
+    }, { timeout: 660_000 });
 
-      const videoUrl = result?.data?.video?.url || result?.video?.url;
-      if (videoUrl) {
-        const localPath = path.join(TEMP_DIR, `clip-${clipId}.mp4`);
-        await downloadFile(videoUrl, localPath);
-        console.log(`  [clip] ✅ fal.ai Kling i2v succeeded`);
-        return { localPath, provider: 'fal-kling-i2v' };
-      }
-    } else {
-      // Text-to-video mode (first clip)
-      console.log(`  [clip] Trying fal.ai Kling t2v...`);
-      const result: any = await fal.subscribe('fal-ai/kling-video/v3/standard/text-to-video', {
-        input: {
-          prompt,
-          duration: String(duration),
-          aspect_ratio: '16:9',
-        },
-      });
-
-      const videoUrl = result?.data?.video?.url || result?.video?.url;
-      if (videoUrl) {
-        const localPath = path.join(TEMP_DIR, `clip-${clipId}.mp4`);
-        await downloadFile(videoUrl, localPath);
-        console.log(`  [clip] ✅ fal.ai Kling t2v succeeded`);
-        return { localPath, provider: 'fal-kling-t2v' };
-      }
-    }
-  } catch (e: any) {
-    console.warn(`  [clip] fal.ai Kling failed:`, e.message);
-  }
-
-  // Fallback: fal.ai Hunyuan (text-to-video only)
-  try {
-    const effectivePrompt = imageUrl
-      ? `Seamless visual continuation of the previous scene. ${prompt}`
-      : prompt;
-
-    console.log(`  [clip] Trying fal.ai Hunyuan t2v...`);
-    const { request_id } = await fal.queue.submit('fal-ai/hunyuan-video', {
-      input: {
-        prompt: effectivePrompt,
-        num_frames: '85',
-        resolution: '480p',
-        aspect_ratio: '16:9',
-      },
-    });
-
-    for (let i = 0; i < 60; i++) {
-      await new Promise(r => setTimeout(r, 5000));
-      const status = await fal.queue.status('fal-ai/hunyuan-video', {
-        requestId: request_id,
-        logs: false,
-      });
-
-      if (status.status === 'COMPLETED') {
-        const result = await fal.queue.result('fal-ai/hunyuan-video', {
-          requestId: request_id,
-        });
-        const videoUrl = (result.data as any)?.video?.url;
-        if (videoUrl) {
-          const localPath = path.join(TEMP_DIR, `clip-${clipId}.mp4`);
-          await downloadFile(videoUrl, localPath);
-          console.log(`  [clip] ✅ fal.ai Hunyuan succeeded`);
-          return { localPath, provider: 'fal-hunyuan' };
+    const rawUrl = res.data.video_url;
+    if (rawUrl) {
+      const localPath = path.join(TEMP_DIR, `clip-${clipId}.mp4`);
+      if (rawUrl.startsWith('data:')) {
+        const matches = rawUrl.match(/^data:[^;]+;base64,(.+)$/);
+        if (matches) {
+          fs.writeFileSync(localPath, Buffer.from(matches[1], 'base64'));
+          console.log(`  [clip] ✅ Modal succeeded (dataurl)`);
+          return { localPath, provider: 'modal' };
         }
+      } else {
+        await downloadFile(rawUrl, localPath);
+        console.log(`  [clip] ✅ Modal succeeded`);
+        return { localPath, provider: 'modal' };
       }
-      if ((status as any).status === 'FAILED') break;
     }
   } catch (e: any) {
-    console.warn(`  [clip] fal.ai Hunyuan failed:`, e.message);
+    console.warn(`  [clip] Modal failed:`, e.message);
   }
-
   return null;
 };
 
@@ -462,12 +306,11 @@ const generateClipFalAI: ClipProvider = async ({ prompt, duration, clipId, image
 // Multi-provider clip generation orchestrator
 // ─────────────────────────────────────────────────────────────────────────────
 
-// All providers in priority order
+// All providers in priority order (no rate-limit APIs)
 const ALL_PROVIDERS: Array<{ name: string; fn: ClipProvider }> = [
+  { name: 'Meta AI',      fn: generateClipMetaAI },
   { name: 'Pollinations', fn: generateClipPollinations },
-  { name: 'Replicate',    fn: generateClipReplicate },
-  { name: 'HuggingFace',  fn: generateClipHuggingFace },
-  { name: 'fal.ai',       fn: generateClipFalAI },
+  { name: 'Modal',        fn: generateClipModal },
 ];
 
 /**

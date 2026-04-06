@@ -6,6 +6,9 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { Job, Application } from '../types';
 import { applicationsAPI } from '../services/api';
 
+const API_BASE_URL =
+  (import.meta.env.VITE_API_BASE as string) || 'http://localhost:3001/api';
+
 interface JobContextType {
   savedJobs: Job[];
   applications: Application[];
@@ -105,12 +108,24 @@ export const JobProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const jobId = String(job.id);
     const isRealJob = /^[a-f\d]{24}$/i.test(jobId);
 
+    let resumeUrl: string | undefined;
+    let videoUrl: string | undefined;
+
+    // Upload files to backend first, get real URLs back
     if (isRealJob) {
+      const formData = new FormData();
+      formData.append('resume', resumeFile);
+      if (videoFile) formData.append('video', videoFile);
+
+      const uploadResult = await applicationsAPI.uploadAttachments(formData);
+      resumeUrl = uploadResult.resumeUrl;
+      videoUrl = uploadResult.videoUrl;
+
       await applicationsAPI.create({
         jobId,
         coverLetter,
-        resumeUrl: resumeFile ? `uploaded:${resumeFile.name}` : undefined,
-        videoUrl: videoFile ? `uploaded:${videoFile.name}` : undefined,
+        resumeUrl,
+        videoUrl,
       });
     }
 
@@ -119,6 +134,9 @@ export const JobProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       job,
       dateApplied: new Date().toISOString().split('T')[0],
       status: 'pending',
+      resumeUrl,
+      videoUrl,
+      coverLetter,
     };
     setApplications(prev => [...prev, newApplication]);
   };

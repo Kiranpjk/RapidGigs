@@ -2,9 +2,8 @@
  * test-pipeline.js — Full end-to-end test of the video generation pipeline
  * Usage: node test-pipeline.js
  *
- * 1. Tests OpenRouter prompt generation (Qwen 3.6)
- * 2. Tests Groq prompt generation (fallback)
- * 3. Tests Replicate video generation (MiniMax video-01)
+ * 1. Tests Cerebras prompt generation (Llama 3.3 70B)
+ * 2. Tests Replicate video generation (MiniMax video-01)
  */
 
 const axios = require('axios');
@@ -23,6 +22,52 @@ Meet weekly/bi-weekly/monthly targets. Performance-driven culture.`;
 
 const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY;
 const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN;
+const CEREBRAS_KEY = process.env.CEREBRAS_API_KEY;
+
+async function testCerebras() {
+  console.log('\n' + '='.repeat(60));
+  console.log('TEST 1: Cerebras Prompt Enhancement (llama-3.3-70b)');
+  console.log('='.repeat(60));
+
+  if (!CEREBRAS_KEY) { console.log('SKIP: No CEREBRAS_API_KEY'); return null; }
+
+  try {
+    console.log('  Trying Cerebras llama-3.3-70b...');
+    const res = await axios.post(
+      'https://api.cerebras.ai/v1/chat/completions',
+      {
+        model: 'llama-3.3-70b',
+        max_tokens: 600,
+        temperature: 0.8,
+        messages: [
+          { role: 'system', content: PROMPT_SYSTEM },
+          { role: 'user', content: buildUserMsg(JOB_DESCRIPTION) },
+        ],
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${CEREBRAS_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 30000,
+      }
+    );
+    let prompt = res.data.choices[0]?.message?.content?.trim();
+    if (!prompt) { console.log('  Empty response'); return null; }
+    prompt = prompt.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+    prompt = prompt.replace(/^["""]|["""]$/g, '').trim();
+    if (prompt.length < 50) { console.log('  Response too short'); return null; }
+
+    const sentences = prompt.split(/(?<=[.!?])\s+/).filter(s => s.length > 5);
+    console.log(`  SUCCESS! ${sentences.length} sentences, ${prompt.length} chars`);
+    console.log(`\n--- ENHANCED PROMPT ---\n${prompt}\n--- END ---\n`);
+    return prompt;
+  } catch (err) {
+    const msg = err.response?.data?.error?.message || err.message;
+    console.log(`  Failed: ${msg}`);
+    return null;
+  }
+}
 
 const PROMPT_SYSTEM = `You are an award-winning cinematic director who converts job descriptions into hyper-realistic video prompts for AI text-to-video models like Kling 3.0, Wan 2.1, and Seedance.
 
@@ -46,60 +91,51 @@ function buildUserMsg(desc) {
 
 async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-// ── TEST 1: OpenRouter Qwen 3.6 ──────────────────────────────────────────────
-async function testOpenRouter() {
+// ── TEST: OpenRouter fallback (1 attempt per model, no retries) ────────────────
+async function testOpenRouterFallback() {
   console.log('\n' + '='.repeat(60));
-  console.log('TEST 1: OpenRouter Prompt Enhancement (qwen/qwen3.6-plus:free)');
+  console.log('TEST: OpenRouter Fallback (glm-4.5-air → minimax-m2.5)');
   console.log('='.repeat(60));
 
   if (!OPENROUTER_KEY) { console.log('SKIP: No OPENROUTER_API_KEY'); return null; }
 
-  for (const model of ['qwen/qwen3.6-plus:free', 'z-ai/glm-4.5-air:free']) {
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        console.log(`  Trying ${model} (attempt ${attempt + 1})...`);
-        const res = await axios.post(
-          'https://openrouter.ai/api/v1/chat/completions',
-          {
-            model,
-            max_tokens: 600,
-            temperature: 0.8,
-            messages: [
-              { role: 'system', content: PROMPT_SYSTEM },
-              { role: 'user', content: buildUserMsg(JOB_DESCRIPTION) },
-            ],
+  for (const model of ['z-ai/glm-4.5-air:free', 'minimax/minimax-m2.5:free']) {
+    try {
+      console.log(`  Trying ${model}...`);
+      const res = await axios.post(
+        'https://openrouter.ai/api/v1/chat/completions',
+        {
+          model,
+          max_tokens: 600,
+          temperature: 0.8,
+          messages: [
+            { role: 'system', content: PROMPT_SYSTEM },
+            { role: 'user', content: buildUserMsg(JOB_DESCRIPTION) },
+          ],
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${OPENROUTER_KEY}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'http://localhost:3001',
+            'X-Title': 'RapidGigs',
           },
-          {
-            headers: {
-              Authorization: `Bearer ${OPENROUTER_KEY}`,
-              'Content-Type': 'application/json',
-              'HTTP-Referer': 'http://localhost:3001',
-              'X-Title': 'RapidGigs',
-            },
-            timeout: 45000,
-          }
-        );
-        let prompt = res.data.choices[0]?.message?.content?.trim();
-        if (!prompt) break;
-        prompt = prompt.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-        prompt = prompt.replace(/^["""']|["""]$/g, '').trim();
-        if (prompt.length < 50) break;
-
-        const sentences = prompt.split(/(?<=[.!?])\s+/).filter(s => s.length > 5);
-        console.log(`  SUCCESS! ${sentences.length} sentences, ${prompt.length} chars`);
-        console.log(`\n--- ENHANCED PROMPT ---\n${prompt}\n--- END ---\n`);
-        return prompt;
-      } catch (err) {
-        const msg = err.response?.data?.error?.message || err.message;
-        if (msg.includes('rate-limited') && attempt < 2) {
-          const delay = 3000 + attempt * 2000;
-          console.log(`    Rate-limited. Retrying in ${delay/1000}s...`);
-          await sleep(delay);
-          continue;
+          timeout: 30000,
         }
-        console.log(`    Failed: ${msg}`);
-        break;
-      }
+      );
+      let prompt = res.data.choices[0]?.message?.content?.trim();
+      if (!prompt) continue;
+      prompt = prompt.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+      prompt = prompt.replace(/^["""]|["""]$/g, '').trim();
+      if (prompt.length < 50) continue;
+
+      const sentences = prompt.split(/(?<=[.!?])\s+/).filter(s => s.length > 5);
+      console.log(`  SUCCESS! ${sentences.length} sentences, ${prompt.length} chars`);
+      console.log(`\n--- ENHANCED PROMPT ---\n${prompt}\n--- END ---\n`);
+      return prompt;
+    } catch (err) {
+      const msg = err.response?.data?.error?.message || err.message;
+      console.log(`  Failed: ${msg}`);
     }
   }
   return null;
@@ -176,8 +212,11 @@ async function testReplicateVideo(videoPrompt) {
   console.log('╚═══════════════════════════════════════════════════════════╝');
   console.log(`\nJob: ALTRODAV TECHNOLOGIES — Sales and Marketing Executive`);
 
-  // Step 1: Prompt enhancement
-  const enhancedPrompt = await testOpenRouter();
+  // Step 1: Prompt enhancement — Cerebras → OpenRouter fallback
+  let enhancedPrompt = await testCerebras();
+  if (!enhancedPrompt) {
+    enhancedPrompt = await testOpenRouterFallback();
+  }
   if (!enhancedPrompt) {
     console.log('\nAll prompt enhancers failed. Using raw description.');
   }

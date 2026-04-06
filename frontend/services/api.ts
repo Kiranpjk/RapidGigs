@@ -195,6 +195,9 @@ export const applicationsAPI = {
   getJobApplications: async (jobId: string) =>
     fetchWithAuth(`${API_BASE_URL}/applications/job/${jobId}`),
 
+  uploadAttachments: async (formData: FormData) =>
+    fetchWithAuth(`${API_BASE_URL}/applications/upload-attachments`, { method: 'POST', body: formData }),
+
   create: async (applicationData: {
     jobId: string;
     coverLetter?: string;
@@ -212,6 +215,8 @@ export const applicationsAPI = {
       body: JSON.stringify({ status }),
     }),
 };
+
+// ─── Messages API ─────────────────────────────────────────────────────────────
 
 // ─── Messages API ─────────────────────────────────────────────────────────────
 

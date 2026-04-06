@@ -22,7 +22,7 @@ router.post('/enhance-prompt', authenticate, async (req: AuthRequest, res) => {
   }
 });
 
-// Generate text completion using Ollama → Groq → OpenRouter chain
+// Generate text completion using Cerebras → OpenRouter → Ollama chain
 router.post('/generate-text', authenticate, async (req: AuthRequest, res) => {
   try {
     const { prompt } = req.body;

@@ -12,11 +12,11 @@ export default defineConfig(({ mode }) => {
       historyApiFallback: true,
       proxy: {
         '/api': {
-          // In development, proxy to local backend. In production, the frontend
-          // uses VITE_API_BASE which points to the deployed backend URL.
-          target: isDev
-            ? 'http://localhost:3001'
-            : 'https://rapidgigs.onrender.com',
+          target: isDev ? 'http://localhost:3001' : 'https://rapidgigs.onrender.com',
+          changeOrigin: true,
+        },
+        '/uploads': {
+          target: isDev ? 'http://localhost:3001' : 'https://rapidgigs.onrender.com',
           changeOrigin: true,
         },
       },

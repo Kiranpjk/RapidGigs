@@ -3,6 +3,8 @@ import { body, validationResult } from 'express-validator';
 import { Application } from '../models/Application';
 import { Job } from '../models/Job';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { upload } from '../middleware/upload';
+import { localStorageService } from '../services/localStorage';
 import mongoose from 'mongoose';
 
 const router = express.Router();
@@ -78,6 +80,49 @@ router.get('/job/:jobId', authenticate, async (req: AuthRequest, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Upload resume/video files and return URLs (no application record created)
+router.post(
+  '/upload-attachments',
+  authenticate,
+  upload.fields([
+    { name: 'resume', maxCount: 1 },
+    { name: 'video', maxCount: 1 },
+  ]),
+  async (req: AuthRequest, res) => {
+    try {
+      const files = req.files as Express.Multer.File[] | { [fieldname: string]: Express.Multer.File[] };
+      if (!files || (Array.isArray(files) && files.length === 0)) {
+        return res.status(400).json({ error: 'No files uploaded' });
+      }
+
+      const result: { resumeUrl?: string; videoUrl?: string } = {};
+
+      // Determine field files map
+      const getFile = (name: string): Express.Multer.File | undefined => {
+        if (Array.isArray(files)) return files.find(f => f.fieldname === name);
+        return files[name]?.[0];
+      };
+
+      const resumeFile = getFile('resume');
+      const videoFile = getFile('video');
+
+      if (resumeFile) {
+        const savedPath = await localStorageService.saveFile(resumeFile.buffer, 'resumes', resumeFile.originalname);
+        result.resumeUrl = savedPath.startsWith('http') ? savedPath : localStorageService.getAbsoluteUrl(savedPath);
+      }
+
+      if (videoFile) {
+        const savedPath = await localStorageService.saveFile(videoFile.buffer, 'videos', videoFile.originalname);
+        result.videoUrl = savedPath.startsWith('http') ? savedPath : localStorageService.getAbsoluteUrl(savedPath);
+      }
+
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
 
 // Create application
 router.post(

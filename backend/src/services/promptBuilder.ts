@@ -2,9 +2,7 @@
  * promptBuilder.ts — Cinematic video prompt generation
  *
  * Converts job descriptions into richly detailed cinematic video prompts.
- * Chain: OpenRouter (multi-model) → Groq → Ollama → raw fallback
- *
- * OpenRouter retries: qwen3.6-plus:free → nemotron-3-nano-30b-a3b:free → glm-4.5-air:free
+ * Chain: Cerebras (wafer-scale, fast) → OpenRouter (1 model, 1 retry) → Ollama → raw fallback
  */
 
 import axios from 'axios';
@@ -51,93 +49,23 @@ ${jobDescription.slice(0, 1500)}
 Write exactly 5-7 sentences of pure cinematic visual description. Every sentence must be visually renderable by an AI video model. Be extremely specific to THIS role and company — NOT generic.`;
 }
 
-// ── OpenRouter models to try in fallback order ──────────────────────────────
-// Ranked by prompt quality for video generation (tested empirically):
-//   1. qwen3.6-plus — excellent cinematic detail, concrete nouns
-//   2. glm-4.5-air   — decent, follows format well
-//   3. minimax-m2.5  — long context, good fallback
+// ── OpenRouter fallback models (1 attempt each, no retries) ─────────────────
 const OPENROUTER_MODELS = [
-  'qwen/qwen3.6-plus:free',
   'z-ai/glm-4.5-air:free',
   'minimax/minimax-m2.5:free',
 ];
 
-// ── Step 1: OpenRouter with multi-model retry ───────────────────────────────
-async function buildVideoPromptOpenRouter(jobDescription: string): Promise<string | null> {
-  const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY;
-  if (!OPENROUTER_KEY) return null;
-
-  for (const model of OPENROUTER_MODELS) {
-    // Try up to 3 times per model (rate limits clear on retry)
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const label = `OpenRouter ${model} (attempt ${attempt + 1})`;
-        console.log(`Trying ${label}...`);
-        const res = await axios.post(
-          'https://openrouter.ai/api/v1/chat/completions',
-          {
-            model,
-            max_tokens: 600,
-            temperature: 0.8,
-            messages: [
-              { role: 'system', content: PROMPT_SYSTEM },
-              { role: 'user', content: buildPromptUserMsg(jobDescription) },
-            ],
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${OPENROUTER_KEY}`,
-              'Content-Type': 'application/json',
-              'HTTP-Referer': 'http://localhost:3001',
-              'X-Title': 'RapidGigs',
-            },
-            timeout: 45_000,
-          }
-        );
-        let prompt = res.data.choices[0]?.message?.content?.trim();
-        if (!prompt) break;
-
-        // Clean any thinking tags
-        prompt = prompt.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-        // Remove quote wrapping
-        prompt = prompt.replace(/^["""']|["""]$/g, '').trim();
-
-        if (prompt.length < 50) break; // Too short = bad output
-
-        console.log(`${model} → "${prompt.slice(0, 100)}..."`);
-        return prompt;
-      } catch (err: any) {
-        const msg = err.response?.data?.error?.message || err.message;
-        const isRateLimit = msg.includes('rate-limited') || err.response?.status === 429;
-        const isNotFound = err.response?.status === 404;
-
-        if (isNotFound) break;
-        if (isRateLimit && attempt < 2) {
-          const delay = 3000 + attempt * 2000; // 3s → 5s → 7s
-          console.warn(`${model} rate-limited, retrying in ${delay / 1000}s...`);
-          await new Promise(r => setTimeout(r, delay));
-          continue;
-        }
-        if (isRateLimit) console.warn(`${model} still rate-limited after retries.`);
-        else console.warn(`${model} failed: ${msg}`);
-        break; // Try next model
-      }
-    }
-  }
-  return null;
-}
-
-// ── Step 2: Groq fallback ───────────────────────────────────────────────────
-async function buildVideoPromptGroq(jobDescription: string): Promise<string | null> {
-  const GROQ_KEY = process.env.GROQ_API_KEY;
-  if (!GROQ_KEY) return null;
+// ── Step 1: Cerebras (wafer-scale, fast, 30 RPM / 14,400 RPD) ─────────────
+async function buildVideoPromptCerebras(jobDescription: string): Promise<string | null> {
+  const CEREBRAS_KEY = process.env.CEREBRAS_API_KEY;
+  if (!CEREBRAS_KEY) return null;
 
   try {
-    console.log('Trying Groq for prompt enhancement...');
+    console.log('Trying Cerebras for prompt enhancement...');
     const res = await axios.post(
-      'https://api.groq.com/openai/v1/chat/completions',
+      'https://api.cerebras.ai/v1/chat/completions',
       {
-        model: 'llama-3.3-70b-versatile',
+        model: 'qwen-3-235b-a22b-instruct-2507',
         max_tokens: 600,
         temperature: 0.8,
         messages: [
@@ -147,7 +75,7 @@ async function buildVideoPromptGroq(jobDescription: string): Promise<string | nu
       },
       {
         headers: {
-          Authorization: `Bearer ${GROQ_KEY}`,
+          Authorization: `Bearer ${CEREBRAS_KEY}`,
           'Content-Type': 'application/json',
         },
         timeout: 15_000,
@@ -155,14 +83,63 @@ async function buildVideoPromptGroq(jobDescription: string): Promise<string | nu
     );
     const prompt = res.data.choices[0]?.message?.content?.trim();
     if (prompt) {
-      console.log(`Groq prompt: "${prompt.slice(0, 100)}..."`);
+      console.log(`Cerebras: "${prompt.slice(0, 100)}..."`);
       return prompt;
     }
     return null;
   } catch (err: any) {
-    console.warn('Groq prompt generation failed:', err.message);
+    console.warn('Cerebras prompt generation failed:', err.message);
     return null;
   }
+}
+
+// ── Step 2: OpenRouter fallback (1 attempt per model, no retries) ─────────────
+async function buildVideoPromptOpenRouter(jobDescription: string): Promise<string | null> {
+  const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY;
+  if (!OPENROUTER_KEY) return null;
+
+  for (const model of OPENROUTER_MODELS) {
+    try {
+      console.log(`Trying OpenRouter ${model}...`);
+      const res = await axios.post(
+        'https://openrouter.ai/api/v1/chat/completions',
+        {
+          model,
+          max_tokens: 600,
+          temperature: 0.8,
+          messages: [
+            { role: 'system', content: PROMPT_SYSTEM },
+            { role: 'user', content: buildPromptUserMsg(jobDescription) },
+          ],
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${OPENROUTER_KEY}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'http://localhost:3001',
+            'X-Title': 'RapidGigs',
+          },
+          timeout: 30_000,
+        }
+      );
+      let prompt = res.data.choices[0]?.message?.content?.trim();
+      if (!prompt) continue;
+
+      // Clean any thinking tags
+      prompt = prompt.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+      // Remove quote wrapping
+      prompt = prompt.replace(/^["""']|["""]$/g, '').trim();
+
+      if (prompt.length < 50) continue;
+
+      console.log(`${model} → "${prompt.slice(0, 100)}..."`);
+      return prompt;
+    } catch (err: any) {
+      const msg = err.response?.data?.error?.message || err.message;
+      console.warn(`OpenRouter ${model} failed: ${msg}`);
+    }
+  }
+  return null;
 }
 
 // ── Step 3: Ollama (local) ──────────────────────────────────────────────────
@@ -183,7 +160,6 @@ async function buildVideoPromptOllama(jobDescription: string): Promise<string | 
         messages: [
           { role: 'system', content: PROMPT_SYSTEM },
           { role: 'user', content: buildPromptUserMsg(jobDescription) },
-          { role: 'assistant', content: '<think>\n\n</think>\n' },
         ],
         stream: false,
         options: { temperature: 0.7, num_predict: 600, think: false },
@@ -194,7 +170,7 @@ async function buildVideoPromptOllama(jobDescription: string): Promise<string | 
     if (prompt) {
       prompt = prompt.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
       prompt = prompt.replace(/^[""]|[""]$/g, '').trim();
-      console.log(`Ollama prompt: "${prompt.slice(0, 100)}..."`);
+      console.log(`Ollama: "${prompt.slice(0, 100)}..."`);
       return prompt;
     }
     return null;
@@ -206,13 +182,13 @@ async function buildVideoPromptOllama(jobDescription: string): Promise<string | 
 
 // ── Exported public API ─────────────────────────────────────────────────────
 export async function buildVideoPrompt(jobDescription: string): Promise<string> {
-  // 1. OpenRouter (multi-model retry: qwen3.6-plus → nemotron-30b → glm-4.5-air → minimax-m2.5)
+  // 1. Cerebras (wafer-scale, fast — 30 RPM / 14,400 RPD, Llama 3.3 70B)
+  const cerebrasPrompt = await buildVideoPromptCerebras(jobDescription);
+  if (cerebrasPrompt) return cerebrasPrompt;
+
+  // 2. OpenRouter (glm-4.5-air → minimax-m2.5, 1 attempt each, no retries)
   const openRouterPrompt = await buildVideoPromptOpenRouter(jobDescription);
   if (openRouterPrompt) return openRouterPrompt;
-
-  // 2. Groq
-  const groqPrompt = await buildVideoPromptGroq(jobDescription);
-  if (groqPrompt) return groqPrompt;
 
   // 3. Ollama (local backup)
   const ollamaPrompt = await buildVideoPromptOllama(jobDescription);

@@ -29,7 +29,17 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
     const { applications: contextApplications, savedJobs, unsaveJob } = useJobs();
     const { modalState, showConfetti, showAlert, showConfirm, showSuccess, closeModal, closeConfetti } = useModal();
     const BASE_URL = import.meta.env.VITE_API_BASE?.replace('/api', '') || 'http://localhost:3001';
-    const getMediaUrl = (url?: string) => url ? (url.startsWith('http') ? url : `${BASE_URL}${url}`) : '';
+    const getMediaUrl = (url?: string) => {
+        if (!url) return '';
+        if (url.startsWith('http')) {
+            const localBase = 'http://localhost:3001';
+            if (url.startsWith(localBase)) {
+                return url.replace(localBase, '');
+            }
+            return url;
+        }
+        return url.startsWith('/') ? url : `/${url}`;
+    };
     const [applications, setApplications] = useState<Application[]>([]);
     const [myVideos, setMyVideos] = useState<any[]>([]);
     const [stats, setStats] = useState({

@@ -1,29 +1,19 @@
 /**
  * shorts.ts — AI Video Generation Routes
  *
- * Video provider priority:
- *   1. Pollinations.ai (needs API key + balance)
- *   2. HuggingFace Inference Providers (via router.huggingface.co — fal-ai / wavespeed-ai)
+ * Video provider priority (30s+ native, no rate-limit issues):
+ *   1. Meta AI — cookie-based, free, 30-60s videos, 3-4 outputs
+ *   2. Pollinations.ai (via Vibe AI — free tier, gen.pollinations.ai)
  *   3. Modal.com (serverless GPU, if MODAL_ENDPOINT set)
- *   4. Helios (local GPU, if HELIOS_SERVICE_URL set)
- *   5. fal.ai (pay-per-use direct, if FAL_KEY set)
  *
  * Prompt enhancement: see ../services/promptBuilder.ts
  * Flow:
- *   Job description → Ollama → Groq → OpenRouter → cinematic prompt → video provider → MP4
- *
- * NOTE: HuggingFace changed its API in 2025.
- *   - Old:  https://api-inference.huggingface.co  ← DEPRECATED (410)
- *   - New:  https://router.huggingface.co/<provider>/models/<model>
- *   Video models (ali-vilab, cogvideox, etc.) are hosted by inference
- *   PROVIDERS (fal-ai, wavespeed-ai) — NOT by HF's own servers.
- *   Use router.huggingface.co/fal-ai/... or /wavespeed-ai/... with your HF token.
+ *   Job description → Cerebras → OpenRouter → Ollama → cinematic prompt → video provider → MP4
  */
 
 import express from 'express';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
-import { fal } from '@fal-ai/client';
 import { ShortVideo } from '../models/ShortVideo';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import mongoose from 'mongoose';
@@ -72,6 +62,85 @@ setInterval(() => {
 const generateJobId = () =>
   `vj_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Meta AI Video Generator (cookie-based, free, 30-60s videos)
+//
+// Uses the metaai-api REST server (https://github.com/mir-ashiq/metaai-api)
+//   POST http://localhost:8000/video/async — returns job_id
+//   GET  /video/jobs/{job_id}              — poll until completed
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function generateVideoFromMetaAI(
+  prompt: string,
+  jobId: string,
+  _cookies: { datr: string; ecto_1_sess: string; abra_sess?: string }
+): Promise<{ videoUrl: string; provider: string } | null> {
+  const META_SERVER_URL = process.env.META_AI_API_URL || 'http://localhost:8000';
+
+  try {
+    console.log(`  [Meta AI] Sending video request to ${META_SERVER_URL}...`);
+
+    // Submit async generation
+    const asyncRes = await axios.post(
+      `${META_SERVER_URL}/video/async`,
+      { prompt },
+      { timeout: 30_000 }
+    );
+
+    const { job_id } = asyncRes.data;
+    console.log(`  [Meta AI] Job ${job_id} queued, polling...`);
+
+    // Poll for result (max 3 min)
+    for (let i = 0; i < 36; i++) {
+      await new Promise(r => setTimeout(r, 5_000));
+
+      const statusRes = await axios.get(
+        `${META_SERVER_URL}/video/jobs/${job_id}`,
+        { timeout: 15_000 }
+      );
+
+      if (statusRes.data.status === 'completed') {
+        const rawUrls = statusRes.data.result?.video_urls || [];
+        const rawUrl = rawUrls[0];
+        if (!rawUrl) throw new Error('No video URL in result');
+
+        // Download and save locally
+        const uploadsDir = process.env.UPLOAD_DIR || './uploads';
+        const videosDir = path.join(uploadsDir, 'videos');
+        if (!fs.existsSync(videosDir)) fs.mkdirSync(videosDir, { recursive: true });
+
+        const filename = `${jobId}.mp4`;
+        const filepath = path.join(videosDir, filename);
+
+        const dlRes = await axios.get(rawUrl, {
+          responseType: 'stream',
+          timeout: 120_000,
+          headers: { Referer: 'https://meta.ai/' },
+        });
+        const writer = fs.createWriteStream(filepath);
+        dlRes.data.pipe(writer);
+        await new Promise<void>((resolve, reject) => {
+          writer.on('finish', () => resolve());
+          writer.on('error', reject);
+        });
+
+        const baseUrl = process.env.API_BASE_URL || 'http://localhost:3001';
+        return { videoUrl: `${baseUrl}/uploads/videos/${filename}`, provider: 'metaai-api-server' };
+      }
+
+      if (statusRes.data.status === 'failed') {
+        throw new Error(statusRes.data.error || 'Meta AI generation failed');
+      }
+    }
+
+    throw new Error('Meta AI polling timeout (3 min)');
+  } catch (e: any) {
+    console.warn('  [Meta AI] Failed:', e.message);
+  }
+
+  return null;
+}
+
 
 // ── Step 2: Try each video provider in order ──────────────────────────────────
 async function generateVideoUrl(
@@ -80,240 +149,93 @@ async function generateVideoUrl(
   callbackUrl?: string
 ): Promise<{ videoUrl: string; provider: string } | null> {
 
-  const HELIOS_URL   = process.env.HELIOS_SERVICE_URL;
-  const MODAL_URL    = process.env.MODAL_ENDPOINT;
-  const FAL_KEY      = process.env.FAL_KEY;
-  const POLLINATIONS_KEY = process.env.POLLINATIONS_KEY; // optional
+  const MODAL_URL = process.env.MODAL_ENDPOINT;
 
-  // ── Provider 1: Pollinations.ai ────────────────────────────────────────────
+  // ── Provider 1: Meta AI (cookie-based, free, 30-60s videos) ────────────────
   {
-    // Try video models in order (seedance and veo are newer, higher quality)
-    const videoModels = ['seedance', 'wan-fast', 'veo', 'ltx-2', 'nova-reel'];
-
-    // Try WITHOUT key first (free tier), then WITH key as fallback
-    // This avoids 401 errors when the account balance is depleted
-    const authModes: Array<{ label: string; key?: string }> = [
-      { label: 'free (no key)' },
-      ...(POLLINATIONS_KEY ? [{ label: 'with API key', key: POLLINATIONS_KEY }] : []),
-    ];
-
-    for (const auth of authModes) {
-      for (const model of videoModels) {
-        try {
-          console.log(`Trying Pollinations.ai (${model}, ${auth.label})...`);
-          const encodedPrompt = encodeURIComponent(prompt);
-          const params = new URLSearchParams({
-            model,
-            duration: '5',
-            aspectRatio: '16:9',
-          });
-          if (auth.key) params.set('key', auth.key);
-
-          const videoUrl = `https://gen.pollinations.ai/video/${encodedPrompt}?${params.toString()}`;
-
-          const headers: Record<string, string> = {};
-          if (auth.key) headers['Authorization'] = `Bearer ${auth.key}`;
-
-          const res = await axios.get(videoUrl, {
-            responseType: 'arraybuffer',
-            timeout: 180_000, // 3 min timeout for video gen
-            headers,
-          });
-
-          if (res.status === 200 && res.data.byteLength > 1000) {
-            // Save the video locally
-            const uploadsDir = process.env.UPLOAD_DIR || './uploads';
-            const videosDir = path.join(uploadsDir, 'videos');
-            if (!fs.existsSync(videosDir)) fs.mkdirSync(videosDir, { recursive: true });
-
-            const filename = `${jobId}.mp4`;
-            const filepath = path.join(videosDir, filename);
-            fs.writeFileSync(filepath, Buffer.from(res.data));
-
-            const baseUrl = process.env.API_BASE_URL || 'http://localhost:3001';
-            const savedUrl = `${baseUrl}/uploads/videos/${filename}`;
-            console.log(`✅ Pollinations (${model}) video saved: ${savedUrl}`);
-            return { videoUrl: savedUrl, provider: `pollinations-${model}` };
-          }
-        } catch (e: any) {
-          const status = e.response?.status || 'no response';
-          console.warn(`Pollinations (${model}, ${auth.label}) failed [${status}]:`, e.message);
-          // If we get 401/403 with this auth mode, skip remaining models for this mode
-          if (e.response?.status === 401 || e.response?.status === 403) {
-            console.warn(`  → Auth mode "${auth.label}" rejected, skipping remaining models for this mode`);
-            break;
-          }
-        }
+    const META_COOKIES = process.env.META_AI_COOKIES; // JSON string or semicolon-separated
+    if (META_COOKIES) {
+      let cookies: Record<string, string>;
+      try {
+        cookies = JSON.parse(META_COOKIES);
+      } catch {
+        cookies = {};
+        (META_COOKIES || '').split(';').forEach((pair) => {
+          const [k, ...rest] = pair.trim().split('=');
+          if (k && rest.length) cookies[k.trim()] = rest.join('=').trim();
+        });
       }
-    }
-  }
 
-  // ── Provider 2: Replicate (free credits for new accounts) ────────────────────
-  {
-    const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN;
-
-    if (REPLICATE_TOKEN) {
-      // Models to try in order — all support text-to-video on Replicate
-      const replicateModels: Array<{ owner: string; name: string; inputKey: string }> = [
-        { owner: 'minimax',      name: 'video-01',            inputKey: 'prompt' },
-        { owner: 'wavespeed-ai', name: 'wan-2.1-t2v-480p',   inputKey: 'prompt' },
-        { owner: 'lucataco',     name: 'cogvideox-5b',        inputKey: 'prompt' },
-      ];
-
-      for (const model of replicateModels) {
+      if (cookies.datr && cookies.ecto_1_sess) {
         try {
-          console.log(`Trying Replicate (${model.owner}/${model.name})...`);
+          console.log('Trying Meta AI video generation...');
 
-          // Step 1: Create prediction
-          const createRes = await axios.post(
-            `https://api.replicate.com/v1/models/${model.owner}/${model.name}/predictions`,
-            { input: { [model.inputKey]: prompt } },
-            {
-              headers: {
-                Authorization: `Token ${REPLICATE_TOKEN}`,
-                'Content-Type': 'application/json',
-              },
-              timeout: 30_000,
-            }
-          );
-
-          const predictionId: string = createRes.data.id;
-          const pollUrl: string = createRes.data.urls?.get;
-          if (!predictionId || !pollUrl) throw new Error('No prediction ID returned');
-
-          console.log(`  Replicate prediction ${predictionId} started, polling...`);
-
-          // Step 2: Poll until completed (max 10 min)
-          let videoUrl: string | null = null;
-          for (let i = 0; i < 72; i++) {
-            await new Promise(r => setTimeout(r, 8_000)); // 8s between polls
-
-            const pollRes = await axios.get(pollUrl, {
-              headers: { Authorization: `Token ${REPLICATE_TOKEN}` },
-              timeout: 15_000,
-            });
-
-            const { status, output, error } = pollRes.data;
-            console.log(`  Replicate status [${i + 1}/72]: ${status}`);
-
-            if (status === 'succeeded') {
-              // output can be a string URL or array of URLs
-              videoUrl = Array.isArray(output) ? output[0] : output;
-              break;
-            }
-            if (status === 'failed' || error) {
-              throw new Error(`Replicate generation failed: ${error || 'unknown'}`);
-            }
-          }
-
-          if (!videoUrl) throw new Error('Replicate polling timed out');
-
-          // Step 3: Download and save locally
-          const videoRes = await axios.get(videoUrl, {
-            responseType: 'arraybuffer',
-            timeout: 120_000,
+          // Use the official SDK's generate_video_new endpoint
+          // Meta AI generates 3-4 videos per prompt, each ~30-60 seconds
+          const result = await generateVideoFromMetaAI(prompt, jobId, {
+            datr: cookies.datr,
+            ecto_1_sess: cookies.ecto_1_sess,
+            abra_sess: cookies.abra_sess,
           });
 
-          if (videoRes.data.byteLength > 1000) {
-            const uploadsDir = process.env.UPLOAD_DIR || './uploads';
-            const videosDir = path.join(uploadsDir, 'videos');
-            if (!fs.existsSync(videosDir)) fs.mkdirSync(videosDir, { recursive: true });
-
-            const filename = `${jobId}.mp4`;
-            const filepath = path.join(videosDir, filename);
-            fs.writeFileSync(filepath, Buffer.from(videoRes.data));
-
-            const baseUrl = process.env.API_BASE_URL || 'http://localhost:3001';
-            const savedUrl = `${baseUrl}/uploads/videos/${filename}`;
-            console.log(`✅ Replicate (${model.owner}/${model.name}) video saved: ${savedUrl}`);
-            return { videoUrl: savedUrl, provider: `replicate-${model.owner}-${model.name}` };
+          if (result) {
+            console.log(`✅ Meta AI video saved: ${result.videoUrl}`);
+            return result;
           }
         } catch (e: any) {
-          const status = e.response?.status || 'no response';
-          console.warn(`Replicate (${model.owner}/${model.name}) failed [${status}]:`, e.message);
-          if (e.response?.status === 402) {
-            console.warn('  → Replicate credits exhausted. Top up at https://replicate.com/account/billing');
-            break; // No point trying other models if credits are gone
-          }
+          console.warn('Meta AI video generation failed:', e.message);
         }
+      } else {
+        console.log('Meta AI skipped — set META_AI_COOKIES in .env (datr + ecto_1_sess required)');
       }
     } else {
-      console.log('Replicate skipped — no REPLICATE_API_TOKEN set');
+      console.log('Meta AI skipped — no META_AI_COOKIES env var set');
     }
   }
 
-  // ── Provider 3: HuggingFace Inference Providers (via router.huggingface.co) ─
-  //
-  // HF's own servers don't host video models — they're on third-party providers.
-  // We route through fal-ai and wavespeed-ai using the HF token.
-  // Provider URL format: https://router.huggingface.co/<provider>/models/<model>
+  // ── Provider 2: Pollinations.ai (free tier, used by Vibe AI) ───────────────
   {
-    const HF_TOKEN = process.env.HUGGINGFACE_TOKEN;
+    // Try video models in order — Veo, Wan 2.6, Seedance (same as Vibe AI)
+    const videoModels = ['wan', 'veo', 'seedance'];
 
-    if (HF_TOKEN) {
-      // Models proven to work via HF inference providers (as of 2025)
-      // Each entry: [provider-slug, model-id, display-name]
-      const hfProviderModels: Array<[string, string, string]> = [
-        ['fal-ai',      'fal-ai/fast-animatediff/text-to-video', 'AnimateDiff (fal-ai)'],
-        ['fal-ai',      'wan-ai/Wan2.1-T2V-14B',                 'Wan2.1-T2V (fal-ai)'],
-        ['wavespeed-ai', 'wan-ai/Wan2.1-T2V-14B',                'Wan2.1-T2V (wavespeed)'],
-        ['fal-ai',      'tencent/HunyuanVideo',                  'HunyuanVideo (fal-ai)'],
-      ];
+    for (const model of videoModels) {
+      try {
+        console.log(`Trying Pollinations.ai (${model}, free tier)...`);
+        const encodedPrompt = encodeURIComponent(prompt);
+        const params = new URLSearchParams({
+          model,
+          duration: '10',
+          aspectRatio: '16:9',
+        });
 
-      for (const [providerSlug, modelId, label] of hfProviderModels) {
-        try {
-          console.log(`Trying HuggingFace router → ${label}...`);
-          const url = `https://router.huggingface.co/${providerSlug}/models/${modelId}`;
-          const res = await axios.post(
-            url,
-            { inputs: prompt },
-            {
-              headers: {
-                Authorization: `Bearer ${HF_TOKEN}`,
-                'Content-Type': 'application/json',
-              },
-              responseType: 'arraybuffer',
-              timeout: 300_000, // 5 min — video gen can be slow
-            }
-          );
+        const videoUrl = `https://gen.pollinations.ai/video/${encodedPrompt}?${params.toString()}`;
 
-          if (res.status === 200 && res.data.byteLength > 1000) {
-            const uploadsDir = process.env.UPLOAD_DIR || './uploads';
-            const videosDir = path.join(uploadsDir, 'videos');
-            if (!fs.existsSync(videosDir)) fs.mkdirSync(videosDir, { recursive: true });
+        const res = await axios.get(videoUrl, {
+          responseType: 'arraybuffer',
+          timeout: 180_000,
+        });
 
-            const filename = `${jobId}.mp4`;
-            const filepath = path.join(videosDir, filename);
-            fs.writeFileSync(filepath, Buffer.from(res.data));
+        if (res.status === 200 && res.data.byteLength > 1000) {
+          const uploadsDir = process.env.UPLOAD_DIR || './uploads';
+          const videosDir = path.join(uploadsDir, 'videos');
+          if (!fs.existsSync(videosDir)) fs.mkdirSync(videosDir, { recursive: true });
 
-            const baseUrl = process.env.API_BASE_URL || 'http://localhost:3001';
-            const savedUrl = `${baseUrl}/uploads/videos/${filename}`;
-            console.log(`✅ HuggingFace router (${label}) video saved: ${savedUrl}`);
-            return { videoUrl: savedUrl, provider: `hf-router-${providerSlug}` };
-          }
-        } catch (e: any) {
-          const status = e.response?.status || 'no response';
-          const detail = e.response?.data
-            ? Buffer.from(e.response.data).toString('utf-8').slice(0, 300)
-            : e.message;
-          console.warn(`HuggingFace router (${label}) failed [${status}]:`, detail);
+          const filename = `${jobId}.mp4`;
+          const filepath = path.join(videosDir, filename);
+          fs.writeFileSync(filepath, Buffer.from(res.data));
 
-          if (e.response?.status === 503) {
-            console.warn(`  → Model loading — may need a retry in a few minutes`);
-          } else if (e.response?.status === 402) {
-            console.warn(`  → Insufficient HF credits for this provider, trying next...`);
-          }
-          // Continue to next model/provider
+          const baseUrl = process.env.API_BASE_URL || 'http://localhost:3001';
+          const savedUrl = `${baseUrl}/uploads/videos/${filename}`;
+          console.log(`✅ Pollinations (${model}) video saved: ${savedUrl}`);
+          return { videoUrl: savedUrl, provider: `pollinations-${model}` };
         }
+      } catch (e: any) {
+        console.warn(`Pollinations (${model}, free) failed:`, e.message);
       }
-
-      console.warn('All HuggingFace router providers failed.');
-    } else {
-      console.log('HuggingFace skipped — no HUGGINGFACE_TOKEN set');
     }
   }
 
-  // ── Provider 3: Modal.com (serverless GPU — best for production) ──────────
+  // ── Provider 3: Modal.com (serverless GPU fallback) ────────────────────────
   if (MODAL_URL) {
     try {
       console.log('Trying Modal.com...');
@@ -338,78 +260,12 @@ async function generateVideoUrl(
     }
   }
 
-  // ── Provider 4: Self-hosted Helios (local GPU via Cloudflare tunnel) ──────
-  if (HELIOS_URL) {
-    try {
-      console.log('Trying self-hosted Helios at', HELIOS_URL);
-      const res = await axios.post(
-        `${HELIOS_URL}/generate`,
-        { prompt, num_frames: 73, job_id: jobId },
-        { timeout: 660_000 }
-      );
-      let videoUrl = res.data.video_url;
-      if (videoUrl?.startsWith('/')) videoUrl = `${HELIOS_URL}${videoUrl}`;
-      return { videoUrl, provider: 'helios-local' };
-    } catch (e: any) {
-      console.warn('Local Helios failed:', e.message);
-    }
-  }
-
-  // ── Provider 5: fal.ai (pay-per-use cloud fallback) ───────────────────────
-  if (FAL_KEY) {
-    try {
-      console.log('Trying fal.ai (Hunyuan Video)...');
-      fal.config({ credentials: FAL_KEY });
-
-      const { request_id } = await fal.queue.submit('fal-ai/hunyuan-video', {
-        input: {
-          prompt,
-          num_frames: '85',
-          resolution: '480p',
-          aspect_ratio: '16:9',
-        }
-      });
-
-      console.log('fal.ai request_id:', request_id);
-
-      for (let i = 0; i < 60; i++) {
-        await new Promise(r => setTimeout(r, 5000));
-        const status = await fal.queue.status('fal-ai/hunyuan-video', {
-          requestId: request_id,
-          logs: false,
-        });
-
-        console.log('fal.ai status:', status.status);
-
-        if (status.status === 'COMPLETED') {
-          const result = await fal.queue.result('fal-ai/hunyuan-video', {
-            requestId: request_id,
-          });
-          const videoUrl = (result.data as any)?.video?.url;
-          if (videoUrl) return { videoUrl, provider: 'fal.ai' };
-          throw new Error('No video URL in result');
-        }
-
-        if ((status as any).status === 'FAILED' || (status as any).error) {
-          throw new Error('fal.ai generation failed');
-        }
-      }
-      throw new Error('fal.ai polling timeout after 5 minutes');
-
-    } catch (e: any) {
-      console.warn('fal.ai failed:', e.message);
-    }
-  }
-
   // ── All providers exhausted ───────────────────────────────────────────────
   console.error('❌ All video providers failed. Diagnostics:');
-  console.error(`   Pollinations:  balance depleted or API requires auth`);
-  console.error(`   Replicate:     ${process.env.REPLICATE_API_TOKEN ? 'token set — credits may be exhausted' : 'NO token — sign up free at https://replicate.com'}`);
-  console.error(`   HuggingFace:   ${process.env.HUGGINGFACE_TOKEN ? 'token set — providers (fal-ai/wavespeed) may have insufficient credits' : 'NO token — get free one at https://huggingface.co/settings/tokens'}`);
+  console.error(`   Meta AI:       ${process.env.META_AI_COOKIES ? 'cookies set — check cookie expiry' : 'NO cookies set'}`);
+  console.error(`   Pollinations:  free tier — may be rate limited`);
   console.error(`   Modal:         ${MODAL_URL ? 'endpoint set' : 'not configured'}`);
-  console.error(`   Helios:        ${HELIOS_URL ? 'endpoint set' : 'not configured'}`);
-  console.error(`   fal.ai direct: ${FAL_KEY ? 'key set (may be expired)' : 'not configured'}`);
-  console.error(`   Tip: Add HUGGINGFACE_TOKEN credits at https://huggingface.co/settings/billing`);
+  console.error(`   Tip: Refresh Meta AI cookies at https://meta.ai → F12 → Application → Cookies`);
 
   return null;
 }
@@ -642,13 +498,12 @@ router.get('/status/:jobId', authenticate, async (req: AuthRequest, res) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/shorts/generate-long
-// Generate a ~30-second video by stitching 3×10s clips (multi-provider)
+// Generate a ~30-second video by stitching clips (multi-provider)
 //
 // Providers tried per clip (in order):
-//   1. Pollinations.ai  (free)
-//   2. Replicate         (free credits)
-//   3. HuggingFace       (router → fal-ai / wavespeed)
-//   4. fal.ai            (Kling 3.0 / Hunyuan — pay-per-use)
+//   1. Meta AI          (cookie-based, free, 30-60s videos)
+//   2. Pollinations.ai  (free tier — wan/veo/seedance)
+//   3. Modal.com        (serverless GPU)
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/generate-long', authenticate, async (req: AuthRequest, res) => {
   const { prompt, description, segments = 3, segmentDuration = 10 } = req.body;
@@ -657,9 +512,10 @@ router.post('/generate-long', authenticate, async (req: AuthRequest, res) => {
     return res.status(400).json({ error: 'prompt or description is required' });
   }
 
-  // Validate segment config
-  const numSegments = Math.min(Math.max(Number(segments) || 3, 2), 5);
-  const clipDuration = Math.min(Math.max(Number(segmentDuration) || 10, 5), 15);
+  // Meta AI generates 30s+ natively, so we try 1 segment first.
+  // Falls back to multi-clip stitching if Meta AI is unavailable.
+  const numSegments = Math.min(Math.max(Number(segments) || 1, 1), 5);
+  const clipDuration = Math.min(Math.max(Number(segmentDuration) || 30, 10), 60);
 
   const jobId = uuidv4();
   const userId = req.user!.userId;
@@ -804,47 +660,45 @@ router.get('/feed', authenticate, async (req: AuthRequest, res) => {
     let feedItems: any[] = [];
 
     if (isStudent) {
-      const jobsWithVideos = await Job.find({ shortVideoUrl: { $exists: true, $ne: '' } })
-        .populate('postedBy', 'name avatarUrl role')
-        .sort({ updatedAt: -1 })
+      // Students should never see recruiter-generated intro videos.
+      // Only show student-created ShortVideo entries if they exist.
+      const studentVideos = await ShortVideo.find()
+        .populate({ path: 'userId', select: 'name avatarUrl role' })
+        .sort({ createdAt: -1 })
         .limit(20);
 
-      feedItems = jobsWithVideos.map(job => ({
-        type: 'job',
-        id: job._id.toString(),
-        jobId: job._id.toString(),
-        title: job.title,
-        company: job.company,
-        description: job.description,
-        videoUrl: job.shortVideoUrl,
-        likes: job.likes || 10,
-        views: (job.likes || 0) * 5 + 50,
-        comments: job.comments || 0,
-        shares: job.shares || 0,
-        pay: job.pay,
-        createdAt: job.createdAt,
-        postedById: job.postedBy ? (job.postedBy as any)._id?.toString() || job.postedBy.toString() : null,
-        author: {
-          id: job.postedBy ? (job.postedBy as any)._id?.toString() || job.postedBy.toString() : null,
-          name: job.company,
-          avatar: (job.postedBy as any)?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company)}`,
-        }
-      }));
+      feedItems = studentVideos
+        .filter(v => (v.userId as any)?.role === 'student')
+        .map(v => ({
+          type: 'student_intro',
+          id: v._id.toString(),
+          title: v.title,
+          description: v.description || '',
+          videoUrl: v.videoUrl,
+          likes: v.likes || 0,
+          views: v.views || 0,
+          createdAt: v.createdAt,
+          authorId: (v.userId as any)._id?.toString(),
+          author: {
+            id: (v.userId as any)._id?.toString(),
+            name: (v.userId as any).name,
+            avatar: (v.userId as any).avatarUrl,
+          }
+        }));
     } else if (isRecruiter) {
-      // 1. Fetch candidate videos (students)
-      const candidateVideos = await ShortVideo.find()
+      // 1. Fetch the recruiter's own generated videos (shorts they created for their jobs)
+      const myShortVideos = await ShortVideo.find({ userId: req.user!.userId })
         .populate({ path: 'userId', select: 'name avatarUrl title role' })
         .sort({ createdAt: -1 })
-        .limit(30);
+        .limit(20);
 
-      // 2. Fetch the recruiter's *own* jobs that have videos so they can preview them
-      const myJobsWithVideos = await Job.find({ 
-        postedBy: user._id, 
-        shortVideoUrl: { $exists: true, $ne: '' } 
-      }).populate('postedBy', 'name avatarUrl').sort({ updatedAt: -1 }).limit(10);
+      // 2. Fetch their own jobs (no video filter — job details shown without video)
+      const myJobs = await Job.find({ postedBy: req.user!.userId })
+        .populate('postedBy', 'name avatarUrl')
+        .sort({ updatedAt: -1 })
+        .limit(10);
 
-      const formattedCandidates = candidateVideos
-        .filter(v => (v.userId as any)?.role === 'student')
+      const formattedCandidates = myShortVideos
         .map(v => ({
           type: 'candidate_intro',
           id: v._id.toString(),
@@ -863,7 +717,7 @@ router.get('/feed', authenticate, async (req: AuthRequest, res) => {
           }
         }));
 
-      const formattedJobs = myJobsWithVideos.map(job => ({
+      const formattedJobs = myJobs.map(job => ({
         type: 'job',
         id: job._id.toString(),
         jobId: job._id.toString(),
