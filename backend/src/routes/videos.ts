@@ -90,10 +90,10 @@ router.post(
       const { title, description, categoryId } = req.body;
       let videoUrl: string;
 
-      // Save video to local disk
-      console.log('Saving video to local disk...');
-      const relativePath = localStorageService.saveFile(req.file.buffer, 'videos', req.file.originalname);
-      videoUrl = localStorageService.getAbsoluteUrl(relativePath);
+      // Save video to Cloudinary (or local disk fallback)
+      const savedPath = await localStorageService.saveFile(req.file.buffer, 'videos', req.file.originalname);
+      // Cloudinary returns a full URL; local returns a relative path
+      videoUrl = savedPath.startsWith('http') ? savedPath : localStorageService.getAbsoluteUrl(savedPath);
 
       const video = new ShortVideo({
         userId: new mongoose.Types.ObjectId(req.user!.userId),

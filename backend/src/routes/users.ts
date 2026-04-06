@@ -127,8 +127,8 @@ router.patch(
       if (req.body.title !== undefined) updateData.title = req.body.title;
       if (req.file) {
         const { localStorageService } = await import('../services/localStorage');
-        const relativePath = localStorageService.saveFile(req.file.buffer, 'avatars', req.file.originalname);
-        updateData.avatarUrl = relativePath;
+        const savedPath = await localStorageService.saveFile(req.file.buffer, 'avatars', req.file.originalname);
+        updateData.avatarUrl = savedPath.startsWith('http') ? savedPath : localStorageService.getAbsoluteUrl(savedPath);
       }
 
       const user = await UserModel.update(req.user!.userId, updateData);
