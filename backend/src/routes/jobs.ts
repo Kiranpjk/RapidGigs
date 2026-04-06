@@ -284,4 +284,28 @@ router.put('/:id', authenticate, async (req: AuthRequest, res) => {
   }
 });
 
+// Delete job (authenticated, owner only)
+router.delete('/:id', authenticate, async (req: AuthRequest, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid job ID' });
+    }
+
+    const job = await Job.findById(req.params.id);
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    // Verify ownership
+    if (job.postedBy.toString() !== req.user!.userId) {
+      return res.status(403).json({ error: 'Unauthorized to delete this job' });
+    }
+
+    await Job.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'Job deleted successfully' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

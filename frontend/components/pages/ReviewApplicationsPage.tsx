@@ -56,6 +56,24 @@ const ReviewApplicationsPage: React.FC = () => {
         }
     };
 
+    const handleDeleteJob = async () => {
+        if (!selectedJobId) return;
+        if (!window.confirm("Are you sure you want to delete this job? This action cannot be undone.")) return;
+        
+        setIsSavingJob(true);
+        try {
+            await jobsAPI.delete(selectedJobId);
+            setJobs(prev => prev.filter(j => j._id !== selectedJobId && j.id !== selectedJobId));
+            const remaining = jobs.filter(j => j._id !== selectedJobId && j.id !== selectedJobId);
+            setSelectedJobId(remaining.length > 0 ? (remaining[0]._id || remaining[0].id) : null);
+            setIsEditingJob(false);
+        } catch (err) {
+            alert('Failed to delete job');
+        } finally {
+            setIsSavingJob(false);
+        }
+    };
+
     const handleStatusChange = async (appId: string, status: string) => {
         setUpdatingId(appId);
         try {
@@ -97,16 +115,10 @@ const ReviewApplicationsPage: React.FC = () => {
     const getMediaUrl = (url?: string) => {
         if (!url) return '';
         if (url.startsWith('http')) {
-            // If it's a local backend URL, convert it to a relative path to use the Vite proxy
-            // This is more robust for local dev (handling localhost vs 127.0.0.1 vs network IP)
-            const localBase = 'http://localhost:3001';
-            if (url.startsWith(localBase)) {
-                return url.replace(localBase, '');
-            }
             return url;
         }
         if (url.startsWith('uploaded:')) return url; 
-        return url.startsWith('/') ? url : `/${url}`;
+        return url.startsWith('/') ? `${BASE_URL}${url}` : `${BASE_URL}/${url}`;
     };
 
     const isRealUrl = (url?: string) => !!url && (url.startsWith('http') || url.startsWith('/uploads') || url.startsWith('uploads/'));
@@ -303,10 +315,16 @@ const ReviewApplicationsPage: React.FC = () => {
                                                     {isSavingJob ? 'Saving Changes...' : <><CheckIcon className="w-5 h-5" /> Save Changes</>}
                                                 </button>
                                                 <button 
-                                                    type="button" onClick={() => setIsEditingJob(false)}
-                                                    className="px-6 py-3 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50"
+                                                    type="button" onClick={() => setIsEditingJob(false)} disabled={isSavingJob}
+                                                    className="px-6 py-3 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
                                                 >
                                                     Cancel
+                                                </button>
+                                                <button 
+                                                    type="button" onClick={handleDeleteJob} disabled={isSavingJob}
+                                                    className="px-6 py-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-xl font-bold hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+                                                >
+                                                    Delete Job
                                                 </button>
                                             </div>
                                         </form>

@@ -48,8 +48,11 @@ app.use(cookieParser());       // Parse httpOnly cookies
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(compression());
-app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
-
+app.use(helmet({ 
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  crossOriginEmbedderPolicy: false,
+  xFrameOptions: false,
+}));
 // Rate limiting for auth endpoints (SEC-03)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

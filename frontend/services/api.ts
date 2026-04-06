@@ -184,6 +184,9 @@ export const jobsAPI = {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
+
+  delete: async (jobId: string) =>
+    fetchWithAuth(`${API_BASE_URL}/jobs/${jobId}`, { method: 'DELETE' }),
 };
 
 // ─── Applications API ─────────────────────────────────────────────────────────
