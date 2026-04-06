@@ -110,10 +110,6 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                     <h3 className="font-bold text-slate-800 dark:text-white text-lg">{job.title}</h3>
                     <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1"><BuildingOffice2Icon className="w-4 h-4"/> {job.company}</p>
                 </div>
-                <div>
-                    <h3 className="font-bold text-slate-800 dark:text-white text-lg">{job.title}</h3>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1"><BuildingOffice2Icon className="w-4 h-4"/> {job.company}</p>
-                </div>
             </div>
             <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400 mb-4">
                 <span className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-700/50 px-2 py-1 rounded-full"><MapPinIcon className="w-4 h-4" /> {job.location}</span>

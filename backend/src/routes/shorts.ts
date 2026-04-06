@@ -586,7 +586,7 @@ router.post('/from-job/:jobId', authenticate, async (req: AuthRequest, res) => {
           return;
         }
 
-        // Step 3: Save as ShortVideo in DB
+        // Step 3: Save as ShortVideo in DB (private — only visible to the recruiter)
         const newShort = new ShortVideo({
           userId: req.user!.userId,
           title: `${jobDoc.title} @ ${jobDoc.company}`,
@@ -597,11 +597,7 @@ router.post('/from-job/:jobId', authenticate, async (req: AuthRequest, res) => {
         });
         await newShort.save();
 
-        // Step 4: Patch the original Job's shortVideoUrl so it appears on the feed
-        await Job.findByIdAndUpdate(jobDoc._id, { shortVideoUrl: result.videoUrl });
-        console.log(`[from-job] Job ${jobDoc._id} shortVideoUrl updated to ${result.videoUrl}`);
-
-        // Step 5: Mark job as completed
+        // Step 4: Mark job as completed
         jobStore.set(videoJobId, {
           ...jobStore.get(videoJobId)!,
           status: 'completed',
