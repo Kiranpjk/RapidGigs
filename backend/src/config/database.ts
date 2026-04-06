@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { config } from './env';
 import * as fs from 'fs';
 import * as path from 'path';
+import { getPermissionsForRole } from './permissions';
 
 // Optionally use in-memory MongoDB for development when no external URI provided
 let mongoMemoryServer: any = null;
