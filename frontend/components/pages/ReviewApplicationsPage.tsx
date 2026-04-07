@@ -4,6 +4,32 @@ import { PencilSquareIcon, XMarkIcon, CheckCircleIcon as CheckIcon } from '../ic
 
 const API_BASE = (import.meta.env.VITE_API_BASE as string) || 'http://localhost:3001/api';
 
+// Component to preview PDF inline despite cross-origin Content-Disposition: attachment
+const PdfPreview: React.FC<{ url: string }> = ({ url }) => {
+    const [blobUrl, setBlobUrl] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        let cancelled = false;
+        fetch(url)
+            .then(r => r.blob())
+            .then(blob => {
+                if (!cancelled) {
+                    setBlobUrl(URL.createObjectURL(blob));
+                    setLoading(false);
+                }
+            })
+            .catch(() => {
+                if (!cancelled) setLoading(false);
+            });
+        return () => { cancelled = true; };
+    }, [url]);
+
+    if (loading) return <div className="flex items-center justify-center h-96 text-slate-400 text-sm">Loading preview...</div>;
+    if (blobUrl) return <object data={blobUrl} type="application/pdf" className="w-full h-96" title="Resume Preview" />;
+    return <div className="text-center text-sm text-red-500 py-8">Preview unavailable — <a href={url} target="_blank" rel="noreferrer" className="underline">open in new tab</a></div>;
+};
+
 const ReviewApplicationsPage: React.FC = () => {
     const [jobs, setJobs] = useState<any[]>([]);
     const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
@@ -425,16 +451,7 @@ const ReviewApplicationsPage: React.FC = () => {
                                                         {isRealUrl(app.resumeUrl) ? (
                                                             <div className="rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
                                                                 {isPdf(app.resumeUrl) ? (
-                                                                    <div className="w-full h-96">
-                                                                        <object
-                                                                            data={getMediaUrl(app.resumeUrl)}
-                                                                            type="application/pdf"
-                                                                            className="w-full h-full"
-                                                                            title="Resume"
-                                                                        >
-                                                                            <embed src={getMediaUrl(app.resumeUrl)} type="application/pdf" className="w-full h-full" />
-                                                                        </object>
-                                                                    </div>
+                                                                    <PdfPreview url={getMediaUrl(app.resumeUrl)} />
                                                                 ) : (
                                                                     <div className="p-4 flex items-center justify-between">
                                                                         <div className="flex items-center gap-3">
