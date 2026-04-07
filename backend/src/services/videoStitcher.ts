@@ -161,61 +161,70 @@ type ClipProvider = (opts: {
 
 /**
  * Provider 1: Meta AI (cookie-based, free, 30-60s videos)
- * - Text-to-video only — no image-to-video for stitching
- * - Uses self-hosted metaai-api server if available, else direct GraphQL
+ * - Direct GraphQL call to meta.ai — no self-hosted server needed
+ * - Uses META_AI_COOKIE_DATR and META_AI_COOKIE_ECTO from .env
  */
 const generateClipMetaAI: ClipProvider = async ({ prompt, duration, clipId, imageUrl }) => {
-  const META_COOKIES = process.env.META_AI_COOKIES;
-  if (!META_COOKIES) return null;
-
-  let cookies: Record<string, string>;
-  try {
-    cookies = JSON.parse(META_COOKIES);
-  } catch {
-    cookies = {};
-    (META_COOKIES || '').split(';').forEach((pair) => {
-      const [k, ...rest] = pair.trim().split('=');
-      if (k && rest.length) cookies[k.trim()] = rest.join('=').trim();
-    });
+  const datr = process.env.META_AI_COOKIE_DATR;
+  const ecto1 = process.env.META_AI_COOKIE_ECTO;
+  if (!datr || !ecto1) {
+    console.log('  [clip] Meta AI skipped — missing META_AI_COOKIE_DATR or META_AI_COOKIE_ECTO');
+    return null;
   }
 
-  if (!cookies.datr || !cookies.ecto_1_sess) return null;
-
-  // Meta AI can generate 30s+ natively, but for stitching we use 10s clips
   const effectivePrompt = imageUrl
     ? `Seamless visual continuation. ${prompt}`
     : prompt;
 
-  // Try self-hosted API server first
-  const META_SERVER_URL = process.env.META_AI_API_URL || 'http://localhost:8000';
-  try {
-    console.log(`  [clip] Trying Meta AI API server...`);
-    const asyncRes = await axios.post(
-      `${META_SERVER_URL}/video/async`,
-      { prompt: effectivePrompt },
-      { timeout: 30_000 }
-    );
-    const { job_id } = asyncRes.data;
+  // ── Try self-hosted API server first (if configured and reachable) ────────
+  const META_SERVER_URL = process.env.META_AI_API_URL;
+  if (META_SERVER_URL) {
+    try {
+      console.log(`  [clip] Trying Meta AI API server (${META_SERVER_URL})...`);
+      const asyncRes = await axios.post(
+        `${META_SERVER_URL}/video/async`,
+        { prompt: effectivePrompt },
+        { timeout: 30_000 }
+      );
+      const { job_id } = asyncRes.data;
 
-    for (let i = 0; i < 36; i++) {
-      await new Promise(r => setTimeout(r, 5_000));
-      const statusRes = await axios.get(`${META_SERVER_URL}/video/jobs/${job_id}`, { timeout: 15_000 });
-      if (statusRes.data.status === 'completed') {
-        const rawUrl = statusRes.data.result?.video_urls?.[0];
-        if (rawUrl) {
-          const localPath = path.join(TEMP_DIR, `clip-${clipId}.mp4`);
-          await downloadFile(rawUrl, localPath);
-          console.log(`  [clip] ✅ Meta AI API server succeeded`);
-          return { localPath, provider: 'metaai-api-server' };
+      for (let i = 0; i < 36; i++) {
+        await new Promise(r => setTimeout(r, 5_000));
+        const statusRes = await axios.get(`${META_SERVER_URL}/video/jobs/${job_id}`, { timeout: 15_000 });
+        if (statusRes.data.status === 'completed' || statusRes.data.status === 'succeeded') {
+          const rawUrl = statusRes.data.result?.video_urls?.[0];
+          if (rawUrl) {
+            const localPath = path.join(TEMP_DIR, `clip-${clipId}-meta.mp4`);
+            await downloadFile(rawUrl, localPath);
+            console.log(`  [clip] ✅ Meta AI API server succeeded`);
+            return { localPath, provider: 'metaai-api-server' };
+          }
         }
+        if (statusRes.data.status === 'failed') throw new Error(statusRes.data.error || 'failed');
       }
-      if (statusRes.data.status === 'failed') throw new Error('failed');
+    } catch (e: any) {
+      console.warn(`  [clip] Meta AI API server failed: ${e.message}, falling back to direct GraphQL`);
     }
-  } catch {
-    // Fall through to GraphQL
   }
 
-  // Direct GraphQL fallback
+  // ── Direct GraphQL fallback (no server needed) ─────────────────────────────
+  console.log(`  [clip] Trying Meta AI direct GraphQL...`);
+  try {
+    const { generateVideo } = await import('./metaAiVideo');
+    const result = await generateVideo(effectivePrompt, (step, progress) => {
+      console.log(`  [clip Meta AI] ${step} (${Math.round(progress * 100)}%)`);
+    });
+
+    if (result?.videoUrl) {
+      const localPath = path.join(TEMP_DIR, `clip-${clipId}-meta.mp4`);
+      await downloadFile(result.videoUrl, localPath);
+      console.log(`  [clip] ✅ Meta AI direct GraphQL succeeded`);
+      return { localPath, provider: 'metaai-graphql' };
+    }
+  } catch (e: any) {
+    console.warn(`  [clip] Meta AI direct GraphQL failed: ${e.message}`);
+  }
+
   return null;
 };
 
