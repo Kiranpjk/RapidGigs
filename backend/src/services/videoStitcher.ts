@@ -148,6 +148,67 @@ function saveVideoBuffer(buffer: Buffer, clipId: string): string {
   return filepath;
 }
 
+/** Overlay job details text on the video using ffmpeg drawtext filter */
+export async function addJobTextOverlays(
+  inputPath: string,
+  outputPath: string,
+  jobInfo: { title: string; company: string; location: string; pay: string; type?: string },
+  onProgress?: (step: string) => void
+): Promise<void> {
+  onProgress?.('Adding job details to video...');
+
+  // Build ffmpeg drawtext filters — overlay at bottom-left with semi-transparent bg
+  const filters: string[] = [];
+
+  // Title — bold white, 20px from bottom
+  if (jobInfo.title) {
+    const escapedTitle = jobInfo.title.replace(/'/g, "\\\\'");
+    filters.push(`drawtext=text='${escapedTitle}':fontcolor=white:fontsize=24:box=1:boxcolor=rgba(0,0,0,0.6):x=20:y=h-th-60:boxborderw=8`);
+  }
+
+  // Company — smaller white text below title
+  if (jobInfo.company) {
+    const escapedCompany = jobInfo.company.replace(/'/g, "\\\\'");
+    filters.push(`drawtext=text='${escapedCompany}':fontcolor=white:fontsize=18:box=1:boxcolor=rgba(0,0,0,0.5):x=20:y=h-th-30:boxborderw=8`);
+  }
+
+  // Location & Pay — top-right corner
+  const topText = [jobInfo.location, jobInfo.type, jobInfo.pay]
+    .filter(Boolean)
+    .join(' · ');
+
+  if (topText) {
+    const escapedTop = topText.replace(/'/g, "\\\\'");
+    filters.push(`drawtext=text='${escapedTop}':fontcolor=yellow:fontsize=16:box=1:boxcolor=rgba(0,0,0,0.5):x=w-tw-20:y=20:boxborderw=8`);
+  }
+
+  if (filters.length === 0) {
+    // No text to add — just copy
+    fs.copyFileSync(inputPath, outputPath);
+    return;
+  }
+
+  return new Promise((resolve, reject) => {
+    const filterStr = filters.join(',');
+
+    ffmpeg(inputPath)
+      .outputOptions([`-vf`, filterStr, '-c:a', 'copy', '-preset', 'fast'])
+      .output(outputPath)
+      .on('end', resolve)
+      .on('error', (err) => {
+        // If drawtext fails (e.g. no font), fall back to copy
+        console.warn('  [TextOverlay] drawtext failed, copying original:', err.message);
+        try {
+          fs.copyFileSync(inputPath, outputPath);
+          resolve();
+        } catch (copyErr) {
+          reject(copyErr);
+        }
+      })
+      .run();
+  });
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Individual clip generation providers
 // ─────────────────────────────────────────────────────────────────────────────

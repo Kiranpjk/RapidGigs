@@ -1,10 +1,9 @@
 /**
  * shorts.ts — AI Video Generation Routes
  *
- * Video provider priority (30s+ native, no rate-limit issues):
- *   1. Meta AI — cookie-based, free, 30-60s videos, 3-4 outputs
- *   2. Pollinations.ai (via Vibe AI — free tier, gen.pollinations.ai)
- *   3. Modal.com (serverless GPU, if MODAL_ENDPOINT set)
+ * Video providers (free tier):
+ *   1. Meta AI (cookie-based, free)
+ *   2. VEO AI Free (veoaifree.com — Google Veo 3.1, free)
  *
  * Prompt enhancement: see ../services/promptBuilder.ts
  * Flow:
@@ -17,8 +16,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { ShortVideo } from '../models/ShortVideo';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import mongoose from 'mongoose';
-import fs from 'fs';
-import path from 'path';
 import { buildVideoPrompt } from '../services/promptBuilder';
 
 /**
@@ -62,212 +59,30 @@ setInterval(() => {
 const generateJobId = () =>
   `vj_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Meta AI Video Generator (cookie-based, free, 30-60s videos)
-//
-// Uses the metaai-api REST server (https://github.com/mir-ashiq/metaai-api)
-//   POST http://localhost:8000/video/async — returns job_id
-//   GET  /video/jobs/{job_id}              — poll until completed
-// ─────────────────────────────────────────────────────────────────────────────
-
-async function generateVideoFromMetaAI(
-  prompt: string,
-  jobId: string,
-  _cookies: { datr: string; ecto_1_sess: string; abra_sess?: string }
-): Promise<{ videoUrl: string; provider: string } | null> {
-  const META_SERVER_URL = process.env.META_AI_API_URL || 'http://localhost:8000';
-
-  try {
-    console.log(`  [Meta AI] Sending video request to ${META_SERVER_URL}...`);
-
-    // Submit async generation
-    const asyncRes = await axios.post(
-      `${META_SERVER_URL}/video/async`,
-      { prompt },
-      { timeout: 30_000 }
-    );
-
-    const { job_id } = asyncRes.data;
-    console.log(`  [Meta AI] Job ${job_id} queued, polling...`);
-
-    // Poll for result (max 3 min)
-    for (let i = 0; i < 36; i++) {
-      await new Promise(r => setTimeout(r, 5_000));
-
-      const statusRes = await axios.get(
-        `${META_SERVER_URL}/video/jobs/${job_id}`,
-        { timeout: 15_000 }
-      );
-
-      if (statusRes.data.status === 'completed') {
-        const rawUrls = statusRes.data.result?.video_urls || [];
-        const rawUrl = rawUrls[0];
-        if (!rawUrl) throw new Error('No video URL in result');
-
-        // Download and save locally
-        const uploadsDir = process.env.UPLOAD_DIR || './uploads';
-        const videosDir = path.join(uploadsDir, 'videos');
-        if (!fs.existsSync(videosDir)) fs.mkdirSync(videosDir, { recursive: true });
-
-        const filename = `${jobId}.mp4`;
-        const filepath = path.join(videosDir, filename);
-
-        const dlRes = await axios.get(rawUrl, {
-          responseType: 'stream',
-          timeout: 120_000,
-          headers: { Referer: 'https://meta.ai/' },
-        });
-        const writer = fs.createWriteStream(filepath);
-        dlRes.data.pipe(writer);
-        await new Promise<void>((resolve, reject) => {
-          writer.on('finish', () => resolve());
-          writer.on('error', reject);
-        });
-
-        const baseUrl = process.env.API_BASE_URL || 'http://localhost:3001';
-        return { videoUrl: `${baseUrl}/uploads/videos/${filename}`, provider: 'metaai-api-server' };
-      }
-
-      if (statusRes.data.status === 'failed') {
-        throw new Error(statusRes.data.error || 'Meta AI generation failed');
-      }
-    }
-
-    throw new Error('Meta AI polling timeout (3 min)');
-  } catch (e: any) {
-    console.warn('  [Meta AI] Failed:', e.message);
-  }
-
-  return null;
-}
-
-
-// ── Step 2: Try each video provider in order ──────────────────────────────────
+// ── Generate video using parallel Meta AI + VEO AI (via videoStitcher) ───────
 async function generateVideoUrl(
   prompt: string,
   jobId: string,
   callbackUrl?: string
 ): Promise<{ videoUrl: string; provider: string } | null> {
+  try {
+    const { generateStitchedVideo } = await import('../services/videoStitcher');
 
-  const MODAL_URL = process.env.MODAL_ENDPOINT;
+    const result = await generateStitchedVideo({
+      prompt,
+      onProgress: (step, progress) => {
+        console.log(`[VideoGen ${jobId}] ${step} (${Math.round(progress * 100)}%)`);
+      },
+    });
 
-  // ── Provider 1: Meta AI (cookie-based, free, 30-60s videos) ────────────────
-  {
-    const META_COOKIES = process.env.META_AI_COOKIES; // JSON string or semicolon-separated
-    if (META_COOKIES) {
-      let cookies: Record<string, string>;
-      try {
-        cookies = JSON.parse(META_COOKIES);
-      } catch {
-        cookies = {};
-        (META_COOKIES || '').split(';').forEach((pair) => {
-          const [k, ...rest] = pair.trim().split('=');
-          if (k && rest.length) cookies[k.trim()] = rest.join('=').trim();
-        });
-      }
-
-      if (cookies.datr && cookies.ecto_1_sess) {
-        try {
-          console.log('Trying Meta AI video generation...');
-
-          // Use the official SDK's generate_video_new endpoint
-          // Meta AI generates 3-4 videos per prompt, each ~30-60 seconds
-          const result = await generateVideoFromMetaAI(prompt, jobId, {
-            datr: cookies.datr,
-            ecto_1_sess: cookies.ecto_1_sess,
-            abra_sess: cookies.abra_sess,
-          });
-
-          if (result) {
-            console.log(`✅ Meta AI video saved: ${result.videoUrl}`);
-            return result;
-          }
-        } catch (e: any) {
-          console.warn('Meta AI video generation failed:', e.message);
-        }
-      } else {
-        console.log('Meta AI skipped — set META_AI_COOKIES in .env (datr + ecto_1_sess required)');
-      }
-    } else {
-      console.log('Meta AI skipped — no META_AI_COOKIES env var set');
-    }
+    return {
+      videoUrl: result.videoUrl,
+      provider: result.providers.join(' → '),
+    };
+  } catch (e: any) {
+    console.error('❌ Video generation failed:', e.message);
+    return null;
   }
-
-  // ── Provider 2: Pollinations.ai (free tier, used by Vibe AI) ───────────────
-  {
-    // Try video models in order — Veo, Wan 2.6, Seedance (same as Vibe AI)
-    const videoModels = ['wan', 'veo', 'seedance'];
-
-    for (const model of videoModels) {
-      try {
-        console.log(`Trying Pollinations.ai (${model}, free tier)...`);
-        const encodedPrompt = encodeURIComponent(prompt);
-        const params = new URLSearchParams({
-          model,
-          duration: '10',
-          aspectRatio: '16:9',
-        });
-
-        const videoUrl = `https://gen.pollinations.ai/video/${encodedPrompt}?${params.toString()}`;
-
-        const res = await axios.get(videoUrl, {
-          responseType: 'arraybuffer',
-          timeout: 180_000,
-        });
-
-        if (res.status === 200 && res.data.byteLength > 1000) {
-          const uploadsDir = process.env.UPLOAD_DIR || './uploads';
-          const videosDir = path.join(uploadsDir, 'videos');
-          if (!fs.existsSync(videosDir)) fs.mkdirSync(videosDir, { recursive: true });
-
-          const filename = `${jobId}.mp4`;
-          const filepath = path.join(videosDir, filename);
-          fs.writeFileSync(filepath, Buffer.from(res.data));
-
-          const baseUrl = process.env.API_BASE_URL || 'http://localhost:3001';
-          const savedUrl = `${baseUrl}/uploads/videos/${filename}`;
-          console.log(`✅ Pollinations (${model}) video saved: ${savedUrl}`);
-          return { videoUrl: savedUrl, provider: `pollinations-${model}` };
-        }
-      } catch (e: any) {
-        console.warn(`Pollinations (${model}, free) failed:`, e.message);
-      }
-    }
-  }
-
-  // ── Provider 3: Modal.com (serverless GPU fallback) ────────────────────────
-  if (MODAL_URL) {
-    try {
-      console.log('Trying Modal.com...');
-      const res = await axios.post(MODAL_URL, {
-        prompt,
-        num_frames: 73,
-        height: 384,
-        width: 640,
-        job_id: jobId,
-        callback_url: callbackUrl,
-      }, { timeout: 660_000 });
-
-      if (res.data.video_url && !res.data.video_url.startsWith('data:')) {
-        return { videoUrl: res.data.video_url, provider: 'modal' };
-      }
-
-      if (res.data.video_url?.startsWith('data:')) {
-        return { videoUrl: res.data.video_url, provider: 'modal' };
-      }
-    } catch (e: any) {
-      console.warn('Modal failed:', e.message);
-    }
-  }
-
-  // ── All providers exhausted ───────────────────────────────────────────────
-  console.error('❌ All video providers failed. Diagnostics:');
-  console.error(`   Meta AI:       ${process.env.META_AI_COOKIES ? 'cookies set — check cookie expiry' : 'NO cookies set'}`);
-  console.error(`   Pollinations:  free tier — may be rate limited`);
-  console.error(`   Modal:         ${MODAL_URL ? 'endpoint set' : 'not configured'}`);
-  console.error(`   Tip: Refresh Meta AI cookies at https://meta.ai → F12 → Application → Cookies`);
-
-  return null;
 }
 
 
@@ -346,7 +161,7 @@ router.post('/generate', authenticate, async (req: AuthRequest, res) => {
         jobStore.set(jobId, {
           ...jobStore.get(jobId)!,
           status: 'failed',
-          error: 'All video providers unavailable. Set MODAL_ENDPOINT, HELIOS_SERVICE_URL, or FAL_KEY.',
+          error: 'All video providers unavailable.',
         });
         return;
       }
@@ -443,11 +258,56 @@ router.post('/from-job/:jobId', authenticate, async (req: AuthRequest, res) => {
         }
 
         // Step 3: Save as ShortVideo in DB (private — only visible to the recruiter)
+        // Overlay job details text on the video first
+        const { addJobTextOverlays } = await import('../services/videoStitcher');
+        let finalVideoUrl = result.videoUrl;
+
+        try {
+          // Download the generated video, overlay text, re-upload
+          const fs = await import('fs');
+          const pathModule = await import('path');
+          const { localStorageService } = await import('../services/localStorage');
+
+          const tempPath = pathModule.join(process.cwd(), 'uploads', 'temp', `text-overlay-${videoJobId}-in.mp4`);
+          const outPath = pathModule.join(process.cwd(), 'uploads', 'temp', `text-overlay-${videoJobId}-out.mp4`);
+
+          // Download video
+          const vidResp = await axios.get(result.videoUrl, { responseType: 'arraybuffer', timeout: 120_000 });
+          fs.writeFileSync(tempPath, Buffer.from(vidResp.data));
+
+          // Add text overlays
+          await addJobTextOverlays(
+            tempPath,
+            outPath,
+            {
+              title: jobDoc.title,
+              company: jobDoc.company,
+              location: jobDoc.location,
+              pay: jobDoc.pay,
+              type: jobDoc.type,
+            },
+            (step) => console.log(`  [Overlay] ${step}`)
+          );
+
+          // Upload the overlaid video
+          const fileBuffer = fs.readFileSync(outPath);
+          const uploadPath = await (localStorageService as any).saveFile(fileBuffer, 'ai-videos', `job-${jobDoc._id}.mp4`);
+          finalVideoUrl = uploadPath.startsWith('http') ? uploadPath : `${process.env.API_BASE_URL || 'http://localhost:3001'}${uploadPath}`;
+
+          // Clean up temp files
+          try { fs.unlinkSync(tempPath); } catch {}
+          try { fs.unlinkSync(outPath); } catch {}
+
+          console.log(`  [Overlay] ✅ Added job details to video`);
+        } catch (overlayErr: any) {
+          console.warn(`  [Overlay] Failed to add text overlay, using original video:`, overlayErr.message);
+        }
+
         const newShort = new ShortVideo({
           userId: req.user!.userId,
           title: `${jobDoc.title} @ ${jobDoc.company}`,
           description: jobDoc.description,
-          videoUrl: result.videoUrl,
+          videoUrl: finalVideoUrl,
           likes: 0,
           views: 0,
         });
@@ -457,7 +317,7 @@ router.post('/from-job/:jobId', authenticate, async (req: AuthRequest, res) => {
         jobStore.set(videoJobId, {
           ...jobStore.get(videoJobId)!,
           status: 'completed',
-          videoUrl: result.videoUrl,
+          videoUrl: finalVideoUrl,
           provider: result.provider,
         });
 
@@ -498,24 +358,14 @@ router.get('/status/:jobId', authenticate, async (req: AuthRequest, res) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/shorts/generate-long
-// Generate a ~30-second video by stitching clips (multi-provider)
-//
-// Providers tried per clip (in order):
-//   1. Meta AI          (cookie-based, free, 30-60s videos)
-//   2. Pollinations.ai  (free tier — wan/veo/seedance)
-//   3. Modal.com        (serverless GPU)
+// Generate a ~20-30s video using parallel Meta AI + VEO AI stitching
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/generate-long', authenticate, async (req: AuthRequest, res) => {
-  const { prompt, description, segments = 3, segmentDuration = 10 } = req.body;
+  const { prompt, description } = req.body;
 
   if (!prompt && !description) {
     return res.status(400).json({ error: 'prompt or description is required' });
   }
-
-  // Meta AI generates 30s+ natively, so we try 1 segment first.
-  // Falls back to multi-clip stitching if Meta AI is unavailable.
-  const numSegments = Math.min(Math.max(Number(segments) || 1, 1), 5);
-  const clipDuration = Math.min(Math.max(Number(segmentDuration) || 30, 10), 60);
 
   const jobId = uuidv4();
   const userId = req.user!.userId;
@@ -528,11 +378,11 @@ router.post('/generate-long', authenticate, async (req: AuthRequest, res) => {
     prompt: videoPrompt,
     userId,
     createdAt: new Date(),
-    provider: 'multi-provider-stitched',
+    provider: 'parallel-meta-veo',
   });
 
   // Return job ID immediately — video generates in background
-  res.json({ jobId, status: 'processing', estimatedDuration: numSegments * clipDuration });
+  res.json({ jobId, status: 'processing', estimatedDuration: 30 });
 
   // Run generation async
   (async () => {
@@ -542,8 +392,6 @@ router.post('/generate-long', authenticate, async (req: AuthRequest, res) => {
       const { generateStitchedVideo } = await import('../services/videoStitcher');
       const result = await generateStitchedVideo({
         prompt: enhancedPrompt,
-        segments: numSegments,
-        segmentDuration: clipDuration,
         onProgress: (step, progress) => {
           console.log(`[StitchedVideo ${jobId}] ${step} (${Math.round(progress * 100)}%)`);
           const jobEntry = jobStore.get(jobId);
