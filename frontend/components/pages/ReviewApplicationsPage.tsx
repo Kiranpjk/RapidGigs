@@ -414,25 +414,39 @@ const ReviewApplicationsPage: React.FC = () => {
                                                 {/* Resume */}
                                                 {app.resumeUrl && (
                                                     <div className="p-4 border-b border-slate-100 dark:border-slate-700/50">
-                                                        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3">📄 Resume / CV</p>
+                                                        <div className="flex items-center justify-between mb-3">
+                                                            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">📄 Resume / CV</p>
+                                                            {isRealUrl(app.resumeUrl) && (
+                                                                <a href={getMediaUrl(app.resumeUrl)} target="_blank" rel="noreferrer" className="text-xs text-indigo-500 dark:text-indigo-400 font-semibold hover:underline">
+                                                                    Open in new tab →
+                                                                </a>
+                                                            )}
+                                                        </div>
                                                         {isRealUrl(app.resumeUrl) ? (
                                                             <div className="rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
                                                                 {isPdf(app.resumeUrl) ? (
-                                                                    <iframe
-                                                                        src={getMediaUrl(app.resumeUrl)}
-                                                                        title="Resume"
-                                                                        className="w-full h-96"
-                                                                    />
+                                                                    <div className="w-full h-96">
+                                                                        <object
+                                                                            data={getMediaUrl(app.resumeUrl)}
+                                                                            type="application/pdf"
+                                                                            className="w-full h-full"
+                                                                            title="Resume"
+                                                                        >
+                                                                            <embed src={getMediaUrl(app.resumeUrl)} type="application/pdf" className="w-full h-full" />
+                                                                        </object>
+                                                                    </div>
                                                                 ) : (
-                                                                    <div className="p-4 flex items-center gap-3">
-                                                                        <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-lg">📄</div>
-                                                                        <div>
-                                                                            <p className="text-sm font-semibold text-slate-800 dark:text-white">Resume Document</p>
-                                                                             <a href={getMediaUrl(app.resumeUrl)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg text-sm font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors">
-                                                                                <span>Download / Open Resume</span>
-                                                                                <span>↗</span>
-                                                                             </a>
+                                                                    <div className="p-4 flex items-center justify-between">
+                                                                        <div className="flex items-center gap-3">
+                                                                            <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-lg">📄</div>
+                                                                            <div>
+                                                                                <p className="text-sm font-semibold text-slate-800 dark:text-white">Resume Document</p>
+                                                                                <p className="text-xs text-slate-400">Non-PDF file - click to open</p>
+                                                                            </div>
                                                                         </div>
+                                                                        <a href={getMediaUrl(app.resumeUrl)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg text-sm font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors">
+                                                                            Open <span>↗</span>
+                                                                        </a>
                                                                     </div>
                                                                 )}
                                                             </div>

@@ -40,7 +40,7 @@ export const localStorageService = {
     const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
     const filePath = path.join(dir, uniqueName);
     fs.writeFileSync(filePath, buffer);
-    return this.getAbsoluteUrl(`/uploads/${subdir}/${uniqueName}`);
+    return `/uploads/${subdir}/${uniqueName}`;
   },
 
   /**
