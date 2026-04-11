@@ -23,12 +23,32 @@ interface MetaAiSession {
 }
 
 function getSession(): MetaAiSession | null {
-  const datr = process.env.META_AI_COOKIE_DATR;
-  const ecto1 = process.env.META_AI_COOKIE_ECTO;
-  if (!datr || !ecto1) {
-    console.warn('[MetaAiVideo] Missing META_AI_COOKIE_DATR or META_AI_COOKIE_ECTO env vars');
+  const accounts = [];
+  
+  if (process.env.META_AI_COOKIE_DATR && process.env.META_AI_COOKIE_ECTO) {
+    accounts.push({
+      datr: process.env.META_AI_COOKIE_DATR,
+      ecto1: process.env.META_AI_COOKIE_ECTO,
+      name: 'Account 1'
+    });
+  }
+  
+  if (process.env.META_AI_COOKIE_DATR_2 && process.env.META_AI_COOKIE_ECTO_2) {
+    accounts.push({
+      datr: process.env.META_AI_COOKIE_DATR_2,
+      ecto1: process.env.META_AI_COOKIE_ECTO_2,
+      name: 'Account 2'
+    });
+  }
+
+  if (accounts.length === 0) {
+    console.warn('[MetaAiVideo] Missing all META_AI_COOKIE_DATR/ECTO env vars');
     return null;
   }
+
+  const account = accounts[Math.floor(Math.random() * accounts.length)];
+  console.log(`[MetaAiVideo] Using ${account.name} for GraphQL request...`);
+  const { datr, ecto1 } = account;
 
   const session = axios.create({
     headers: {
@@ -64,7 +84,7 @@ function buildVariables(prompt: string, conversationId: string): Record<string, 
     content: `Animate ${prompt}`,
     userMessageId,
     assistantMessageId,
-    userUniqueMessageId: Date.now() * 1000000 % 10 ** 13,
+    userUniqueMessageId: String(Date.now() * 1000000 % 10 ** 13),
     turnId,
     mode: 'create',
     rewriteOptions: null,

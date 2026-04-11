@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { jobsAPI, applicationsAPI, categoriesAPI, fetchWithAuth } from '../../services/api';
 import { PencilSquareIcon, XMarkIcon, CheckCircleIcon as CheckIcon } from '../icons/Icons';
+import Swal from 'sweetalert2';
 
 const API_BASE = (import.meta.env.VITE_API_BASE as string) || 'http://localhost:3001/api';
 
@@ -107,6 +108,11 @@ const ReviewApplicationsPage: React.FC = () => {
             setApplications(prev =>
                 prev.map(a => (a._id === appId || a.id === appId) ? { ...a, status } : a)
             );
+            if (status === 'shortlisted') {
+                 Swal.fire({ title: 'Shortlisted!', text: 'Candidate moved to next round.', icon: 'success', toast: true, position: 'bottom-end', showConfirmButton: false, timer: 2000 });
+            } else if (status === 'rejected') {
+                 Swal.fire({ title: 'Passed', text: 'Candidate rejected.', icon: 'error', toast: true, position: 'bottom-end', showConfirmButton: false, timer: 1500 });
+            }
         } catch {}
         setUpdatingId(null);
     };
@@ -359,155 +365,164 @@ const ReviewApplicationsPage: React.FC = () => {
                             )}
 
                             {applications.length === 0 ? (
-                                <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl p-16 text-center shadow-sm">
+                                <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl p-16 text-center shadow-sm mt-4">
                                     <div className="text-5xl mb-4">📭</div>
                                     <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">No Applications Yet</h3>
                                     <p className="text-slate-500 dark:text-slate-400">No one has applied to this job yet. Check back later!</p>
                                 </div>
                             ) : (
                                 <p className="text-sm text-slate-500 dark:text-slate-400 font-medium pt-4">
-                                    {applications.length} application{applications.length !== 1 ? 's' : ''} received
+                                    {applications.length} application{applications.length !== 1 ? 's' : ''} received. Swipe down to review! 👇
                                 </p>
                             )}
-                            {applications.map(app => {
-                                const id = app._id || app.id;
-                                const rawStatus = app.status || 'pending';
-                                const status = rawStatus.toLowerCase();
-                                const isExpanded = expandedApp === id;
 
-                                return (
-                                    <div key={id} className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-                                        {/* Applicant Header */}
-                                        <div className="p-6">
-                                            <div className="flex items-start justify-between flex-wrap gap-4">
-                                                <div className="flex items-center gap-4">
-                                                    <img
-                                                        src={app.applicant?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(app.applicant?.name || 'A')}&size=48&background=6366f1&color=fff`}
-                                                        alt={app.applicant?.name}
-                                                        className="w-12 h-12 rounded-full ring-2 ring-slate-200 dark:ring-slate-600 object-cover"
+                            {applications.length > 0 && (
+                                <div className="h-[75vh] w-full bg-black rounded-2xl overflow-y-scroll snap-y snap-mandatory border-4 border-slate-800 shadow-2xl relative">
+                                    {applications.map(app => {
+                                        const id = app._id || app.id;
+                                        const rawStatus = app.status || 'pending';
+                                        const status = rawStatus.toLowerCase();
+                                        const isExpanded = expandedApp === id;
+
+                                        return (
+                                            <div key={id} className="w-full h-full snap-start relative bg-slate-900 border-b-4 border-black group overflow-hidden flex flex-col justify-center">
+                                                
+                                                {/* Background Video Player */}
+                                                {app.videoUrl ? (
+                                                    <video
+                                                        src={getMediaUrl(app.videoUrl)}
+                                                        className="absolute inset-0 w-full h-full object-cover opacity-90"
+                                                        controls
+                                                        preload="metadata"
                                                     />
-                                                    <div>
-                                                        <h3 className="font-bold text-slate-800 dark:text-white">{app.applicant?.name || 'Anonymous'}</h3>
-                                                        <p className="text-sm text-slate-500 dark:text-slate-400">{app.applicant?.email}</p>
-                                                        <p className="text-xs text-slate-400 mt-0.5">
-                                                            Applied {new Date(app.createdAt || app.dateApplied || Date.now()).toLocaleDateString()}
-                                                        </p>
+                                                ) : (
+                                                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-800 text-slate-400 z-0">
+                                                        <span className="text-6xl mb-4">🎥</span>
+                                                        <h3 className="text-2xl font-bold text-white mb-2">No Pitch Video</h3>
+                                                        <p>This candidate skipped the video pitch.</p>
+                                                    </div>
+                                                )}
+
+                                                {/* Dim Gradient Overlay */}
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/10 pointer-events-none z-10"></div>
+
+                                                {/* Floating Content Foreground */}
+                                                <div className="absolute inset-x-0 bottom-0 p-6 flex flex-col justify-end z-20 pointer-events-none">
+                                                    
+                                                    {/* Status Badge */}
+                                                    <div className="mb-4 pointer-events-auto self-start">
+                                                        <span className={`text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-md backdrop-blur-md shadow-xl ${statusColors[rawStatus] || statusColors[status] || statusColors['pending']}`}>
+                                                            {rawStatus}
+                                                        </span>
+                                                        {updatingId === id && <span className="ml-2 text-xs text-white animate-pulse">Saving...</span>}
+                                                    </div>
+
+                                                    <div className="flex items-end justify-between gap-4 pointer-events-auto">
+                                                        {/* Applicant Profile */}
+                                                        <div className="flex items-center gap-4 text-white">
+                                                            <img
+                                                                src={app.applicant?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(app.applicant?.name || 'A')}&size=64&background=6366f1&color=fff`}
+                                                                alt={app.applicant?.name}
+                                                                className="w-16 h-16 rounded-full border-4 border-white/20 shadow-xl object-cover"
+                                                            />
+                                                            <div>
+                                                                <h3 className="font-extrabold text-3xl drop-shadow-xl">{app.applicant?.name || 'Anonymous'}</h3>
+                                                                <p className="text-white/80 font-medium drop-shadow-md">{app.applicant?.email}</p>
+                                                                <p className="text-xs text-white/50 mt-1">
+                                                                    Applied {new Date(app.createdAt || app.dateApplied || Date.now()).toLocaleDateString()}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Tinder Actions */}
+                                                        <div className="flex flex-col items-center gap-3">
+                                                            <button 
+                                                                onClick={() => handleStatusChange(id, 'shortlisted')}
+                                                                title="Shortlist (Interview)"
+                                                                className="w-14 h-14 bg-green-500 rounded-full flex items-center justify-center text-3xl shadow-[0_0_20px_rgba(34,197,94,0.5)] hover:scale-110 hover:-translate-y-2 transition-all"
+                                                            >
+                                                                ✅
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => handleStatusChange(id, 'rejected')}
+                                                                title="Pass"
+                                                                className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center text-2xl shadow-[0_0_15px_rgba(239,68,68,0.5)] hover:scale-110 transition-all opacity-80 hover:opacity-100"
+                                                            >
+                                                                ❌
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Open Drawer Button */}
+                                                    <div className="mt-8 mb-4 pointer-events-auto">
+                                                        <button 
+                                                            onClick={() => setExpandedApp(isExpanded ? null : id)}
+                                                            className="w-full py-4 rounded-xl bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white font-bold tracking-wide transition-colors flex items-center justify-center gap-2"
+                                                        >
+                                                            <span>Swipe Right for Portfolio & Resume</span> <span>👉</span>
+                                                        </button>
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-3 flex-wrap">
-                                                    <span className={`text-xs font-semibold px-3 py-1 rounded-full ${statusColors[rawStatus] || statusColors[status] || statusColors['pending']}`}>
-                                                        {rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1)}
-                                                    </span>
-                                                    <select
-                                                        value={status}
-                                                        disabled={updatingId === id}
-                                                        onChange={e => handleStatusChange(id, e.target.value)}
-                                                        className="text-sm bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                                    >
-                                                        <option value="pending">Pending</option>
-                                                        <option value="reviewing">Reviewing</option>
-                                                        <option value="shortlisted">Shortlisted</option>
-                                                        <option value="interviewing">Interviewing</option>
-                                                        <option value="accepted">Accepted ✓</option>
-                                                        <option value="rejected">Rejected ✗</option>
-                                                    </select>
-                                                    {updatingId === id && <span className="text-xs text-slate-400 animate-pulse">Saving...</span>}
-                                                </div>
-                                            </div>
 
-                                            {/* Cover Letter Preview */}
-                                            {app.coverLetter && (
-                                                <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-700/30 rounded-lg">
-                                                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Cover Letter</p>
-                                                    <p className={`text-sm text-slate-700 dark:text-slate-300 ${!isExpanded ? 'line-clamp-3' : ''}`}>
-                                                        {app.coverLetter}
-                                                    </p>
-                                                    {app.coverLetter.length > 200 && (
-                                                        <button
-                                                            onClick={() => setExpandedApp(isExpanded ? null : id)}
-                                                            className="text-xs text-indigo-500 dark:text-indigo-400 font-semibold mt-2 hover:underline"
-                                                        >
-                                                            {isExpanded ? 'Show less ↑' : 'Read more ↓'}
+                                                {/* Swipe-Right Drawer Overlay */}
+                                                <div className={`absolute top-0 right-0 h-full w-full md:w-[85%] bg-slate-900 border-l border-white/10 shadow-2xl transition-transform duration-500 ease-out z-50 p-6 flex flex-col ${isExpanded ? 'translate-x-0' : 'translate-x-[105%]'}`}>
+                                                    <div className="flex justify-between items-center mb-6">
+                                                        <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                                                            <img src={app.applicant?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(app.applicant?.name || 'A')}&size=40&background=6366f1&color=fff`} className="w-8 h-8 rounded-full" />
+                                                            {app.applicant?.name}'s Full Profile
+                                                        </h2>
+                                                        <button onClick={() => setExpandedApp(null)} className="text-white bg-slate-800 rounded-full p-2 hover:bg-slate-700 hover:rotate-90 transition-all">
+                                                            <XMarkIcon className="w-6 h-6" />
                                                         </button>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Resume & Video — inline, not new tab */}
-                                        {(app.resumeUrl || app.videoUrl) && (
-                                            <div className="border-t border-slate-100 dark:border-slate-700/50">
-                                                {/* Resume */}
-                                                {app.resumeUrl && (
-                                                    <div className="p-4 border-b border-slate-100 dark:border-slate-700/50">
-                                                        <div className="flex items-center justify-between mb-3">
-                                                            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">📄 Resume / CV</p>
-                                                            {isRealUrl(app.resumeUrl) && (
-                                                                <a href={getMediaUrl(app.resumeUrl)} target="_blank" rel="noreferrer" className="text-xs text-indigo-500 dark:text-indigo-400 font-semibold hover:underline">
-                                                                    Open in new tab →
-                                                                </a>
-                                                            )}
+                                                    </div>
+                                                    
+                                                    <div className="flex-1 overflow-y-auto pr-2 space-y-6 scrollbar-thin scrollbar-thumb-slate-700">
+                                                        {/* Portfolio Links */}
+                                                        <div>
+                                                            <h3 className="text-indigo-400 font-bold mb-3 uppercase text-xs tracking-widest flex items-center gap-2">🔗 Portfolio / Project Links</h3>
+                                                            <div className="bg-slate-950 p-5 rounded-xl border border-slate-800 text-slate-300 whitespace-pre-wrap text-sm leading-relaxed overflow-hidden break-words font-mono">
+                                                                {app.coverLetter || 'No links provided by the candidate.'}
+                                                            </div>
                                                         </div>
-                                                        {isRealUrl(app.resumeUrl) ? (
-                                                            <div className="rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
-                                                                {isPdf(app.resumeUrl) ? (
-                                                                    <PdfPreview url={getMediaUrl(app.resumeUrl)} />
-                                                                ) : (
-                                                                    <div className="p-4 flex items-center justify-between">
-                                                                        <div className="flex items-center gap-3">
-                                                                            <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-lg">📄</div>
-                                                                            <div>
-                                                                                <p className="text-sm font-semibold text-slate-800 dark:text-white">Resume Document</p>
-                                                                                <p className="text-xs text-slate-400">Non-PDF file - click to open</p>
-                                                                            </div>
+
+                                                        {/* Resume Area */}
+                                                        <div className="flex-1 flex flex-col min-h-[400px]">
+                                                            <div className="flex items-center justify-between mb-3">
+                                                                <h3 className="text-indigo-400 font-bold uppercase text-xs tracking-widest flex items-center gap-2">📄 Resume / CV</h3>
+                                                                {app.resumeUrl && isRealUrl(app.resumeUrl) && (
+                                                                    <a href={getMediaUrl(app.resumeUrl)} target="_blank" rel="noreferrer" className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold underline">
+                                                                        Download PDF
+                                                                    </a>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex-1 bg-white rounded-xl overflow-hidden border-4 border-slate-800 min-h-[500px]">
+                                                                {app.resumeUrl ? (
+                                                                    isPdf(app.resumeUrl) ? (
+                                                                        <PdfPreview url={getMediaUrl(app.resumeUrl)} />
+                                                                    ) : (
+                                                                        <div className="h-full flex flex-col items-center justify-center p-6 text-center text-slate-800 bg-slate-100">
+                                                                            <span className="text-6xl mb-4">📰</span>
+                                                                            <p className="font-bold mb-2">Resume Document Available</p>
+                                                                            <a href={getMediaUrl(app.resumeUrl)} target="_blank" rel="noreferrer" className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-bold">
+                                                                                Click Here to Open Download
+                                                                            </a>
                                                                         </div>
-                                                                        <a href={getMediaUrl(app.resumeUrl)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg text-sm font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors">
-                                                                            Open <span>↗</span>
-                                                                        </a>
+                                                                    )
+                                                                ) : (
+                                                                    <div className="h-full flex flex-col items-center justify-center text-slate-400 bg-slate-100">
+                                                                        <span className="text-5xl mb-3 opacity-50">📁</span>
+                                                                        <p>No resume PDF provided.</p>
                                                                     </div>
                                                                 )}
                                                             </div>
-                                                        ) : isUploadedFile(app.resumeUrl) ? (
-                                                            <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg flex items-center gap-3">
-                                                                <span className="text-2xl">📎</span>
-                                                                <div>
-                                                                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">{getFileName(app.resumeUrl)}</p>
-                                                                    <p className="text-xs text-amber-600 dark:text-amber-400">Uploaded file (available via file storage)</p>
-                                                                </div>
-                                                            </div>
-                                                        ) : null}
+                                                        </div>
                                                     </div>
-                                                )}
-
-                                                {/* Video intro */}
-                                                {app.videoUrl && (
-                                                    <div className="p-4">
-                                                        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3">🎥 Video Introduction</p>
-                                                        {isRealUrl(app.videoUrl) ? (
-                                                            <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-black">
-                                                                <video
-                                                                    src={getMediaUrl(app.videoUrl)}
-                                                                    controls
-                                                                    className="w-full max-h-[400px] object-contain"
-                                                                    preload="metadata"
-                                                                />
-                                                            </div>
-                                                        ) : isUploadedFile(app.videoUrl) ? (
-                                                            <div className="p-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700 rounded-lg flex items-center gap-3">
-                                                                <span className="text-2xl">🎬</span>
-                                                                <div>
-                                                                    <p className="text-sm font-semibold text-purple-800 dark:text-purple-300">{getFileName(app.videoUrl)}</p>
-                                                                    <p className="text-xs text-purple-600 dark:text-purple-400">Uploaded video (available in storage)</p>
-                                                                </div>
-                                                            </div>
-                                                        ) : null}
-                                                    </div>
-                                                )}
+                                                </div>
                                             </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                     )}
                 </main>

@@ -6,8 +6,7 @@
  *
  * Multi-provider clip generation (failover order per clip):
  *   1. Meta AI               — cookie-based, free, 30-60s videos
- *   2. Pollinations.ai       — free tier (wan/veo/seedance via Vibe AI)
- *   3. Modal.com             — serverless GPU fallback
+ *   2. Modal                 — Serverless GPU Fallback
  *
  * If a provider succeeds for clip 1, it is tried first for clips 2+3 (warm provider).
  */
@@ -17,6 +16,7 @@ import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { VideoScript } from './promptBuilder'; // Import our new VideoScript interface
 
 const UPLOADS_DIR = path.join(process.cwd(), 'uploads', 'ai-videos');
 const TEMP_DIR = path.join(process.cwd(), 'uploads', 'temp');
@@ -36,33 +36,6 @@ interface StitchResult {
 interface ClipResult {
   localPath: string;
   provider: string;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Segment prompt builder
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Build distinct cinematic scene prompts for each segment of a stitched video.
- *
- *   Scene 1 — ENVIRONMENT: Wide/aerial establishing shot of the workspace
- *   Scene 2 — ACTION: Close-up of the core work activity
- *   Scene 3 — CULTURE: The human element — team, achievement, impact
- */
-function buildSegmentPrompts(basePrompt: string, numSegments: number): string[] {
-  const sceneDirections = [
-    `Cinematic wide establishing shot, slow dolly-in. ${basePrompt}. Golden hour lighting, shallow depth of field, photorealistic textures. The camera gradually reveals the full environment — architecture, equipment, ambient activity. Professional color grading with warm undertones, 4K clarity. No text, no overlays, no UI elements.`,
-
-    `Smooth tracking shot transitioning to medium close-up. The focus shifts to the core work activity: hands operating tools, eyes scanning screens, precise skilled movements. ${basePrompt}. Rack focus between the person and their work — showing expertise and concentration. Natural ambient sound design, subtle motion blur on fast actions. Consistent lighting and color palette with the previous scene.`,
-
-    `Dynamic shot capturing the human side of the work. ${basePrompt}. A colleague approaches, a brief exchange of ideas, a shared moment of achievement — a completed project, a satisfied client interaction, or a team celebrating a milestone. The camera pulls back slowly, revealing the broader impact. Warm, aspirational mood, lens flare from natural light. Cinematic ending with a sense of purpose and forward momentum.`,
-
-    `Extreme close-up macro shot of the specialized tools, interfaces, or materials central to this work. ${basePrompt}. Ultra-sharp focus on textures — keyboard keys, surgical instruments, design mockups, engineering blueprints, or creative materials. The camera orbits slowly, revealing intricate details. Studio-quality lighting with dramatic shadows. Conveys mastery and precision.`,
-
-    `Aerial or crane shot pulling out to reveal the broader context and impact of this work. ${basePrompt}. The environment transitions from the intimate workspace to the larger ecosystem — the city, the community, the industry being shaped. Time-lapse elements showing progress and growth. Epic orchestral mood, warm sunset lighting. Conveys ambition, scale, and the inspiring future this career path leads to.`,
-  ];
-
-  return sceneDirections.slice(0, numSegments);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -140,70 +113,34 @@ function fileToDataUrl(filePath: string, mimeType: string = 'image/jpeg'): strin
   return `data:${mimeType};base64,${buffer.toString('base64')}`;
 }
 
-/** Save arraybuffer response to a local file, return path */
-function saveVideoBuffer(buffer: Buffer, clipId: string): string {
-  const filename = `clip-${clipId}.mp4`;
-  const filepath = path.join(TEMP_DIR, filename);
-  fs.writeFileSync(filepath, buffer);
-  return filepath;
-}
-
-/** Overlay job details text on the video using ffmpeg drawtext filter */
-export async function addJobTextOverlays(
-  inputPath: string,
-  outputPath: string,
-  jobInfo: { title: string; company: string; location: string; pay: string; type?: string },
-  onProgress?: (step: string) => void
-): Promise<void> {
-  onProgress?.('Adding job details to video...');
-
-  // Build ffmpeg drawtext filters — overlay at bottom-left with semi-transparent bg
-  const filters: string[] = [];
-
-  // Title — bold white, 20px from bottom
-  if (jobInfo.title) {
-    const escapedTitle = jobInfo.title.replace(/'/g, "\\\\'");
-    filters.push(`drawtext=text='${escapedTitle}':fontcolor=white:fontsize=24:box=1:boxcolor=rgba(0,0,0,0.6):x=20:y=h-th-60:boxborderw=8`);
-  }
-
-  // Company — smaller white text below title
-  if (jobInfo.company) {
-    const escapedCompany = jobInfo.company.replace(/'/g, "\\\\'");
-    filters.push(`drawtext=text='${escapedCompany}':fontcolor=white:fontsize=18:box=1:boxcolor=rgba(0,0,0,0.5):x=20:y=h-th-30:boxborderw=8`);
-  }
-
-  // Location & Pay — top-right corner
-  const topText = [jobInfo.location, jobInfo.type, jobInfo.pay]
-    .filter(Boolean)
-    .join(' · ');
-
-  if (topText) {
-    const escapedTop = topText.replace(/'/g, "\\\\'");
-    filters.push(`drawtext=text='${escapedTop}':fontcolor=yellow:fontsize=16:box=1:boxcolor=rgba(0,0,0,0.5):x=w-tw-20:y=20:boxborderw=8`);
-  }
-
-  if (filters.length === 0) {
-    // No text to add — just copy
-    fs.copyFileSync(inputPath, outputPath);
-    return;
-  }
-
+/** 
+ * Standardize aspect ratio to 9:16 (720x1280) and optionally overlay custom text
+ */
+async function formatAndOverlayClip(inputPath: string, outputPath: string, text: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const filterStr = filters.join(',');
+    // 1. Force all clips to be uniformly scaled and center-cropped to exactly 720x1280 
+    // This prevents ffmpeg concatenation errors when providers output different resolutions
+    let filter = `scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280`;
+    const textFile = path.join(TEMP_DIR, `overlay-text-${uuidv4()}.txt`);
+
+    if (text) {
+      fs.writeFileSync(textFile, text);
+      // Filter: Bold white text, black box at 60% opacity with 20px padding (boxborderw)
+      filter += `,drawtext=textfile='${textFile}':fontcolor=white:fontsize=28:box=1:boxcolor=black@0.6:boxborderw=20:x=(w-text_w)/2:y=h-text_h-100:line_spacing=10:text_align=C`;
+    }
 
     ffmpeg(inputPath)
-      .outputOptions([`-vf`, filterStr, '-c:a', 'copy', '-preset', 'fast'])
+      .outputOptions(['-vf', filter, '-c:a', 'copy', '-preset', 'fast'])
       .output(outputPath)
-      .on('end', resolve)
+      .on('end', () => {
+        if (text) try { fs.unlinkSync(textFile); } catch {}
+        resolve();
+      })
       .on('error', (err) => {
-        // If drawtext fails (e.g. no font), fall back to copy
-        console.warn('  [TextOverlay] drawtext failed, copying original:', err.message);
-        try {
-          fs.copyFileSync(inputPath, outputPath);
-          resolve();
-        } catch (copyErr) {
-          reject(copyErr);
-        }
+        console.warn('  [Format/Overlay] ffmpeg failed, copying instead:', err.message);
+        if (text) try { fs.unlinkSync(textFile); } catch {}
+        try { fs.copyFileSync(inputPath, outputPath); } catch {}
+        resolve(); // resolve to not break the pipeline
       })
       .run();
   });
@@ -222,14 +159,13 @@ type ClipProvider = (opts: {
 
 /**
  * Provider 1: Meta AI (cookie-based, free, 30-60s videos)
- * - Direct GraphQL call to meta.ai — no self-hosted server needed
- * - Uses META_AI_COOKIE_DATR and META_AI_COOKIE_ECTO from .env
  */
 const generateClipMetaAI: ClipProvider = async ({ prompt, duration, clipId, imageUrl }) => {
-  const datr = process.env.META_AI_COOKIE_DATR;
-  const ecto1 = process.env.META_AI_COOKIE_ECTO;
-  if (!datr || !ecto1) {
-    console.log('  [clip] Meta AI skipped — missing META_AI_COOKIE_DATR or META_AI_COOKIE_ECTO');
+  const account1 = process.env.META_AI_COOKIE_DATR && process.env.META_AI_COOKIE_ECTO;
+  const account2 = process.env.META_AI_COOKIE_DATR_2 && process.env.META_AI_COOKIE_ECTO_2;
+  
+  if (!account1 && !account2) {
+    console.log('  [clip] Meta AI skipped — missing ALL META_AI cookies');
     return null;
   }
 
@@ -237,39 +173,9 @@ const generateClipMetaAI: ClipProvider = async ({ prompt, duration, clipId, imag
     ? `Seamless visual continuation. ${prompt}`
     : prompt;
 
-  // ── Try self-hosted API server first (if configured and reachable) ────────
-  const META_SERVER_URL = process.env.META_AI_API_URL;
-  if (META_SERVER_URL) {
-    try {
-      console.log(`  [clip] Trying Meta AI API server (${META_SERVER_URL})...`);
-      const asyncRes = await axios.post(
-        `${META_SERVER_URL}/video/async`,
-        { prompt: effectivePrompt },
-        { timeout: 30_000 }
-      );
-      const { job_id } = asyncRes.data;
-
-      for (let i = 0; i < 36; i++) {
-        await new Promise(r => setTimeout(r, 5_000));
-        const statusRes = await axios.get(`${META_SERVER_URL}/video/jobs/${job_id}`, { timeout: 15_000 });
-        if (statusRes.data.status === 'completed' || statusRes.data.status === 'succeeded') {
-          const rawUrl = statusRes.data.result?.video_urls?.[0];
-          if (rawUrl) {
-            const localPath = path.join(TEMP_DIR, `clip-${clipId}-meta.mp4`);
-            await downloadFile(rawUrl, localPath);
-            console.log(`  [clip] ✅ Meta AI API server succeeded`);
-            return { localPath, provider: 'metaai-api-server' };
-          }
-        }
-        if (statusRes.data.status === 'failed') throw new Error(statusRes.data.error || 'failed');
-      }
-    } catch (e: any) {
-      console.warn(`  [clip] Meta AI API server failed: ${e.message}, falling back to direct GraphQL`);
-    }
-  }
-
-  // ── Direct GraphQL fallback (no server needed) ─────────────────────────────
-  console.log(`  [clip] Trying Meta AI direct GraphQL...`);
+  // ── Direct GraphQL (Load balancer picks account) ─────────────────────────────
+  console.log(`  [clip] Generating Meta AI using internal GraphQL Library...`);
+  console.log(`  [clip] Prompt: ${effectivePrompt}`);
   try {
     const { generateVideo } = await import('./metaAiVideo');
     const result = await generateVideo(effectivePrompt, (step, progress) => {
@@ -290,48 +196,7 @@ const generateClipMetaAI: ClipProvider = async ({ prompt, duration, clipId, imag
 };
 
 /**
- * Provider 2: Pollinations.ai (free tier, used by Vibe AI)
- * - Text-to-video only (no image-to-video support)
- * - For continuation clips, we enhance the prompt for visual continuity
- */
-const generateClipPollinations: ClipProvider = async ({ prompt, duration, clipId, imageUrl }) => {
-  const effectivePrompt = imageUrl
-    ? `Seamless visual continuation of the previous scene. ${prompt}`
-    : prompt;
-
-  const videoModels = ['wan', 'veo', 'seedance'];
-
-  for (const model of videoModels) {
-    try {
-      console.log(`  [clip] Trying Pollinations (${model}, free)...`);
-      const encodedPrompt = encodeURIComponent(effectivePrompt);
-      const params = new URLSearchParams({
-        model,
-        duration: String(Math.min(duration, 10)),
-        aspectRatio: '16:9',
-      });
-
-      const videoUrl = `https://gen.pollinations.ai/video/${encodedPrompt}?${params.toString()}`;
-
-      const res = await axios.get(videoUrl, {
-        responseType: 'arraybuffer',
-        timeout: 180_000,
-      });
-
-      if (res.status === 200 && res.data.byteLength > 1000) {
-        const localPath = saveVideoBuffer(Buffer.from(res.data), clipId);
-        console.log(`  [clip] ✅ Pollinations (${model}) succeeded`);
-        return { localPath, provider: `pollinations-${model}` };
-      }
-    } catch (e: any) {
-      console.warn(`  [clip] Pollinations (${model}) failed:`, e.message);
-    }
-  }
-  return null;
-};
-
-/**
- * Provider 3: Modal.com (serverless GPU fallback)
+ * Provider 2: Modal.com (serverless GPU fallback)
  */
 const generateClipModal: ClipProvider = async ({ prompt, duration, clipId, imageUrl }) => {
   const MODAL_URL = process.env.MODAL_ENDPOINT;
@@ -346,8 +211,8 @@ const generateClipModal: ClipProvider = async ({ prompt, duration, clipId, image
     const res = await axios.post(MODAL_URL, {
       prompt: effectivePrompt,
       num_frames: 73,
-      height: 384,
-      width: 640,
+      height: 768, // Request vertical so the crop doesn't look bad
+      width: 512,
     }, { timeout: 660_000 });
 
     const rawUrl = res.data.video_url;
@@ -376,24 +241,18 @@ const generateClipModal: ClipProvider = async ({ prompt, duration, clipId, image
 // Multi-provider clip generation orchestrator
 // ─────────────────────────────────────────────────────────────────────────────
 
-// All providers in priority order (no rate-limit APIs)
 const ALL_PROVIDERS: Array<{ name: string; fn: ClipProvider }> = [
   { name: 'Meta AI',      fn: generateClipMetaAI },
-  { name: 'Pollinations', fn: generateClipPollinations },
   { name: 'Modal',        fn: generateClipModal },
 ];
 
-/**
- * Generate a single clip, trying each provider in order.
- * Returns the provider name so subsequent clips can try the warm provider first.
- */
 async function generateClipWithFallback(opts: {
   prompt: string;
   duration: number;
   clipIndex: number;
   totalClips: number;
   imageUrl?: string;
-  preferredProvider?: string; // Try this provider first (warm from previous clip)
+  preferredProvider?: string;
   onProgress?: (step: string, progress: number) => void;
 }): Promise<ClipResult> {
   const { prompt, duration, clipIndex, totalClips, imageUrl, preferredProvider, onProgress } = opts;
@@ -403,7 +262,6 @@ async function generateClipWithFallback(opts: {
   if (imageUrl) console.log(`  Mode: image-to-video (continuation)`);
   else console.log(`  Mode: text-to-video (initial)`);
 
-  // Build provider order: preferred first, then the rest
   let orderedProviders = [...ALL_PROVIDERS];
   if (preferredProvider) {
     const prefIdx = orderedProviders.findIndex(p => p.name === preferredProvider);
@@ -414,7 +272,6 @@ async function generateClipWithFallback(opts: {
     }
   }
 
-  // Try each provider
   for (const provider of orderedProviders) {
     try {
       onProgress?.(`Trying ${provider.name} for clip ${clipIndex + 1}...`, (clipIndex / totalClips) + 0.05);
@@ -438,34 +295,33 @@ async function generateClipWithFallback(opts: {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Generate a full 30-second video by stitching 3×10s clips.
- *
- * Each clip is generated via multi-provider fallback.
- * Clips 2+ use image-to-video (last frame of previous clip) when supported,
- * or fall back to text-to-video with continuation prompts.
+ * Generate a full 30-second video by stitching 3×10s clips, 
+ * strictly adhering to the structured JSON Video Script.
  */
 export async function generateStitchedVideo(options: {
-  prompt: string;
-  segments?: number;
+  script: VideoScript; // Takes structured script now!
   segmentDuration?: number;
   onProgress?: (step: string, progress: number) => void;
 }): Promise<StitchResult> {
-  const { prompt, segments = 3, segmentDuration = 10, onProgress } = options;
+  const { script, segmentDuration = 10, onProgress } = options;
+  const segments = script.segments.length; // usually 3
   const jobId = uuidv4();
   const clipPaths: string[] = [];
   const usedProviders: string[] = [];
 
   try {
-    const segmentPrompts = buildSegmentPrompts(prompt, segments);
     let lastFrameUrl: string | undefined;
-    let warmProvider: string | undefined; // Provider that succeeded for previous clip
+    let warmProvider: string | undefined;
 
     for (let i = 0; i < segments; i++) {
       onProgress?.(`Generating clip ${i + 1}/${segments}`, ((i) / segments) * 0.8);
       console.log(`\n[VideoStitcher] ═══ Clip ${i + 1}/${segments} ═══`);
 
+      const segment = script.segments[i];
+
+      // 1. Generate the raw visual video clip from the AI
       const clipResult = await generateClipWithFallback({
-        prompt: segmentPrompts[i] || prompt,
+        prompt: segment.visualPrompt || "Cinematic shot.",
         duration: segmentDuration,
         clipIndex: i,
         totalClips: segments,
@@ -474,13 +330,12 @@ export async function generateStitchedVideo(options: {
         onProgress,
       });
 
-      clipPaths.push(clipResult.localPath);
       usedProviders.push(clipResult.provider);
       warmProvider = ALL_PROVIDERS.find(p =>
         clipResult.provider.toLowerCase().includes(p.name.toLowerCase())
       )?.name;
 
-      // Extract last frame for next clip's image-to-video
+      // 2. Extract last frame for next clip connection (image-to-video)
       if (i < segments - 1) {
         const framePath = path.join(TEMP_DIR, `frame-${jobId}-${i}.jpg`);
         try {
@@ -488,16 +343,31 @@ export async function generateStitchedVideo(options: {
           lastFrameUrl = fileToDataUrl(framePath);
           try { fs.unlinkSync(framePath); } catch { /* ignore */ }
         } catch (frameErr: any) {
-          console.warn(`  [VideoStitcher] Frame extraction failed, next clip will use text-to-video:`, frameErr.message);
-          lastFrameUrl = undefined; // Fall back to text-to-video for next clip
+          console.warn(`  [VideoStitcher] Frame extraction failed:`, frameErr.message);
+          lastFrameUrl = undefined;
         }
       }
+
+      // 3. Immediately scale to 9:16 vertical and burn overlay text (if any)
+      onProgress?.(`Formatting to 9:16 & adding text to clip ${i + 1}...`, ((i) / segments) * 0.8 + 0.05);
+      if (segment.overlayText) {
+        console.log(`  [VideoStitcher] Applying overlay text:\n${segment.overlayText}`);
+      }
+      
+      const formattedClipPath = path.join(TEMP_DIR, `clip-${jobId}-${i}-formatted.mp4`);
+      await formatAndOverlayClip(clipResult.localPath, formattedClipPath, segment.overlayText?.trim() || '');
+      
+      // Clean up the original raw clip
+      try { fs.unlinkSync(clipResult.localPath); } catch {}
+      
+      // Push the perfectly rendered clip to our stitching array
+      clipPaths.push(formattedClipPath);
     }
 
+    // 4. Stitch the fully rendered clips together
     onProgress?.('Stitching clips together', 0.85);
-    console.log(`\n[VideoStitcher] ═══ Stitching ${clipPaths.length} clips ═══`);
+    console.log(`\n[VideoStitcher] ═══ Stitching ${clipPaths.length} fully rendered clips ═══`);
 
-    // Concatenate all clips
     const outputFilename = `stitched-${jobId}.mp4`;
     const outputPath = path.join(UPLOADS_DIR, outputFilename);
     await concatenateVideos(clipPaths, outputPath);
@@ -513,7 +383,6 @@ export async function generateStitchedVideo(options: {
     const baseUrl = process.env.API_BASE_URL || `http://localhost:${process.env.PORT || 3001}`;
 
     console.log(`\n[VideoStitcher] ✅ DONE — ${segments} clips, ${segments * segmentDuration}s total`);
-    console.log(`  Providers used: ${usedProviders.join(' → ')}`);
     console.log(`  Output: ${baseUrl}${relativePath}`);
 
     return {

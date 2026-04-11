@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useFloating, offset, flip, shift } from '@floating-ui/react';
 import { Page } from '../../types';
 import {
     LogoIcon,
@@ -18,6 +19,7 @@ import {
 import Modal from '../common/Modal';
 import useModal from '../../hooks/useModal';
 import { VideoGenIndicator } from '../common/VideoGenIndicator';
+import { NotificationDropdown } from '../common/NotificationDropdown';
 
 interface User {
     id: string;
@@ -46,11 +48,15 @@ interface NavLinkItem {
 const NavLink: React.FC<{ item: NavLinkItem; isActive: boolean; onClick: () => void }> = ({ item, isActive, onClick }) => (
     <button
         onClick={onClick}
-        className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium cursor-pointer transition-all duration-200 border-none bg-transparent ${isActive
-            ? 'bg-indigo-600 text-white'
-            : 'text-slate-500 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white'
-            }`}
+        className={`relative flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-medium cursor-pointer transition-all duration-300 border-none ${isActive
+            ? 'text-indigo-800 dark:text-indigo-200 font-bold translate-y-[-2px]'
+            : 'bg-transparent text-slate-500 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100/50 dark:hover:bg-slate-800/50'
+        }`}
     >
+        {/* Apple-style Glassmorphism Active Indicator Backdrop */}
+        {isActive && (
+            <div className="absolute inset-0 bg-gradient-to-b from-white/80 to-white/40 dark:from-white/20 dark:to-white/5 backdrop-blur-xl border border-white/60 dark:border-white/20 shadow-[0_8px_32px_0_rgba(0,0,0,0.1)] dark:shadow-[0_8px_32px_0_rgba(255,255,255,0.05)] rounded-2xl -z-10 animate-fade-in-up"></div>
+        )}
         {item.icon} {item.name}
     </button>
 );
@@ -62,15 +68,22 @@ const Header: React.FC<HeaderProps> = ({ navigate, onLogout, currentPage, theme,
     const profileMenuRef = useRef<HTMLDivElement>(null);
     const mobileMenuRef = useRef<HTMLDivElement>(null);
 
+    const { refs: floatingRefs, floatingStyles } = useFloating({
+        placement: 'bottom-end',
+        middleware: [offset(10), flip(), shift()],
+        open: isProfileMenuOpen,
+        onOpenChange: setIsProfileMenuOpen,
+    });
+
     const navItems: NavLinkItem[] = [
-        { name: 'Home', page: 'dashboard', icon: <HomeIcon className="w-5 h-5" /> },
-        { name: 'Shorts', page: 'shorts', icon: <VideoCameraIcon className="w-5 h-5" /> },
-        { name: 'Jobs', page: 'jobs', icon: <BriefcaseSolidIcon className="w-5 h-5" /> },
+        { name: 'Home', page: 'dashboard' as Page, icon: <HomeIcon className="w-5 h-5" /> },
+        { name: 'Shorts', page: 'shorts' as Page, icon: <VideoCameraIcon className="w-5 h-5" /> },
+        { name: 'Jobs', page: 'jobs' as Page, icon: <BriefcaseSolidIcon className="w-5 h-5" /> },
         ...(user && (user.role === 'admin' || user.role === 'moderator')
-            ? [{ name: 'Admin', page: 'admin', icon: <Cog6ToothIcon className="w-5 h-5" />, requiresAuth: true }]
+            ? [{ name: 'Admin', page: 'admin' as Page, icon: <Cog6ToothIcon className="w-5 h-5" />, requiresAuth: true }]
             : []),
-        { name: 'Profile', page: 'profile', icon: <UserCircleIcon className="w-5 h-5" />, requiresAuth: true },
-        { name: 'Messages', page: 'messages', icon: <MessageSquareIcon className="w-5 h-5" />, requiresAuth: true },
+        { name: 'Profile', page: 'profile' as Page, icon: <UserCircleIcon className="w-5 h-5" />, requiresAuth: true },
+        { name: 'Messages', page: 'messages' as Page, icon: <MessageSquareIcon className="w-5 h-5" />, requiresAuth: true },
     ];
 
     const handleNav = useCallback((page: Page) => {
@@ -114,7 +127,7 @@ const Header: React.FC<HeaderProps> = ({ navigate, onLogout, currentPage, theme,
 
     return (
         <>
-            <header className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-lg sticky top-0 z-50 shadow-lg border-b border-gray-200/50 dark:border-gray-700/50">
+            <header className="bg-white/40 dark:bg-slate-900/40 backdrop-blur-2xl sticky top-0 z-50 shadow-[0_4px_30px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_30px_rgba(255,255,255,0.02)] border-b border-white/40 dark:border-slate-700/50 transition-all duration-500">
                 <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
                         <div className="flex items-center gap-8">
@@ -138,11 +151,7 @@ const Header: React.FC<HeaderProps> = ({ navigate, onLogout, currentPage, theme,
                             <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors duration-200">
                                 {theme === 'dark' ? <SunIcon className="h-6 w-6 text-slate-300" /> : <MoonIcon className="h-6 w-6 text-slate-600" />}
                             </button>
-                            {isAuthenticated && (
-                                <button className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors duration-200" onClick={() => navigate('notifications')}>
-                                    <BellIcon className="h-6 w-6 text-slate-600 dark:text-slate-300" />
-                                </button>
-                            )}
+                            {isAuthenticated && <NotificationDropdown navigate={navigate} />}
                             {isAuthenticated && <VideoGenIndicator onNavigate={navigate} />}
                             {!isAuthenticated ? (
                                 <div className="flex items-center gap-2">
@@ -161,7 +170,7 @@ const Header: React.FC<HeaderProps> = ({ navigate, onLogout, currentPage, theme,
                                 </div>
                             ) : (
                                 <div className="relative" ref={profileMenuRef}>
-                                    <button onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)} className="block">
+                                    <button ref={floatingRefs.setReference} onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)} className="block">
                                         <img
                                             src={user?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&size=40&background=6366f1&color=fff`}
                                             alt={user?.name || 'User'}
@@ -169,7 +178,11 @@ const Header: React.FC<HeaderProps> = ({ navigate, onLogout, currentPage, theme,
                                         />
                                     </button>
                                     {isProfileMenuOpen && (
-                                        <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-700 rounded-md shadow-lg py-1 z-50 ring-1 ring-black/5">
+                                        <div 
+                                            ref={floatingRefs.setFloating} 
+                                            style={floatingStyles}
+                                            className="w-48 bg-white dark:bg-slate-700 rounded-md shadow-lg py-1 z-50 ring-1 ring-black/5"
+                                        >
                                             <button onClick={() => { navigate('profile'); setIsProfileMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer">Your Profile</button>
                                             <button onClick={() => { showAlert("Coming Soon", "Settings page is under development!", "info"); setIsProfileMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer">Settings</button>
                                             <div className="border-t border-slate-200 dark:border-slate-600 my-1"></div>

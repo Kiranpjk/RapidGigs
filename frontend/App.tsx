@@ -1,5 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
+import AOS from 'aos';
+import 'aos/dist/aos.css';
 import { Page } from './types';
 import AuthPage from './components/auth/AuthPage';
 import MainLayout from './components/layout/MainLayout';
@@ -39,6 +40,11 @@ const App: React.FC = () => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
     localStorage.setItem('theme', theme);
   }, [theme]);
+
+  // Init AOS
+  useEffect(() => {
+    AOS.init({ duration: 800, once: true });
+  }, []);
 
   // Sync page state → browser URL + document title
   useEffect(() => {

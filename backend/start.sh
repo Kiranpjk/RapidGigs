@@ -3,8 +3,9 @@
 
 set -e
 
+BACKEND_DIR="$(cd "$(dirname "$0")" && pwd)"
 # ── Install Python deps for metaai-api (only on fresh builds) ──
-META_DIR="$(cd "$(dirname "$0")" && pwd)/metaai-api"
+META_DIR="$BACKEND_DIR/metaai-api"
 VENV="$META_DIR/.venv"
 
 if [ ! -d "$VENV" ]; then
@@ -17,6 +18,7 @@ if [ ! -d "$VENV" ]; then
     "python-dotenv>=1.0.0" \
     "python-multipart>=0.0.21" \
     "requests>=2.31.0" \
+    "requests-html>=0.10.0" \
     "beautifulsoup4>=4.9.0" \
     "lxml-html-clean>=0.1.1"
   echo "=== Python deps installed ==="
@@ -24,11 +26,9 @@ fi
 
 # ── Start Meta AI API (port 8000) ──
 echo "=== Starting Meta AI API on :8000 ==="
-"$VENV/bin/uvicorn" metaai_api.api_server:app \
-  --host 127.0.0.1 \
-  --port 8000 \
-  --log-level warning &
+cd "$META_DIR" && "$VENV/bin/uvicorn" metaai_api.api_server:app --host 127.0.0.1 --port 8000 --log-level warning &
 META_PID=$!
+cd "$BACKEND_DIR"
 
 # Wait for metaai-api to accept connections
 echo "Waiting for Meta AI API to be ready..."

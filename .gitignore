@@ -54,3 +54,4 @@ fsck.txt
 
 # Deployment logs
 modal.log
+.vercel

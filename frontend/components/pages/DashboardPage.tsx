@@ -12,6 +12,9 @@ import {
 import { CATEGORIES } from '../../data/mockData';
 import { useAuth } from '../../context/AuthContext';
 import { jobsAPI } from '../../services/api';
+import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
+import Card from '../../components/ui/Card';
 
 // Generate a consistent HSL color from a company name
 function stringToColor(str: string): string {
@@ -90,32 +93,30 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
 
 
     const CategoryButton: React.FC<{ children: React.ReactNode; isActive: boolean; onClick: () => void }> = ({ children, isActive, onClick }) => (
-        <button 
+        <Button
+            variant={isActive ? 'primary' : 'outline'}
+            size="sm"
             onClick={onClick}
-            className={`${
-                isActive 
-                    ? 'bg-indigo-600 text-white border-indigo-600' 
-                    : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
-            } border hover:bg-indigo-500 hover:text-white hover:border-indigo-500 text-sm font-medium py-2 px-4 rounded-full transition-all duration-200`}
+            className={`rounded-full ${isActive ? 'font-medium' : ''}`}
         >
             {children}
-        </button>
+        </Button>
     );
 
     const JobCard: React.FC<{ job: Job }> = ({ job }) => (
-        <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg p-6 flex flex-col shadow-lg hover:shadow-indigo-500/10 hover:ring-2 hover:ring-indigo-500/50 transition-all duration-300 transform hover:-translate-y-1">
+        <Card className="border border-border bg-background hover:shadow-lg transition-shadow duration-300">
             <div className="flex items-start gap-4 mb-4">
                 <JobLogo company={job.company} />
                 <div>
-                    <h3 className="font-bold text-slate-800 dark:text-white text-lg">{job.title}</h3>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1"><BuildingOffice2Icon className="w-4 h-4"/> {job.company}</p>
+                    <h3 className="font-bold text-foreground text-lg">{job.title}</h3>
+                    <p className="text-sm text-muted-foreground flex items-center gap-1"><BuildingOffice2Icon className="w-4 h-4"/> {job.company}</p>
                 </div>
             </div>
-            <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400 mb-4">
-                <span className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-700/50 px-2 py-1 rounded-full"><MapPinIcon className="w-4 h-4" /> {job.location}</span>
-                <span className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-700/50 px-2 py-1 rounded-full text-green-600 dark:text-green-400"><CurrencyDollarIcon className="w-4 h-4"/>{job.pay}</span>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
+                <span className="flex items-center gap-1.5 bg-muted px-2 py-1 rounded-full"><MapPinIcon className="w-4 h-4" /> {job.location}</span>
+                <span className="flex items-center gap-1.5 bg-muted px-2 py-1 rounded-full text-destructive"><CurrencyDollarIcon className="w-4 h-4"/>{job.pay}</span>
             </div>
-            <p className="text-sm text-slate-600 dark:text-slate-300 flex-grow mb-6 line-clamp-3">{job.description}</p>
+            <p className="text-sm text-muted-foreground flex-grow mb-6 line-clamp-3">{job.description}</p>
             
             {(job.companyVideoUrl || job.freelancerVideoUrl) && (
                 <div className="border-t border-slate-200 dark:border-slate-700 pt-4 mt-auto mb-4 space-y-2">
@@ -153,7 +154,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
             >
                 {job.status === 'Full' ? 'Positions Filled' : 'Apply Now'}
             </button>
-        </div>
+        </Card>
     );
     
     const VideoIntroCard: React.FC<{ video: ShortVideo }> = ({ video }) => (

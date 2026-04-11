@@ -6,9 +6,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Page } from '../../types';
 import { jobsAPI, categoriesAPI, shortsAPI } from '../../services/api';
-import { VideoCameraIcon, CheckCircleIcon, TrashIcon } from '../icons/Icons';
+import { CheckCircleIcon, TrashIcon, VideoCameraIcon } from '../icons/Icons';
 import { SparklesIcon } from '../icons/Icons';
 import { useVideoGen } from '../../context/VideoGenContext';
+import Swal from 'sweetalert2';
 
 // ── Local storage key for draft persistence ────────────────────────────────
 const DRAFT_KEY = 'rapidgig_postjob_draft';
@@ -120,14 +121,35 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
   }, []);
 
   // ── Reset form to blank (for "Post Another Job") ────────────────────────
-  const resetForm = useCallback(() => {
-    setForm({ ...EMPTY_FORM });
-    setVideoSource(null);
-    setGenerateVideoOnPost(true);
-    setSuccess(false);
-    setPostedJobId(null);
-    setError('');
-    clearDraft();
+  const resetForm = useCallback((withPrompt = false) => {
+    if (withPrompt) {
+      Swal.fire({
+        title: 'Clear Draft?',
+        text: "You will lose all your unsaved job details.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#6366f1',
+        cancelButtonColor: '#ef4444',
+        confirmButtonText: 'Yes, clear it!'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          performReset();
+          Swal.fire({ title: 'Cleared!', text: 'Your draft has been cleared.', icon: 'success', timer: 1500, showConfirmButton: false });
+        }
+      });
+    } else {
+      performReset();
+    }
+
+    function performReset() {
+      setForm({ ...EMPTY_FORM });
+      setVideoSource(null);
+      setGenerateVideoOnPost(true);
+      setSuccess(false);
+      setPostedJobId(null);
+      setError('');
+      clearDraft();
+    }
   }, []);
 
   // ── Submit: Save job → optionally trigger background video gen ──────────
@@ -157,10 +179,19 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
         triggerBackgroundVideoGen(savedJobId, form.title, form.company);
       }
 
+      Swal.fire({
+        title: 'Job Posted Successfully!',
+        text: 'Your job is now live and visible to candidates on RapidGig.',
+        icon: 'success',
+        confirmButtonColor: '#3085d6',
+        confirmButtonText: 'Awesome!'
+      });
+
       setSuccess(true);
       // Draft is kept in localStorage in "success" state so it persists across nav
     } catch (err: any) {
       setError(err.message || 'Failed to post job. Please try again.');
+      Swal.fire({ title: 'Error!', text: err.message || 'Failed to post job.', icon: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -193,14 +224,16 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
 
     try {
       const prompt = `A professional job marketing short video for: ${form.title} at ${form.company}. ${form.description.slice(0, 200)}`;
+      const fallbackTitle = form.title || form.company ? `${form.title} @ ${form.company}` : 'Custom Job Video';
+      
       const response = await shortsAPI.generateAI({
         prompt,
-        title: `${form.title} @ ${form.company}`,
+        title: fallbackTitle,
         description: form.description,
       });
 
       if (response.jobId) {
-        startJob(response.jobId, `${form.title} @ ${form.company}`);
+        startJob(response.jobId, fallbackTitle);
         setVideoSource('ai');
       } else if (response.short?.videoUrl || response.videoUrl) {
         setForm(prev => ({ ...prev, shortVideoUrl: response.short?.videoUrl || response.videoUrl }));
@@ -299,7 +332,7 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
 
           <div className="flex gap-3 justify-center flex-wrap">
             <button
-              onClick={resetForm}
+              onClick={() => resetForm(false)}
               className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition-colors"
             >
               Post Another Job
@@ -336,7 +369,7 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
         {hasFormData && (
           <button
             type="button"
-            onClick={resetForm}
+            onClick={() => resetForm(true)}
             className="flex items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-red-500 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20"
           >
             <TrashIcon className="w-3.5 h-3.5" />

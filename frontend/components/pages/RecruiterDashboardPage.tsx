@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Page } from '../../types';
 import { jobsAPI, videosAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { DateTime } from 'luxon';
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler } from 'chart.js';
+import { Line } from 'react-chartjs-2';
+
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
 interface RecruiterDashboardPageProps {
     navigate: (page: Page) => void;
@@ -45,10 +50,31 @@ const RecruiterDashboardPage: React.FC<RecruiterDashboardPageProps> = ({ navigat
 
     const totalApplications = myJobs.reduce((sum, j) => sum + (j.applicationCount || 0), 0);
 
+    // Mock Chart Data for Applications
+    const chartData = {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
+        datasets: [
+            {
+                fill: true,
+                label: 'Applications Received',
+                data: [12, 19, 15, 25, 22, 30, Math.max(30, totalApplications)],
+                borderColor: 'rgb(99, 102, 241)',
+                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                tension: 0.4,
+            },
+        ],
+    };
+
+    const chartOptions = {
+        responsive: true,
+        plugins: { legend: { display: false }, title: { display: false } },
+        scales: { y: { beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } }
+    };
+
     return (
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8" data-aos="fade-in">
             {/* Welcome Section */}
-            <div className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-6" data-aos="fade-up">
                 <div>
                     <h1 className="text-3xl font-bold text-slate-800 dark:text-white mb-2">
                         Welcome back, {user?.name?.split(' ')[0]} 👋
@@ -80,8 +106,16 @@ const RecruiterDashboardPage: React.FC<RecruiterDashboardPageProps> = ({ navigat
                 <StatCard value={myVideos.length} label="Videos" icon="🎬" />
             </div>
 
+            {/* Analytics Chart Row */}
+            <div className="mb-10 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 shadow-sm" data-aos="fade-up" data-aos-delay="100">
+                <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Application Trends</h2>
+                <div className="h-[250px] w-full">
+                    <Line options={chartOptions} data={chartData} />
+                </div>
+            </div>
+
             {/* My Job Posts */}
-            <section className="mb-10">
+            <section className="mb-10" data-aos="fade-up" data-aos-delay="200">
                 <div className="flex items-center justify-between mb-5">
                     <h2 className="text-2xl font-bold text-slate-800 dark:text-white">My Job Posts</h2>
                     <button
@@ -151,7 +185,7 @@ const RecruiterDashboardPage: React.FC<RecruiterDashboardPageProps> = ({ navigat
 
                                     <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-700/50">
                                         <span className="text-xs text-slate-400">
-                                            {new Date(job.createdAt || Date.now()).toLocaleDateString()}
+                                            {DateTime.fromISO(job.createdAt || new Date().toISOString()).toRelative() || 'Just now'}
                                         </span>
                                         <button
                                             onClick={() => navigate('review_applications')}
@@ -168,7 +202,7 @@ const RecruiterDashboardPage: React.FC<RecruiterDashboardPageProps> = ({ navigat
             </section>
 
             {/* My Videos */}
-            <section>
+            <section data-aos="fade-up" data-aos-delay="300">
                 <div className="flex items-center justify-between mb-5">
                     <h2 className="text-2xl font-bold text-slate-800 dark:text-white">My Video Posts</h2>
                     <button
@@ -216,7 +250,9 @@ const RecruiterDashboardPage: React.FC<RecruiterDashboardPageProps> = ({ navigat
                                 </div>
                                 <div className="p-3">
                                     <h3 className="text-sm font-semibold text-slate-800 dark:text-white truncate">{video.title}</h3>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{new Date(video.createdAt).toLocaleDateString()}</p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                        Uploaded {DateTime.fromISO(video.createdAt).toRelative() || 'recently'}
+                                    </p>
                                 </div>
                             </div>
                         ))}

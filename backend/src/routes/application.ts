@@ -2,6 +2,7 @@ import express from 'express';
 import { body, validationResult } from 'express-validator';
 import { Application } from '../models/Application';
 import { Job } from '../models/Job';
+import { Notification } from '../models/Notification';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { upload } from '../middleware/upload';
 import { localStorageService } from '../services/localStorage';
@@ -175,6 +176,19 @@ router.post(
 
       await application.save();
 
+      // Notify the recruiter
+      try {
+        const recruiterNotification = new Notification({
+          userId: job.postedBy,
+          type: 'application',
+          title: 'New Job Application',
+          message: `Someone just applied for your "${job.title}" position!`,
+        });
+        await recruiterNotification.save();
+      } catch (err) {
+        console.error('Failed to create recruiter notification:', err);
+      }
+
       res.status(201).json({
         id: application._id.toString(),
         jobId: application.jobId.toString(),
@@ -260,6 +274,19 @@ router.patch(
 
       if (!application) {
         return res.status(404).json({ error: 'Application not found' });
+      }
+
+      // Notify the student
+      try {
+        const statusNotification = new Notification({
+          userId: currentApp.userId,
+          type: 'status',
+          title: 'Application Status Update',
+          message: `Your application for "${jobForAuth.title}" has been updated to: ${status.toUpperCase()}`,
+        });
+        await statusNotification.save();
+      } catch (err) {
+        console.error('Failed to create status notification:', err);
       }
 
       res.json({

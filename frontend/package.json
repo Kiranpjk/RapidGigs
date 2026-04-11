@@ -9,10 +9,22 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@floating-ui/react": "^0.27.19",
+    "@types/aos": "^3.0.7",
+    "@types/luxon": "^3.7.1",
+    "aos": "^2.3.4",
+    "chart.js": "^4.5.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "git": "^0.1.5",
+    "luxon": "^3.7.2",
     "react": "^18.2.0",
+    "react-chartjs-2": "^5.3.1",
     "react-dom": "^18.2.0",
-    "socket.io-client": "^4.8.3"
+    "socket.io-client": "^4.8.3",
+    "sweetalert2": "^11.26.24",
+    "sweetalert2-react-content": "^5.1.2",
+    "tailwind-animate": "^0.2.10"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.1",
@@ -21,6 +33,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.0.0",
     "autoprefixer": "^10.4.22",
+    "baseline-browser-mapping": "^2.10.17",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.17",
     "typescript": "~5.8.2",

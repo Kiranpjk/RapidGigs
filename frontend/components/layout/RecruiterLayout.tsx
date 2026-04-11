@@ -23,6 +23,7 @@ import JobApplicationPage from '../pages/JobApplicationPage';
 import UploadVideoPage from '../pages/UploadVideoPage';
 import { Job } from '../../types';
 import { VideoGenIndicator } from '../common/VideoGenIndicator';
+import { NotificationDropdown } from '../common/NotificationDropdown';
 
 interface RecruiterLayoutProps {
     currentPage: Page;
@@ -43,11 +44,15 @@ interface NavLinkItem {
 const NavLink: React.FC<{ item: NavLinkItem; isActive: boolean; onClick: () => void }> = ({ item, isActive, onClick }) => (
     <button
         onClick={onClick}
-        className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium cursor-pointer transition-all duration-200 border-none bg-transparent ${isActive
-            ? 'bg-indigo-600 text-white'
-            : 'text-slate-500 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white'
+        className={`relative flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-medium cursor-pointer transition-all duration-300 border-none ${isActive
+            ? 'text-indigo-800 dark:text-indigo-200 font-bold translate-y-[-2px]'
+            : 'bg-transparent text-slate-500 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100/50 dark:hover:bg-slate-800/50'
         }`}
     >
+        {/* Apple-style Glassmorphism Active Indicator Backdrop */}
+        {isActive && (
+            <div className="absolute inset-0 bg-gradient-to-b from-white/80 to-white/40 dark:from-white/20 dark:to-white/5 backdrop-blur-xl border border-white/60 dark:border-white/20 shadow-[0_8px_32px_0_rgba(0,0,0,0.1)] dark:shadow-[0_8px_32px_0_rgba(255,255,255,0.05)] rounded-2xl -z-10 animate-fade-in-up"></div>
+        )}
         {item.icon} {item.name}
     </button>
 );
@@ -145,7 +150,7 @@ const RecruiterLayout: React.FC<RecruiterLayoutProps> = ({
     return (
         <div className="bg-gray-100 dark:bg-gray-900 min-h-screen">
             {/* Recruiter Header */}
-            <header className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-lg sticky top-0 z-50 shadow-lg border-b border-gray-200/50 dark:border-gray-700/50">
+            <header className="bg-white/40 dark:bg-slate-900/40 backdrop-blur-2xl sticky top-0 z-50 shadow-[0_4px_30px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_30px_rgba(255,255,255,0.02)] border-b border-white/40 dark:border-slate-700/50 transition-all duration-500">
                 <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
                         <div className="flex items-center gap-8">
@@ -167,9 +172,7 @@ const RecruiterLayout: React.FC<RecruiterLayoutProps> = ({
                             <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
                                 {theme === 'dark' ? <SunIcon className="h-6 w-6 text-slate-300" /> : <MoonIcon className="h-6 w-6 text-slate-600" />}
                             </button>
-                            <button className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" onClick={() => navigate('notifications')}>
-                                <BellIcon className="h-6 w-6 text-slate-600 dark:text-slate-300" />
-                            </button>
+                            <NotificationDropdown navigate={navigate} />
 
                             {/* Video generation progress indicator — Chrome download style */}
                             <VideoGenIndicator onNavigate={navigate} />

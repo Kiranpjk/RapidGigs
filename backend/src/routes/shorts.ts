@@ -14,6 +14,7 @@ import express from 'express';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import { ShortVideo } from '../models/ShortVideo';
+import { Notification } from '../models/Notification';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import mongoose from 'mongoose';
 import { buildVideoPrompt } from '../services/promptBuilder';
@@ -61,7 +62,7 @@ const generateJobId = () =>
 
 // ── Generate video using parallel Meta AI + VEO AI (via videoStitcher) ───────
 async function generateVideoUrl(
-  prompt: string,
+  script: any,
   jobId: string,
   callbackUrl?: string
 ): Promise<{ videoUrl: string; provider: string } | null> {
@@ -69,7 +70,7 @@ async function generateVideoUrl(
     const { generateStitchedVideo } = await import('../services/videoStitcher');
 
     const result = await generateStitchedVideo({
-      prompt,
+      script,
       onProgress: (step, progress) => {
         console.log(`[VideoGen ${jobId}] ${step} (${Math.round(progress * 100)}%)`);
       },
@@ -151,11 +152,11 @@ router.post('/generate', authenticate, async (req: AuthRequest, res) => {
   // Background processing (don't await)
   (async () => {
     try {
-      // Step 1: Enhance prompt with Groq
-      const videoPrompt = await buildVideoPrompt(prompt);
+      // Step 1: Enhance prompt with Groq to build Structured Script
+      const videoScript = await buildVideoPrompt(prompt);
 
       // Step 2: Generate video
-      const result = await generateVideoUrl(videoPrompt, jobId, callbackUrl);
+      const result = await generateVideoUrl(videoScript, jobId, callbackUrl);
 
       if (!result) {
         jobStore.set(jobId, {
@@ -178,6 +179,19 @@ router.post('/generate', authenticate, async (req: AuthRequest, res) => {
         provider: result.provider,
       });
 
+      // Notify the user
+      try {
+        const videoNotification = new Notification({
+          userId: jobStore.get(jobId)!.userId,
+          type: 'video',
+          title: 'AI Video Ready',
+          message: 'Your 30-second AI pitch video is ready for preview!',
+        });
+        await videoNotification.save();
+      } catch (err) {
+        console.error('Failed to create video notification:', err);
+      }
+
       console.log(`Job ${jobId} completed via ${result.provider}`);
     } catch (err: any) {
       console.error(`Job ${jobId} failed:`, err.message);
@@ -186,6 +200,19 @@ router.post('/generate', authenticate, async (req: AuthRequest, res) => {
         status: 'failed',
         error: err.message,
       });
+
+      // Notify the user of failure
+      try {
+        const failNotification = new Notification({
+          userId: jobStore.get(jobId)!.userId,
+          type: 'video',
+          title: 'Video Generation Failed',
+          message: `Sorry, we couldn't generate your video: ${err.message}`,
+        });
+        await failNotification.save();
+      } catch (nErr) {
+        console.error('Failed to create failure notification:', nErr);
+      }
     }
   })();
 });
@@ -241,12 +268,12 @@ router.post('/from-job/:jobId', authenticate, async (req: AuthRequest, res) => {
     // ── Background processing ──────────────────────────────────────────────
     (async () => {
       try {
-        // Step 1: Enhance prompt using Ollama/Groq with full job context
-        const videoPrompt = await buildVideoPrompt(richDescription);
-        console.log(`[from-job] Enhanced prompt for "${jobDoc.title}": "${videoPrompt}"`);
+        // Step 1: Enhance prompt using Ollama/Groq with full job context to get VideoScript
+        const videoScript = await buildVideoPrompt(richDescription);
+        console.log(`[from-job] Enhanced script for "${jobDoc.title}" generated successfully.`);
 
         // Step 2: Generate video
-        const result = await generateVideoUrl(videoPrompt, videoJobId, callbackUrl);
+        const result = await generateVideoUrl(videoScript, videoJobId, callbackUrl);
 
         if (!result) {
           jobStore.set(videoJobId, {
@@ -258,50 +285,8 @@ router.post('/from-job/:jobId', authenticate, async (req: AuthRequest, res) => {
         }
 
         // Step 3: Save as ShortVideo in DB (private — only visible to the recruiter)
-        // Overlay job details text on the video first
-        const { addJobTextOverlays } = await import('../services/videoStitcher');
+        // Note: The VideoStitcher now natively embeds the 3-part textual overlays directly.
         let finalVideoUrl = result.videoUrl;
-
-        try {
-          // Download the generated video, overlay text, re-upload
-          const fs = await import('fs');
-          const pathModule = await import('path');
-          const { localStorageService } = await import('../services/localStorage');
-
-          const tempPath = pathModule.join(process.cwd(), 'uploads', 'temp', `text-overlay-${videoJobId}-in.mp4`);
-          const outPath = pathModule.join(process.cwd(), 'uploads', 'temp', `text-overlay-${videoJobId}-out.mp4`);
-
-          // Download video
-          const vidResp = await axios.get(result.videoUrl, { responseType: 'arraybuffer', timeout: 120_000 });
-          fs.writeFileSync(tempPath, Buffer.from(vidResp.data));
-
-          // Add text overlays
-          await addJobTextOverlays(
-            tempPath,
-            outPath,
-            {
-              title: jobDoc.title,
-              company: jobDoc.company,
-              location: jobDoc.location,
-              pay: jobDoc.pay,
-              type: jobDoc.type,
-            },
-            (step) => console.log(`  [Overlay] ${step}`)
-          );
-
-          // Upload the overlaid video
-          const fileBuffer = fs.readFileSync(outPath);
-          const uploadPath = await (localStorageService as any).saveFile(fileBuffer, 'ai-videos', `job-${jobDoc._id}.mp4`);
-          finalVideoUrl = uploadPath.startsWith('http') ? uploadPath : `${process.env.API_BASE_URL || 'http://localhost:3001'}${uploadPath}`;
-
-          // Clean up temp files
-          try { fs.unlinkSync(tempPath); } catch {}
-          try { fs.unlinkSync(outPath); } catch {}
-
-          console.log(`  [Overlay] ✅ Added job details to video`);
-        } catch (overlayErr: any) {
-          console.warn(`  [Overlay] Failed to add text overlay, using original video:`, overlayErr.message);
-        }
 
         const newShort = new ShortVideo({
           userId: req.user!.userId,
@@ -320,6 +305,19 @@ router.post('/from-job/:jobId', authenticate, async (req: AuthRequest, res) => {
           videoUrl: finalVideoUrl,
           provider: result.provider,
         });
+
+        // Notify the user
+        try {
+          const jobVideoNotification = new Notification({
+            userId: req.user!.userId,
+            type: 'video',
+            title: 'Job Video Generated',
+            message: `The AI video for your job "${jobDoc.title}" is now live!`,
+          });
+          await jobVideoNotification.save();
+        } catch (err) {
+          console.error('Failed to create job video notification:', err);
+        }
 
         console.log(`[from-job] Job ${videoJobId} completed via ${result.provider}`);
       } catch (err: any) {
@@ -387,11 +385,11 @@ router.post('/generate-long', authenticate, async (req: AuthRequest, res) => {
   // Run generation async
   (async () => {
     try {
-      const enhancedPrompt = await buildVideoPrompt(videoPrompt);
+      const videoScript = await buildVideoPrompt(videoPrompt);
 
       const { generateStitchedVideo } = await import('../services/videoStitcher');
       const result = await generateStitchedVideo({
-        prompt: enhancedPrompt,
+        script: videoScript,
         onProgress: (step, progress) => {
           console.log(`[StitchedVideo ${jobId}] ${step} (${Math.round(progress * 100)}%)`);
           const jobEntry = jobStore.get(jobId);
@@ -402,11 +400,13 @@ router.post('/generate-long', authenticate, async (req: AuthRequest, res) => {
         },
       });
 
+      let finalVideoUrl = result.videoUrl;
+
       // Save to database
       const short = new ShortVideo({
         title: videoPrompt.substring(0, 100),
         description: videoPrompt,
-        videoUrl: result.videoUrl,
+        videoUrl: finalVideoUrl,
         userId: new mongoose.Types.ObjectId(userId),
         duration: result.duration,
         status: 'ready',
@@ -419,6 +419,19 @@ router.post('/generate-long', authenticate, async (req: AuthRequest, res) => {
         jobEntry.status = 'completed';
         jobEntry.videoUrl = result.videoUrl;
         jobEntry.provider = result.providers.join(' → ');
+
+        // Notify the user
+        try {
+          const longVideoNotification = new Notification({
+            userId: userId,
+            type: 'video',
+            title: 'Long Video Generated',
+            message: 'Your complete AI short film has been generated successfully!',
+          });
+          await longVideoNotification.save();
+        } catch (err) {
+          console.error('Failed to create long video notification:', err);
+        }
       }
 
       console.log(`[StitchedVideo ${jobId}] ✅ Done — ${result.clips} clips, ${result.duration}s total`);

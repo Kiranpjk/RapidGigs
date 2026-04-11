@@ -58,8 +58,8 @@ const JobChip: React.FC<{ job: VideoGenJob; onClick: () => void }> = ({ job, onC
         <CircularProgress progress={job.progress} size={28} strokeWidth={2.5} status={job.status} />
         <span className="absolute text-[9px] font-bold">{job.status === 'processing' ? `${job.progress}%` : icon}</span>
       </div>
-      <span className="max-w-[80px] truncate">
-        {job.status === 'completed' ? 'Done!' : job.status === 'failed' ? 'Failed' : 'Generating...'}
+      <span className="max-w-[120px] truncate">
+        {job.title === ' @ ' ? 'Custom Job Video' : job.status === 'completed' ? 'Done!' : job.status === 'failed' ? 'Failed' : 'Generating...'}
       </span>
       {/* Pulse ring for active */}
       {job.status === 'processing' && (
@@ -90,7 +90,7 @@ const VideoGenPanel: React.FC<{
   }, [hasProcessing]);
 
   return (
-    <div className="absolute right-0 top-12 w-[340px] bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 animate-fade-in-down">
+    <div className="absolute right-0 bottom-14 w-[340px] bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[100] animate-fade-in-up">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
         <div className="flex items-center gap-2">
@@ -210,11 +210,11 @@ const VideoGenPanel: React.FC<{
           0%, 100% { height: 4px; }
           50% { height: 20px; }
         }
-        @keyframes fade-in-down {
-          from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+        @keyframes fade-in-up {
+          from { opacity: 0; transform: translateY(8px) scale(0.97); }
           to   { opacity: 1; transform: translateY(0) scale(1); }
         }
-        .animate-fade-in-down { animation: fade-in-down 0.2s ease-out; }
+        .animate-fade-in-up { animation: fade-in-up 0.2s ease-out; }
         .animate-pulse-slow { animation: pulse 3s cubic-bezier(0.4,0,0.6,1) infinite; }
         .duration-1500 { transition-duration: 1500ms; }
       `}</style>
@@ -245,7 +245,7 @@ export const VideoGenIndicator: React.FC<{ onNavigate?: (page: any) => void }> =
   if (jobs.length === 0) return null;
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="fixed bottom-6 right-6 z-[100] flex flex-col items-end gap-2">
       {/* Always-visible chip(s) */}
       <div className="flex items-center gap-1">
         {jobs.slice(0, 2).map(job => (
@@ -261,7 +261,7 @@ export const VideoGenIndicator: React.FC<{ onNavigate?: (page: any) => void }> =
         )}
       </div>
 
-      {/* Expanded panel */}
+      {/* Expanded panel (pops UP above the chips) */}
       {isOpen && (
         <VideoGenPanel
           jobs={jobs}
