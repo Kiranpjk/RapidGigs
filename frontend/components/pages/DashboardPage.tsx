@@ -1,28 +1,26 @@
 
 import React, { useState, useEffect } from 'react';
-import { Page, Job, ShortVideo } from '../../types';
+import { Page, Job } from '../../types';
 import {
-    ArrowUpOnSquareIcon,
     MapPinIcon,
     PlayCircleIcon,
     BuildingOffice2Icon,
-    CurrencyDollarIcon,
     BriefcaseIcon,
+    SearchIcon,
+    VideoCameraIcon,
+    ClockIcon,
 } from '../icons/Icons';
 import { CATEGORIES } from '../../data/mockData';
 import { useAuth } from '../../context/AuthContext';
 import { jobsAPI } from '../../services/api';
-import Swal from 'sweetalert2';
-import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
-import Card from '../../components/ui/Card';
+import JobDetailModal from '../common/JobDetailModal';
 
 // Generate a consistent HSL color from a company name
 function stringToColor(str: string): string {
     let hash = 0;
     for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
     const h = Math.abs(hash) % 360;
-    return `hsl(${h}, 55%, 45%)`;
+    return `hsl(${h}, 50%, 50%)`;
 }
 
 // Get initials from company name
@@ -30,21 +28,16 @@ function getInitials(name: string): string {
     return name.split(/[^a-zA-Z]+/).filter(Boolean).map(w => w[0].toUpperCase()).slice(0, 2).join('');
 }
 
-// JobLogo component — outlined circle (transparent fill, colored border) + briefcase badge
+// Compact company logo — rounded square with initials
 const JobLogo: React.FC<{ company: string }> = ({ company }) => {
     const color = stringToColor(company);
     return (
-        <div className="relative flex-shrink-0">
-            <div 
-                className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-base shadow-sm text-white transition-all duration-300 group-hover:scale-105" 
-                style={{ backgroundColor: color }} 
-                title={company}
-            >
-                {getInitials(company)}
-            </div>
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-indigo-500 rounded-full flex items-center justify-center shadow-lg ring-2 ring-white dark:ring-gray-900 transition-transform duration-300">
-                <BriefcaseIcon className="w-3.5 h-3.5 text-white" />
-            </div>
+        <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center font-semibold text-sm text-white flex-shrink-0 shadow-sm"
+            style={{ backgroundColor: color }}
+            title={company}
+        >
+            {getInitials(company)}
         </div>
     );
 };
@@ -56,23 +49,37 @@ interface DashboardPageProps {
 
 const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) => {
     const [selectedCategory, setSelectedCategory] = useState<string>('All');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [liveJobs, setLiveJobs] = useState<Job[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [sortBy, setSortBy] = useState<'latest' | 'relevant'>('latest');
+    const [selectedJobForDetail, setSelectedJobForDetail] = useState<Job | null>(null);
 
     const { user } = useAuth();
-
     const isRecruiter = user?.role === 'recruiter';
 
+    // Debounce search input (300ms)
     useEffect(() => {
-        jobsAPI.getAll()
+        const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+
+    // Fetch jobs from API with filters
+    useEffect(() => {
+        setIsLoading(true);
+        const filters: any = {};
+        if (debouncedSearch) filters.search = debouncedSearch;
+        if (selectedCategory !== 'All') filters.category = selectedCategory;
+        if (sortBy === 'relevant') filters.sort = 'popular';
+
+        jobsAPI.getAll(filters)
             .then(data => {
                 const arr = Array.isArray(data) ? data : [];
-                // Map backend job shape to frontend Job type
                 const mapped: Job[] = arr.map((j: any) => ({
                     id: j.id || j._id,
                     title: j.title,
                     company: j.company,
-                    logo: null,
                     location: j.location,
                     type: j.type || 'Remote',
                     pay: j.pay,
@@ -91,165 +98,275 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                 }));
                 setLiveJobs(mapped);
             })
-            .catch(() => {})
+            .catch(() => { })
             .finally(() => setIsLoading(false));
+    }, [debouncedSearch, selectedCategory, sortBy]);
 
-    }, []);
-
-    // Use only live API jobs — no mock data fallback
-    const allJobs = liveJobs;
-
-
-    const CategoryButton: React.FC<{ children: React.ReactNode; isActive: boolean; onClick: () => void }> = ({ children, isActive, onClick }) => (
-        <Button
-            variant={isActive ? 'primary' : 'secondary'}
-            size="sm"
-            onClick={onClick}
-            className={`rounded-full ${isActive ? 'font-medium' : ''}`}
-        >
-            {children}
-        </Button>
-    );
-
-    // Determine jobs to display based on category
-    const filteredJobs = selectedCategory === 'All' 
-        ? allJobs 
-        : allJobs.filter(job => job.category === selectedCategory);
-
+    // ─── Job Card ───────────────────────────────────────────────────────────────
     const JobCard: React.FC<{ job: Job; index: number }> = ({ job, index }) => (
-        <Card 
-            variant="elevated"
-            className="h-full flex flex-col border-none ring-1 ring-slate-200 dark:ring-slate-800 group relative overflow-hidden transform-gpu"
+        <div
+            className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700/60 p-5 hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-slate-900/50 hover:-translate-y-1 transition-all duration-300 flex flex-col h-full group"
             data-aos="fade-up"
-            data-aos-delay={index * 50}
+            data-aos-delay={index * 40}
         >
-            <div className="absolute top-0 right-0 py-1 px-3 bg-indigo-100/50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold uppercase tracking-wider rounded-bl-lg backdrop-blur-sm transition-colors group-hover:bg-indigo-600 group-hover:text-white">
-                {job.category}
-            </div>
-            <div className="flex items-start gap-4 mb-4 mt-2">
+            {/* Clickable area → opens job detail modal */}
+            <div className="cursor-pointer" onClick={() => setSelectedJobForDetail(job)}>
+            {/* Header: Logo + Title/Company + Time */}
+            <div className="flex items-start gap-3 mb-3">
                 <JobLogo company={job.company} />
-                <div>
-                    <h3 className="font-bold text-foreground text-lg">{job.title}</h3>
-                    <p className="text-sm text-muted-foreground flex items-center gap-1"><BuildingOffice2Icon className="w-4 h-4"/> {job.company}</p>
+                <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-gray-900 dark:text-white text-[15px] leading-tight mb-0.5 truncate">
+                        {job.title}
+                    </h3>
+                    <p className="text-[13px] text-gray-500 dark:text-gray-400 truncate">
+                        {job.company}
+                    </p>
                 </div>
+                <span className="text-[11px] text-gray-400 dark:text-gray-500 whitespace-nowrap flex items-center gap-1 mt-0.5 flex-shrink-0">
+                    <ClockIcon className="w-3 h-3" />
+                    {job.postedAgo}
+                </span>
             </div>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-                <span className="flex items-center gap-1.5 bg-muted px-2 py-1 rounded-full"><MapPinIcon className="w-4 h-4" /> {job.location}</span>
-                <span className="flex items-center gap-1.5 bg-muted px-2 py-1 rounded-full text-destructive"><CurrencyDollarIcon className="w-4 h-4"/>{job.pay}</span>
+
+            {/* Description */}
+            <p className="text-[13px] text-gray-500 dark:text-gray-400 leading-relaxed line-clamp-2 mb-4 flex-grow">
+                {job.description}
+            </p>
+
+            {/* Info Tags */}
+            <div className="flex flex-wrap gap-1.5 mb-4">
+                <span className="inline-flex items-center gap-1 text-[11px] bg-gray-50 dark:bg-slate-700/50 text-gray-600 dark:text-gray-300 px-2.5 py-1 rounded-lg font-medium">
+                    <MapPinIcon className="w-3 h-3" /> {job.location}
+                </span>
+                <span className="inline-flex items-center gap-1 text-[11px] bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 px-2.5 py-1 rounded-lg font-medium">
+                    {job.pay}
+                </span>
+                <span className="inline-flex items-center text-[11px] bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2.5 py-1 rounded-lg font-medium">
+                    {job.type}
+                </span>
             </div>
-            <p className="text-sm text-muted-foreground flex-grow mb-6 line-clamp-3">{job.description}</p>
-            
+            </div>{/* End clickable area */}
+
+            {/* Video links */}
             {(job.companyVideoUrl || job.freelancerVideoUrl) && (
-                <div className="pt-4 mt-auto mb-4 space-y-2">
+                <div className="flex gap-3 mb-4">
                     {job.companyVideoUrl && (
-                        <a href={job.companyVideoUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-indigo-600 dark:text-indigo-400 hover:underline">
-                            <PlayCircleIcon className="w-5 h-5"/>
-                            <span>Project Brief</span>
+                        <a href={job.companyVideoUrl} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline font-medium">
+                            <PlayCircleIcon className="w-3.5 h-3.5" /> Project Brief
                         </a>
                     )}
                     {job.freelancerVideoUrl && (
-                        <a href={job.freelancerVideoUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-indigo-600 dark:text-indigo-400 hover:underline">
-                            <PlayCircleIcon className="w-5 h-5"/>
-                            <span>Freelancer Guide</span>
+                        <a href={job.freelancerVideoUrl} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline font-medium">
+                            <PlayCircleIcon className="w-3.5 h-3.5" /> Freelancer Guide
                         </a>
                     )}
                 </div>
             )}
 
+            {/* Slot progress bar */}
             {(job.maxSlots && job.maxSlots > 1) && (
-                <div className="mb-3">
-                    <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
-                        <span>{job.filledSlots || 0}/{job.maxSlots} positions filled</span>
-                        <span className={job.status === 'Full' ? 'text-red-500 font-bold' : 'text-green-500 font-bold'}>{job.status === 'Full' ? 'Full' : 'Open'}</span>
+                <div className="mb-4">
+                    <div className="flex justify-between text-[11px] text-gray-400 dark:text-gray-500 mb-1">
+                        <span>{job.filledSlots || 0}/{job.maxSlots} filled</span>
+                        <span className={job.status === 'Full' ? 'text-red-500 font-medium' : 'text-emerald-500 font-medium'}>
+                            {job.status === 'Full' ? 'Full' : 'Open'}
+                        </span>
                     </div>
-                    <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5">
-                        <div className={`h-1.5 rounded-full transition-all ${job.status === 'Full' ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${Math.min(100, ((job.filledSlots || 0) / job.maxSlots) * 100)}%` }} />
+                    <div className="w-full bg-gray-100 dark:bg-slate-700 rounded-full h-1">
+                        <div
+                            className={`h-1 rounded-full transition-all duration-500 ${job.status === 'Full' ? 'bg-red-400' : 'bg-emerald-400'}`}
+                            style={{ width: `${Math.min(100, ((job.filledSlots || 0) / job.maxSlots) * 100)}%` }}
+                        />
                     </div>
                 </div>
             )}
 
+            {/* Apply Button */}
             <button
-                className={`w-full mt-auto bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-4 rounded-xl transition-all duration-300 transform group-hover:scale-[1.02] active:scale-95 shadow-md hover:shadow-indigo-500/25 ${job.status === 'Full' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                onClick={() => {
-                    if (job.status === 'Full') return;
-                    onApplyNow(job);
-                }}
+                className={`w-full mt-auto py-2.5 px-4 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer ${job.status === 'Full'
+                        ? 'bg-gray-100 dark:bg-slate-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                        : 'bg-gray-900 dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-100 text-white dark:text-gray-900 active:scale-[0.98] shadow-sm hover:shadow-md'
+                    }`}
+                onClick={() => { if (job.status !== 'Full') onApplyNow(job); }}
                 disabled={job.status === 'Full'}
             >
                 {job.status === 'Full' ? 'Positions Filled' : 'Apply Now'}
             </button>
-        </Card>
-    );
-    
-    const VideoIntroCard: React.FC<{ video: ShortVideo }> = ({ video }) => (
-        <div className="relative rounded-lg overflow-hidden group cursor-pointer shadow-lg" onClick={() => navigate('shorts')}>
-            <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
-            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <PlayCircleIcon className="w-16 h-16 text-white/80"/>
-            </div>
-            <div className="absolute bottom-0 left-0 p-4">
-                <h3 className="font-bold text-white leading-tight">{video.title}</h3>
-                <p className="text-sm text-slate-300">{video.author.name}</p>
-            </div>
-            <span className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-md font-mono">{video.duration}</span>
         </div>
     );
 
+    // ─── Page Render ────────────────────────────────────────────────────────────
     return (
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="relative rounded-2xl p-6 sm:p-12 text-center mb-12 overflow-hidden bg-gray-200 dark:bg-gray-900 border border-white/20 shadow-xl shadow-indigo-500/5 transition-all duration-500">
-                <div className="absolute inset-0 bg-cover bg-center opacity-10 dark:opacity-20" style={{backgroundImage: 'url(https://picsum.photos/seed/bg/1200/400)'}}></div>
-                <div className="absolute inset-0 bg-gradient-to-t from-gray-100 dark:from-gray-900 via-gray-100/80 dark:via-gray-900/80 to-transparent"></div>
-                <div className="relative z-10">
-                    <h1 className="text-4xl md:text-5xl font-extrabold text-slate-800 dark:text-white mb-4 tracking-tighter">{isRecruiter ? 'Find Skilled Talent Fast' : 'Discover Rapid Gigs Near You'}</h1>
-                    <p className="text-lg text-slate-600 dark:text-slate-300 max-w-2xl mx-auto mb-8">{isRecruiter ? 'Post jobs, review applicants, and hire in minutes with a recruiter-first workflow.' : 'Connect with top talent or find your next microgig instantly. Your work, your code, your gig in 30 seconds.'}</p>
-                    <button onClick={() => navigate(isRecruiter ? 'jobs' : 'upload_video')} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-lg transition-all duration-300 transform hover:scale-105 flex items-center gap-2 mx-auto">
-                        <ArrowUpOnSquareIcon className="w-5 h-5"/> {isRecruiter ? 'Manage Job Posts' : 'Upload Intro'}
-                    </button>
+        <>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+
+            {/* ── Search Hero ──────────────────────────────────────────────────── */}
+            <section className="text-center mb-10 animate-slide-up">
+                <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-2 tracking-tight">
+                    {isRecruiter ? 'Find skilled talent fast' : 'What gig are you looking for?'}
+                </h1>
+                <p className="text-gray-500 dark:text-gray-400 text-base mb-6 max-w-lg mx-auto">
+                    {isRecruiter
+                        ? 'Post jobs, review applicants, and hire in minutes.'
+                        : 'Search thousands of opportunities from companies near you.'}
+                </p>
+                <div className="relative max-w-xl mx-auto">
+                    <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                        id="dashboard-search"
+                        type="text"
+                        placeholder="Search by role, skill, or company..."
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        className="w-full pl-12 pr-4 py-3.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 dark:focus:border-indigo-500 shadow-sm hover:shadow-md transition-all duration-200"
+                    />
                 </div>
-            </div>
-            
-            <section className="mb-12">
-                <h2 className="text-3xl font-bold mb-6 text-slate-800 dark:text-white">Category Explorer</h2>
-                <div className="flex flex-wrap gap-3 mb-8">
-                    <CategoryButton 
-                        key="all" 
-                        isActive={selectedCategory === 'All'}
+            </section>
+
+            {/* ── Contextual Nudge Card ─────────────────────────────────────────── */}
+            {!isRecruiter && (
+                <section className="mb-8">
+                    <div className="bg-gradient-to-r from-indigo-50 to-violet-50 dark:from-indigo-900/20 dark:to-violet-900/20 border border-indigo-100 dark:border-indigo-800/30 rounded-2xl p-4 sm:p-5 flex items-center gap-4 sm:gap-5">
+                        <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-800/40 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <VideoCameraIcon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-gray-900 dark:text-white text-sm">Stand out with a video intro</h3>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Students with videos get 3× more responses from recruiters</p>
+                        </div>
+                        <button
+                            onClick={() => navigate('upload_video')}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium px-4 py-2 rounded-xl transition-colors flex-shrink-0 cursor-pointer"
+                        >
+                            Record Now
+                        </button>
+                    </div>
+                </section>
+            )}
+
+            {isRecruiter && (
+                <section className="mb-8">
+                    <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border border-emerald-100 dark:border-emerald-800/30 rounded-2xl p-4 sm:p-5 flex items-center gap-4 sm:gap-5">
+                        <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-800/40 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <BriefcaseIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-gray-900 dark:text-white text-sm">Post a new job</h3>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Reach thousands of talented college students looking for opportunities</p>
+                        </div>
+                        <button
+                            onClick={() => navigate('jobs')}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium px-4 py-2 rounded-xl transition-colors flex-shrink-0 cursor-pointer"
+                        >
+                            Post Job
+                        </button>
+                    </div>
+                </section>
+            )}
+
+            {/* ── Category Pills ────────────────────────────────────────────────── */}
+            <section className="mb-6">
+                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                    <button
                         onClick={() => setSelectedCategory('All')}
+                        className={`px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-200 cursor-pointer ${selectedCategory === 'All'
+                                ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-sm'
+                                : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700'
+                            }`}
                     >
                         All
-                    </CategoryButton>
+                    </button>
                     {CATEGORIES.map(cat => (
-                        <CategoryButton 
+                        <button
                             key={cat.id}
-                            isActive={selectedCategory === cat.name}
                             onClick={() => setSelectedCategory(cat.name)}
+                            className={`px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-200 cursor-pointer ${selectedCategory === cat.name
+                                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-sm'
+                                    : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700'
+                                }`}
                         >
                             {cat.name}
-                        </CategoryButton>
+                        </button>
                     ))}
                 </div>
             </section>
-            
-            <section className="mb-12">
-                <h2 className="text-3xl font-bold mb-6 text-slate-800 dark:text-white">
-                    {selectedCategory === 'All' ? (isRecruiter ? 'Recent Opportunities to Fill' : 'Nearby Gigs') : `${selectedCategory} Gigs`}
-                    {filteredJobs.length > 0 && <span className="ml-3 text-sm font-normal bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2.5 py-1 rounded-full">{filteredJobs.length} live</span>}
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredJobs.map((job, idx) => <JobCard key={job.id ?? idx} job={job} index={idx} />)}
-                </div>
-                {filteredJobs.length === 0 && !isLoading && (
-                    <div className="text-center py-16 col-span-3">
-                        <div className="text-5xl mb-4">💼</div>
-                        <h3 className="text-xl font-bold text-slate-700 dark:text-white mb-2">No jobs in this category</h3>
-                        <p className="text-slate-400 text-sm">Try exploring other categories or check back later!</p>
+
+            {/* ── Results Header + Sort ─────────────────────────────────────────── */}
+            <section className="mb-6">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                            {selectedCategory === 'All'
+                                ? (isRecruiter ? 'Recent Opportunities' : 'Nearby Gigs')
+                                : selectedCategory}
+                        </h2>
+                        {liveJobs.length > 0 && (
+                            <span className="text-[11px] bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 px-2.5 py-0.5 rounded-full font-medium">
+                                {liveJobs.length} live
+                            </span>
+                        )}
                     </div>
-                )}
+                    <div className="flex gap-1">
+                        <button
+                            onClick={() => setSortBy('latest')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${sortBy === 'latest'
+                                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+                                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700'
+                                }`}
+                        >
+                            Latest
+                        </button>
+                        <button
+                            onClick={() => setSortBy('relevant')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${sortBy === 'relevant'
+                                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+                                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700'
+                                }`}
+                        >
+                            Popular
+                        </button>
+                    </div>
+                </div>
             </section>
-            
+
+            {/* ── Loading State ─────────────────────────────────────────────────── */}
+            {isLoading && (
+                <div className="flex items-center justify-center py-24">
+                    <div className="w-8 h-8 border-2 border-gray-200 dark:border-slate-700 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin" />
+                </div>
+            )}
+
+            {/* ── Jobs Grid ────────────────────────────────────────────────────── */}
+            {!isLoading && (
+                <section>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                        {liveJobs.map((job, idx) => (
+                            <JobCard key={job.id ?? idx} job={job} index={idx} />
+                        ))}
+                    </div>
+                    {liveJobs.length === 0 && (
+                        <div className="text-center py-24">
+                            <div className="text-4xl mb-3">🔍</div>
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">No gigs found</h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                                {debouncedSearch ? 'Try a different search term' : 'Try exploring other categories or check back later'}
+                            </p>
+                        </div>
+                    )}
+                </section>
+            )}
         </div>
+
+            {/* Job Detail Modal */}
+            <JobDetailModal
+                job={selectedJobForDetail}
+                isOpen={!!selectedJobForDetail}
+                onClose={() => setSelectedJobForDetail(null)}
+                onApply={onApplyNow}
+            />
+        </>
     );
 };
 

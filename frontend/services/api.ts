@@ -154,11 +154,13 @@ export const videosAPI = {
 // ─── Jobs API ─────────────────────────────────────────────────────────────────
 
 export const jobsAPI = {
-  getAll: async (filters?: { category?: string; type?: string; location?: string }) => {
+  getAll: async (filters?: { category?: string; type?: string; location?: string; search?: string; sort?: string }) => {
     const params = new URLSearchParams();
     if (filters?.category) params.append('category', filters.category);
     if (filters?.type) params.append('type', filters.type);
     if (filters?.location) params.append('location', filters.location);
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.sort) params.append('sort', filters.sort);
     const qs = params.toString();
     return fetchWithAuth(`${API_BASE_URL}/jobs${qs ? `?${qs}` : ''}`);
   },

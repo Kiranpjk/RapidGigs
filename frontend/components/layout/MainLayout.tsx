@@ -93,7 +93,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ currentPage, navigate, onLogout
     };
 
     return (
-        <div className="bg-gray-100 dark:bg-gray-900 min-h-screen">
+        <div className="bg-[#f5f5f7] dark:bg-gray-900 min-h-screen">
             <Header 
                 navigate={handleNavigate} 
                 onLogout={onLogout} 

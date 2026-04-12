@@ -165,25 +165,31 @@ const ReviewApplicationsPage: React.FC = () => {
     };
 
     return (
-        <div className="container mx-auto px-4 py-8">
-            <div className="mb-6">
-                <h1 className="text-3xl font-extrabold text-slate-800 dark:text-white tracking-tighter">Review Applications</h1>
-                <p className="text-slate-500 dark:text-slate-400 mt-1">View and manage candidates who applied to your jobs.</p>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 animate-slide-up">
+            <div className="mb-10">
+                <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight">Applications</h1>
+                <p className="text-lg text-gray-500 dark:text-slate-400 mt-2">Manage candidates and review video pitches for your open roles.</p>
             </div>
 
-            <div className="flex flex-col lg:flex-row gap-6">
-                {/* Job List Sidebar */}
-                <aside className="w-full lg:w-72 flex-shrink-0">
-                    <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl shadow-sm sticky top-24">
-                        <div className="p-4 border-b border-slate-200 dark:border-slate-700/50">
-                            <h2 className="font-bold text-slate-800 dark:text-white">Your Job Posts</h2>
+            <div className="flex flex-col lg:flex-row gap-8">
+                {/* ── Job List Sidebar ────────────────────────────────────────────── */}
+                <aside className="w-full lg:w-80 flex-shrink-0">
+                    <div className="bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-3xl shadow-sm sticky top-24 overflow-hidden">
+                        <div className="p-6 border-b border-gray-50 dark:border-slate-700">
+                            <h2 className="text-sm font-black uppercase tracking-widest text-gray-400 dark:text-slate-500">Your Postings</h2>
                         </div>
                         {loadingJobs ? (
-                            <div className="p-8 text-center text-slate-400">Loading jobs...</div>
+                            <div className="p-10 text-center flex flex-col items-center gap-3">
+                                <div className="animate-spin w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full"></div>
+                                <span className="text-xs font-bold text-gray-400">Loading...</span>
+                            </div>
                         ) : jobs.length === 0 ? (
-                            <div className="p-8 text-center text-slate-400">No jobs posted yet.</div>
+                            <div className="p-10 text-center">
+                                <span className="text-4xl mb-4 block">📭</span>
+                                <p className="text-xs font-bold text-gray-400">No jobs yet.</p>
+                            </div>
                         ) : (
-                            <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                            <div className="max-h-[60vh] overflow-y-auto">
                                 {jobs.map(job => {
                                     const id = job._id || job.id;
                                     const isActive = selectedJobId === id;
@@ -191,10 +197,19 @@ const ReviewApplicationsPage: React.FC = () => {
                                         <button
                                             key={id}
                                             onClick={() => setSelectedJobId(id)}
-                                            className={`w-full text-left p-4 transition-colors ${isActive ? 'bg-indigo-50 dark:bg-indigo-900/20 border-l-4 border-indigo-500' : 'hover:bg-slate-50 dark:hover:bg-slate-700/30'}`}
+                                            className={`w-full text-left p-6 transition-all border-l-4 ${isActive 
+                                                ? 'bg-indigo-50/50 dark:bg-indigo-900/20 border-indigo-500' 
+                                                : 'border-transparent hover:bg-gray-50 dark:hover:bg-slate-700/50 hover:border-gray-200'}`}
                                         >
-                                            <p className="font-semibold text-slate-800 dark:text-white text-sm truncate">{job.title}</p>
-                                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{job.company} · {job.location}</p>
+                                            <p className={`font-bold truncate ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-900 dark:text-white'}`}>{job.title}</p>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <p className="text-xs font-bold text-gray-400 dark:text-slate-500 truncate">{job.company}</p>
+                                                {job.applicationCount > 0 && (
+                                                    <span className="text-[10px] bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 px-1.5 py-0.5 rounded-md">
+                                                        {job.applicationCount}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </button>
                                     );
                                 })}
@@ -203,160 +218,134 @@ const ReviewApplicationsPage: React.FC = () => {
                     </div>
                 </aside>
 
-                {/* Applications Panel */}
+                {/* ── Applications Panel ──────────────────────────────────────────── */}
                 <main className="flex-1 min-w-0">
                     {!selectedJobId ? (
-                        <div className="text-center py-20 text-slate-400">Select a job to see applications</div>
+                        <div className="bg-white dark:bg-slate-800 rounded-3xl border border-dashed border-gray-200 dark:border-slate-700 p-20 text-center">
+                            <span className="text-5xl mb-6 block">👈</span>
+                            <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">Select a Job Posting</h3>
+                            <p className="text-gray-500 dark:text-gray-400 max-w-xs mx-auto text-sm">Pick a job from the sidebar to start reviewing candidate applications.</p>
+                        </div>
                     ) : loadingApps ? (
-                        <div className="text-center py-20 text-slate-400">
-                            <div className="animate-spin w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full mx-auto mb-3"></div>
-                            Loading applications...
+                        <div className="flex flex-col items-center justify-center py-32 bg-white dark:bg-slate-800 rounded-3xl border border-gray-100 dark:border-slate-700 shadow-sm">
+                            <div className="animate-spin w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full mb-6"></div>
+                            <p className="font-bold text-gray-400 uppercase tracking-widest text-xs">Fetching Candidates...</p>
                         </div>
                     ) : (
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between bg-white dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-sm">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold">
+                        <div className="space-y-6">
+                            <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-gray-100 dark:border-slate-700 shadow-sm flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-gray-50 dark:bg-slate-700 rounded-2xl flex items-center justify-center text-xl font-black text-gray-900 dark:text-white shadow-inner">
                                         {(jobs.find(j => j._id === selectedJobId || j.id === selectedJobId)?.company || 'J').substring(0,1)}
                                     </div>
                                     <div>
-                                        <h2 className="font-bold text-slate-800 dark:text-white">
+                                        <h2 className="text-xl font-extrabold text-gray-900 dark:text-white tracking-tight">
                                             {jobs.find(j => j._id === selectedJobId || j.id === selectedJobId)?.title}
                                         </h2>
-                                        <p className="text-xs text-slate-500 underline">Current Job Post</p>
+                                        <p className="text-xs font-bold text-indigo-500 uppercase tracking-widest">Active Review</p>
                                     </div>
                                 </div>
                                 <button
                                     onClick={startEditing}
-                                    className="flex items-center gap-1.5 px-4 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors shadow-sm"
+                                    className="px-6 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl text-sm font-bold hover:scale-105 transition-all shadow-lg cursor-pointer"
                                 >
-                                    <PencilSquareIcon className="w-4 h-4" />
-                                    Edit Job
+                                    Edit Posting
                                 </button>
                             </div>
 
                             {(() => {
                                 const selectedJob = jobs.find(j => j._id === selectedJobId || j.id === selectedJobId);
-                                return selectedJob?.maxSlots && selectedJob.maxSlots > 1 ? (
-                                    <div className="bg-white dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-sm">
-                                        <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
-                                            <span>{selectedJob.filledSlots || 0}/{selectedJob.maxSlots} positions filled</span>
-                                            <span className={selectedJob.status === 'Full' ? 'text-red-500 font-bold' : 'text-green-500 font-bold'}>{selectedJob.status === 'Full' ? 'Full' : 'Open'}</span>
+                                if (!selectedJob?.maxSlots || selectedJob.maxSlots <= 0) return null;
+                                const filledPercent = Math.min(100, ((selectedJob.filledSlots || 0) / selectedJob.maxSlots) * 100);
+                                return (
+                                    <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-gray-100 dark:border-slate-700 shadow-sm">
+                                        <div className="flex justify-between items-center mb-3">
+                                            <span className="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-widest">Hiring Progress</span>
+                                            <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${selectedJob.status === 'Full' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+                                                {selectedJob.filledSlots || 0} / {selectedJob.maxSlots} Slots Filled
+                                            </span>
                                         </div>
-                                        <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5">
-                                            <div className={`h-1.5 rounded-full transition-all ${selectedJob.status === 'Full' ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${Math.min(100, ((selectedJob.filledSlots || 0) / selectedJob.maxSlots) * 100)}%` }} />
+                                        <div className="w-full bg-gray-100 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
+                                            <div className={`h-full rounded-full transition-all duration-1000 ${selectedJob.status === 'Full' ? 'bg-red-500' : 'bg-indigo-500'}`} style={{ width: `${filledPercent}%` }} />
                                         </div>
                                     </div>
-                                ) : null;
+                                );
                             })()}
 
-                            {/* Edit Modal Overlay */}
+                            {/* ── Edit Modal Overlay ─────────────────────────────────────── */}
                             {isEditingJob && editingForm && (
-                                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-                                    <div className="bg-white dark:bg-slate-800 w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
-                                        <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
-                                            <h2 className="text-xl font-bold text-slate-800 dark:text-white">Edit Job Posting</h2>
-                                            <button onClick={() => setIsEditingJob(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full">
-                                                <XMarkIcon className="w-6 h-6 text-slate-400" />
+                                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-md p-4 animate-fade-in">
+                                    <div className="bg-white dark:bg-slate-800 w-full max-w-2xl rounded-[2.5rem] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-scale-in">
+                                        <div className="p-8 border-b border-gray-50 dark:border-slate-700 flex items-center justify-between bg-white dark:bg-slate-800 sticky top-0 z-10">
+                                            <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">Edit Job Posting</h2>
+                                            <button onClick={() => setIsEditingJob(false)} className="w-10 h-10 flex items-center justify-center bg-gray-50 dark:bg-slate-700 hover:bg-gray-100 dark:hover:bg-slate-600 rounded-full transition-all cursor-pointer">
+                                                <XMarkIcon className="w-6 h-6 text-gray-400" />
                                             </button>
                                         </div>
-                                        <form onSubmit={handleUpdateJob} className="p-6 overflow-y-auto space-y-4">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <form onSubmit={handleUpdateJob} className="p-8 overflow-y-auto space-y-6">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 <div>
-                                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Job Title</label>
+                                                    <label className="block text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2 px-1">Job Title</label>
                                                     <input 
                                                         type="text" value={editingForm.title} 
                                                         onChange={e => setEditingForm({...editingForm, title: e.target.value})}
-                                                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-white"
+                                                        className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-700 rounded-2xl px-5 py-3.5 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-gray-900 dark:text-white font-bold transition-all"
                                                         required
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Company Name</label>
+                                                    <label className="block text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2 px-1">Company</label>
                                                     <input 
                                                         type="text" value={editingForm.company} 
                                                         onChange={e => setEditingForm({...editingForm, company: e.target.value})}
-                                                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-white"
+                                                        className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-700 rounded-2xl px-5 py-3.5 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-gray-900 dark:text-white font-bold transition-all"
                                                         required
                                                     />
                                                 </div>
                                             </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 <div>
-                                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Location</label>
+                                                    <label className="block text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2 px-1">Location</label>
                                                     <input 
                                                         type="text" value={editingForm.location} 
                                                         onChange={e => setEditingForm({...editingForm, location: e.target.value})}
-                                                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-white"
+                                                        className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-700 rounded-2xl px-5 py-3.5 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-gray-900 dark:text-white font-bold transition-all"
                                                         required
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Pay Range</label>
+                                                    <label className="block text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2 px-1">Pay Range</label>
                                                     <input 
                                                         type="text" value={editingForm.pay} 
                                                         onChange={e => setEditingForm({...editingForm, pay: e.target.value})}
-                                                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-white"
+                                                        className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-700 rounded-2xl px-5 py-3.5 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-gray-900 dark:text-white font-bold transition-all"
                                                         placeholder="e.g. $80k - $120k"
                                                         required
                                                     />
                                                 </div>
                                             </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                <div>
-                                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Job Type</label>
-                                                    <select 
-                                                        value={editingForm.type} 
-                                                        onChange={e => setEditingForm({...editingForm, type: e.target.value})}
-                                                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-white"
-                                                    >
-                                                        <option value="Remote">Remote</option>
-                                                        <option value="On-site">On-site</option>
-                                                        <option value="Hybrid">Hybrid</option>
-                                                    </select>
-                                                </div>
-                                                <div>
-                                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Category</label>
-                                                    <select 
-                                                        value={editingForm.categoryId} 
-                                                        onChange={e => setEditingForm({...editingForm, categoryId: e.target.value})}
-                                                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-white"
-                                                    >
-                                                        <option value="">Select a category</option>
-                                                        {categories.map(c => (
-                                                            <option key={c._id || c.id} value={c._id || c.id}>{c.name}</option>
-                                                        ))}
-                                                    </select>
-                                                </div>
-                                            </div>
                                             <div>
-                                                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Job Description</label>
+                                                <label className="block text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2 px-1">Job Description</label>
                                                 <textarea 
                                                     value={editingForm.description} 
                                                     onChange={e => setEditingForm({...editingForm, description: e.target.value})}
-                                                    rows={4}
-                                                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-white"
+                                                    rows={5}
+                                                    className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-700 rounded-[2rem] px-6 py-5 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-gray-900 dark:text-white font-medium leading-relaxed transition-all"
                                                     required
                                                 />
                                             </div>
-                                            <div className="pt-4 flex gap-3">
+                                            <div className="pt-6 flex flex-col sm:flex-row gap-4">
                                                 <button 
                                                     type="submit" disabled={isSavingJob}
-                                                    className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg flex items-center justify-center gap-2"
+                                                    className="flex-1 bg-gray-900 dark:bg-white text-white dark:text-gray-900 py-4 rounded-2xl font-bold hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-gray-200 dark:shadow-none flex items-center justify-center gap-2 cursor-pointer"
                                                 >
-                                                    {isSavingJob ? 'Saving Changes...' : <><CheckIcon className="w-5 h-5" /> Save Changes</>}
-                                                </button>
-                                                <button 
-                                                    type="button" onClick={() => setIsEditingJob(false)} disabled={isSavingJob}
-                                                    className="px-6 py-3 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
-                                                >
-                                                    Cancel
+                                                    {isSavingJob ? 'Saving...' : 'Update Job Post'}
                                                 </button>
                                                 <button 
                                                     type="button" onClick={handleDeleteJob} disabled={isSavingJob}
-                                                    className="px-6 py-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-xl font-bold hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+                                                    className="px-8 py-4 bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 rounded-2xl font-bold hover:bg-red-100 dark:hover:bg-red-900/30 transition-all cursor-pointer"
                                                 >
-                                                    Delete Job
+                                                    Delete
                                                 </button>
                                             </div>
                                         </form>
@@ -364,164 +353,164 @@ const ReviewApplicationsPage: React.FC = () => {
                                 </div>
                             )}
 
+                            {/* ── Applications Feed ──────────────────────────────────────── */}
                             {applications.length === 0 ? (
-                                <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl p-16 text-center shadow-sm mt-4">
-                                    <div className="text-5xl mb-4">📭</div>
-                                    <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">No Applications Yet</h3>
-                                    <p className="text-slate-500 dark:text-slate-400">No one has applied to this job yet. Check back later!</p>
+                                <div className="bg-white dark:bg-slate-800 border border-dashed border-gray-200 dark:border-slate-700 rounded-[2.5rem] p-24 text-center">
+                                    <div className="text-6xl mb-6">👻</div>
+                                    <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">Ghost Town</h3>
+                                    <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto">No applications yet for this role. Try sharing the job on social media to attract candidates!</p>
                                 </div>
                             ) : (
-                                <p className="text-sm text-slate-500 dark:text-slate-400 font-medium pt-4">
-                                    {applications.length} application{applications.length !== 1 ? 's' : ''} received. Swipe down to review! 👇
-                                </p>
-                            )}
+                                <>
+                                    <p className="text-sm font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest px-2 mb-4">
+                                        Received {applications.length} applications
+                                    </p>
+                                    <div className="h-[75vh] w-full bg-black rounded-[2.5rem] overflow-y-scroll snap-y snap-mandatory border-[8px] border-white dark:border-slate-800 shadow-2xl relative scrollbar-none">
+                                        {applications.map(app => {
+                                            const id = app._id || app.id;
+                                            const rawStatus = app.status || 'pending';
+                                            const status = rawStatus.toLowerCase();
+                                            const isExpanded = expandedApp === id;
 
-                            {applications.length > 0 && (
-                                <div className="h-[75vh] w-full bg-black rounded-2xl overflow-y-scroll snap-y snap-mandatory border-4 border-slate-800 shadow-2xl relative">
-                                    {applications.map(app => {
-                                        const id = app._id || app.id;
-                                        const rawStatus = app.status || 'pending';
-                                        const status = rawStatus.toLowerCase();
-                                        const isExpanded = expandedApp === id;
-
-                                        return (
-                                            <div key={id} className="w-full h-full snap-start relative bg-slate-900 border-b-4 border-black group overflow-hidden flex flex-col justify-center">
-                                                
-                                                {/* Background Video Player */}
-                                                {app.videoUrl ? (
-                                                    <video
-                                                        src={getMediaUrl(app.videoUrl)}
-                                                        className="absolute inset-0 w-full h-full object-cover opacity-90"
-                                                        controls
-                                                        preload="metadata"
-                                                    />
-                                                ) : (
-                                                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-800 text-slate-400 z-0">
-                                                        <span className="text-6xl mb-4">🎥</span>
-                                                        <h3 className="text-2xl font-bold text-white mb-2">No Pitch Video</h3>
-                                                        <p>This candidate skipped the video pitch.</p>
-                                                    </div>
-                                                )}
-
-                                                {/* Dim Gradient Overlay */}
-                                                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/10 pointer-events-none z-10"></div>
-
-                                                {/* Floating Content Foreground */}
-                                                <div className="absolute inset-x-0 bottom-0 p-6 flex flex-col justify-end z-20 pointer-events-none">
+                                            return (
+                                                <div key={id} className="w-full h-full snap-start relative bg-gray-950 group overflow-hidden flex flex-col justify-center">
                                                     
-                                                    {/* Status Badge */}
-                                                    <div className="mb-4 pointer-events-auto self-start">
-                                                        <span className={`text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-md backdrop-blur-md shadow-xl ${statusColors[rawStatus] || statusColors[status] || statusColors['pending']}`}>
-                                                            {rawStatus}
-                                                        </span>
-                                                        {updatingId === id && <span className="ml-2 text-xs text-white animate-pulse">Saving...</span>}
+                                                    {/* Background Video pitch */}
+                                                    {app.videoUrl ? (
+                                                        <video
+                                                            src={getMediaUrl(app.videoUrl)}
+                                                            className="absolute inset-0 w-full h-full object-cover opacity-90"
+                                                            loop
+                                                            muted
+                                                            playsInline
+                                                            onMouseOver={e => (e.target as HTMLVideoElement).play()}
+                                                            onMouseOut={e => (e.target as HTMLVideoElement).pause()}
+                                                        />
+                                                    ) : (
+                                                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 text-gray-500">
+                                                            <span className="text-6xl mb-6">😶</span>
+                                                            <h3 className="text-xl font-bold text-white mb-1">Text-Only Application</h3>
+                                                            <p className="text-sm opacity-60">Candidate did not record a video pitch.</p>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Immersive Overlay */}
+                                                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/30 pointer-events-none z-10"></div>
+
+                                                    {/* Floating Actions/Info */}
+                                                    <div className="absolute inset-x-0 bottom-0 p-8 flex flex-col justify-end z-20 pointer-events-none">
+                                                        
+                                                        {/* Individual Status */}
+                                                        <div className="mb-6 pointer-events-auto self-start">
+                                                            <span className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl backdrop-blur-xl shadow-2xl border border-white/10 ${statusColors[rawStatus] || statusColors[status] || statusColors['pending']}`}>
+                                                                {rawStatus}
+                                                            </span>
+                                                        </div>
+
+                                                        <div className="flex items-end justify-between gap-6 pointer-events-auto">
+                                                            {/* Applicant Visuals */}
+                                                            <div className="flex items-center gap-5 text-white">
+                                                                <img
+                                                                    src={app.applicant?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(app.applicant?.name || 'A')}&size=64&background=6366f1&color=fff`}
+                                                                    alt={app.applicant?.name}
+                                                                    className="w-20 h-20 rounded-3xl border-4 border-white/20 shadow-2xl object-cover transform group-hover:scale-105 transition-transform duration-500"
+                                                                />
+                                                                <div>
+                                                                    <h3 className="font-black text-4xl tracking-tighter drop-shadow-2xl">{app.applicant?.name?.split(' ')[0]}</h3>
+                                                                    <p className="text-white/60 font-bold tracking-tight text-sm drop-shadow-md">{app.applicant?.email}</p>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Quick Actions (Swipe/Tinder Style) */}
+                                                            <div className="flex flex-col items-center gap-4">
+                                                                <button 
+                                                                    onClick={() => handleStatusChange(id, 'shortlisted')}
+                                                                    className="w-16 h-16 bg-white text-gray-900 rounded-full flex items-center justify-center text-2xl shadow-2xl hover:scale-110 active:scale-95 transition-all cursor-pointer"
+                                                                >
+                                                                    ⚡
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => handleStatusChange(id, 'rejected')}
+                                                                    className="w-12 h-12 bg-white/10 backdrop-blur-md text-white rounded-full flex items-center justify-center text-xl hover:bg-white/20 transition-all cursor-pointer"
+                                                                >
+                                                                    ✕
+                                                                </button>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Portfolio Access */}
+                                                        <div className="mt-10 pointer-events-auto">
+                                                            <button 
+                                                                onClick={() => setExpandedApp(isExpanded ? null : id)}
+                                                                className="w-full py-5 rounded-2xl bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/10 text-white font-black tracking-widest uppercase text-xs transition-all flex items-center justify-center gap-3 cursor-pointer shadow-2xl"
+                                                            >
+                                                                Review Full Portfolio <span>→</span>
+                                                            </button>
+                                                        </div>
                                                     </div>
 
-                                                    <div className="flex items-end justify-between gap-4 pointer-events-auto">
-                                                        {/* Applicant Profile */}
-                                                        <div className="flex items-center gap-4 text-white">
-                                                            <img
-                                                                src={app.applicant?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(app.applicant?.name || 'A')}&size=64&background=6366f1&color=fff`}
-                                                                alt={app.applicant?.name}
-                                                                className="w-16 h-16 rounded-full border-4 border-white/20 shadow-xl object-cover"
-                                                            />
+                                                    {/* Swipe-Right Drawer (Immersive) */}
+                                                    <div className={`absolute top-0 right-0 h-full w-full md:w-[85%] bg-white dark:bg-slate-900 shadow-2xl transition-transform duration-700 ease-in-out z-50 p-10 flex flex-col ${isExpanded ? 'translate-x-0' : 'translate-x-[105%]'}`}>
+                                                        <div className="flex justify-between items-center mb-10">
+                                                            <div className="flex items-center gap-4">
+                                                                <img src={app.applicant?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(app.applicant?.name || 'A')}&size=40&background=6366f1&color=fff`} className="w-12 h-12 rounded-2xl" />
+                                                                <div>
+                                                                    <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter uppercase">{app.applicant?.name}</h2>
+                                                                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Full Candidate Dossier</p>
+                                                                </div>
+                                                            </div>
+                                                            <button onClick={() => setExpandedApp(null)} className="w-12 h-12 flex items-center justify-center bg-gray-50 dark:bg-slate-800 rounded-full hover:rotate-90 transition-all cursor-pointer">
+                                                                <XMarkIcon className="w-6 h-6 text-gray-400" />
+                                                            </button>
+                                                        </div>
+                                                        
+                                                        <div className="flex-1 overflow-y-auto pr-6 space-y-10 scrollbar-none">
+                                                            {/* Links Section */}
                                                             <div>
-                                                                <h3 className="font-extrabold text-3xl drop-shadow-xl">{app.applicant?.name || 'Anonymous'}</h3>
-                                                                <p className="text-white/80 font-medium drop-shadow-md">{app.applicant?.email}</p>
-                                                                <p className="text-xs text-white/50 mt-1">
-                                                                    Applied {new Date(app.createdAt || app.dateApplied || Date.now()).toLocaleDateString()}
-                                                                </p>
+                                                                <h3 className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em] mb-4">🔗 Project Links & Notes</h3>
+                                                                <div className="bg-gray-50 dark:bg-slate-800/50 p-6 rounded-3xl border border-gray-100 dark:border-slate-800 text-gray-700 dark:text-slate-300 text-sm leading-[1.8] font-medium">
+                                                                    {app.coverLetter || 'No additional project links or notes provided by the candidate.'}
+                                                                </div>
                                                             </div>
-                                                        </div>
 
-                                                        {/* Tinder Actions */}
-                                                        <div className="flex flex-col items-center gap-3">
-                                                            <button 
-                                                                onClick={() => handleStatusChange(id, 'shortlisted')}
-                                                                title="Shortlist (Interview)"
-                                                                className="w-14 h-14 bg-green-500 rounded-full flex items-center justify-center text-3xl shadow-[0_0_20px_rgba(34,197,94,0.5)] hover:scale-110 hover:-translate-y-2 transition-all"
-                                                            >
-                                                                ✅
-                                                            </button>
-                                                            <button 
-                                                                onClick={() => handleStatusChange(id, 'rejected')}
-                                                                title="Pass"
-                                                                className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center text-2xl shadow-[0_0_15px_rgba(239,68,68,0.5)] hover:scale-110 transition-all opacity-80 hover:opacity-100"
-                                                            >
-                                                                ❌
-                                                            </button>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Open Drawer Button */}
-                                                    <div className="mt-8 mb-4 pointer-events-auto">
-                                                        <button 
-                                                            onClick={() => setExpandedApp(isExpanded ? null : id)}
-                                                            className="w-full py-4 rounded-xl bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white font-bold tracking-wide transition-colors flex items-center justify-center gap-2"
-                                                        >
-                                                            <span>Swipe Right for Portfolio & Resume</span> <span>👉</span>
-                                                        </button>
-                                                    </div>
-                                                </div>
-
-                                                {/* Swipe-Right Drawer Overlay */}
-                                                <div className={`absolute top-0 right-0 h-full w-full md:w-[85%] bg-slate-900 border-l border-white/10 shadow-2xl transition-transform duration-500 ease-out z-50 p-6 flex flex-col ${isExpanded ? 'translate-x-0' : 'translate-x-[105%]'}`}>
-                                                    <div className="flex justify-between items-center mb-6">
-                                                        <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-                                                            <img src={app.applicant?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(app.applicant?.name || 'A')}&size=40&background=6366f1&color=fff`} className="w-8 h-8 rounded-full" />
-                                                            {app.applicant?.name}'s Full Profile
-                                                        </h2>
-                                                        <button onClick={() => setExpandedApp(null)} className="text-white bg-slate-800 rounded-full p-2 hover:bg-slate-700 hover:rotate-90 transition-all">
-                                                            <XMarkIcon className="w-6 h-6" />
-                                                        </button>
-                                                    </div>
-                                                    
-                                                    <div className="flex-1 overflow-y-auto pr-2 space-y-6 scrollbar-thin scrollbar-thumb-slate-700">
-                                                        {/* Portfolio Links */}
-                                                        <div>
-                                                            <h3 className="text-indigo-400 font-bold mb-3 uppercase text-xs tracking-widest flex items-center gap-2">🔗 Portfolio / Project Links</h3>
-                                                            <div className="bg-slate-950 p-5 rounded-xl border border-slate-800 text-slate-300 whitespace-pre-wrap text-sm leading-relaxed overflow-hidden break-words font-mono">
-                                                                {app.coverLetter || 'No links provided by the candidate.'}
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Resume Area */}
-                                                        <div className="flex-1 flex flex-col min-h-[400px]">
-                                                            <div className="flex items-center justify-between mb-3">
-                                                                <h3 className="text-indigo-400 font-bold uppercase text-xs tracking-widest flex items-center gap-2">📄 Resume / CV</h3>
-                                                                {app.resumeUrl && isRealUrl(app.resumeUrl) && (
-                                                                    <a href={getMediaUrl(app.resumeUrl)} target="_blank" rel="noreferrer" className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold underline">
-                                                                        Download PDF
-                                                                    </a>
-                                                                )}
-                                                            </div>
-                                                            <div className="flex-1 bg-white rounded-xl overflow-hidden border-4 border-slate-800 min-h-[500px]">
-                                                                {app.resumeUrl ? (
-                                                                    isPdf(app.resumeUrl) ? (
-                                                                        <PdfPreview url={getMediaUrl(app.resumeUrl)} />
+                                                            {/* Resume Section with Preview */}
+                                                            <div className="flex-1 flex flex-col min-h-[500px]">
+                                                                <div className="flex items-center justify-between mb-4">
+                                                                     <h3 className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">📄 Resume / CV Preview</h3>
+                                                                    {app.resumeUrl && isRealUrl(app.resumeUrl) && (
+                                                                        <a href={getMediaUrl(app.resumeUrl)} target="_blank" rel="noreferrer" className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-widest underline">
+                                                                            Download PDF
+                                                                        </a>
+                                                                    )}
+                                                                </div>
+                                                                <div className="flex-1 bg-gray-100 dark:bg-slate-950 rounded-3xl overflow-hidden border-8 border-gray-50 dark:border-slate-800 min-h-[600px] shadow-inner relative">
+                                                                    {app.resumeUrl ? (
+                                                                        isPdf(app.resumeUrl) ? (
+                                                                            <PdfPreview url={getMediaUrl(app.resumeUrl)} />
+                                                                        ) : (
+                                                                            <div className="h-full flex flex-col items-center justify-center p-10 text-center text-gray-900 dark:text-white bg-white dark:bg-slate-900">
+                                                                                <span className="text-6xl mb-6">📄</span>
+                                                                                <p className="font-bold text-xl mb-6 text-gray-500">Document available but preview unavailable</p>
+                                                                                <a href={getMediaUrl(app.resumeUrl)} target="_blank" rel="noreferrer" className="px-10 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-105 transition-all">
+                                                                                    Open Document
+                                                                                </a>
+                                                                            </div>
+                                                                        )
                                                                     ) : (
-                                                                        <div className="h-full flex flex-col items-center justify-center p-6 text-center text-slate-800 bg-slate-100">
-                                                                            <span className="text-6xl mb-4">📰</span>
-                                                                            <p className="font-bold mb-2">Resume Document Available</p>
-                                                                            <a href={getMediaUrl(app.resumeUrl)} target="_blank" rel="noreferrer" className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-bold">
-                                                                                Click Here to Open Download
-                                                                            </a>
+                                                                        <div className="h-full flex flex-col items-center justify-center text-gray-300 bg-gray-50 dark:bg-slate-900/50">
+                                                                            <span className="text-6xl mb-6 opacity-20">📂</span>
+                                                                            <p className="font-bold uppercase tracking-widest text-xs">No resume provided</p>
                                                                         </div>
-                                                                    )
-                                                                ) : (
-                                                                    <div className="h-full flex flex-col items-center justify-center text-slate-400 bg-slate-100">
-                                                                        <span className="text-5xl mb-3 opacity-50">📁</span>
-                                                                        <p>No resume PDF provided.</p>
-                                                                    </div>
-                                                                )}
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </>
                             )}
                         </div>
                     )}

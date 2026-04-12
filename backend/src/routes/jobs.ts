@@ -29,10 +29,27 @@ router.get('/', async (req, res) => {
       query.location = { $regex: escaped, $options: 'i' };
     }
 
+    // Text search across title, company, and description
+    if (req.query.search) {
+      const escaped = (req.query.search as string).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const searchRegex = new RegExp(escaped, 'i');
+      query.$or = [
+        { title: searchRegex },
+        { company: searchRegex },
+        { description: searchRegex },
+      ];
+    }
+
+    // Sort: default is latest, 'popular' sorts by likes
+    let sortOption: any = { createdAt: -1 };
+    if (req.query.sort === 'popular') {
+      sortOption = { likes: -1, createdAt: -1 };
+    }
+
     const jobs = await Job.find(query)
       .populate('categoryId', 'name')
       .populate('postedBy', 'name avatarUrl')
-      .sort({ createdAt: -1 })
+      .sort(sortOption)
       .limit(100);
 
     res.json(jobs.map(job => ({

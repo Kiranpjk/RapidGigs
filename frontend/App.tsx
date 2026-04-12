@@ -27,7 +27,7 @@ const getPageFromUrl = (): Page => {
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>(getPageFromUrl);
   const [theme, setTheme] = useState<'light' | 'dark'>(() =>
-    (localStorage.getItem('theme') as 'light' | 'dark') || 'dark'
+    (localStorage.getItem('theme') as 'light' | 'dark') || 'light'
   );
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalPage, setAuthModalPage] = useState<'login' | 'signup'>('login');
