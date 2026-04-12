@@ -335,6 +335,12 @@ export const aiAPI = {
       method: 'POST',
       body: JSON.stringify({ prompt }),
     }),
+
+  extractJob: async (text: string) =>
+    fetchWithAuth(`${API_BASE_URL}/ai/extract-job`, {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    }),
 };
 
 // ─── Admin API — ✅ FIXED: now uses fetchWithAuth instead of raw fetch ─────────

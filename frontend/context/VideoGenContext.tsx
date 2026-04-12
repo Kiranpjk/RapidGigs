@@ -12,7 +12,8 @@ export interface VideoGenJob {
   jobId: string;
   title: string;         // Job title for display
   status: 'processing' | 'completed' | 'failed';
-  progress: number;      // 0–100 simulated progress
+  progress: number;      // 0–100 actual progress from backend
+  step: string;          // current step (e.g. "Generating Clip 1...")
   videoUrl?: string;
   error?: string;
   startedAt: number;     // timestamp
@@ -75,30 +76,18 @@ export const VideoGenProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   const startJob = useCallback((jobId: string, title: string) => {
-    // Add to jobs list
+    // No more simulated progress — we use real data from the backend!
     setJobs(prev => [
       ...prev.filter(j => j.jobId !== jobId),
       {
         jobId,
         title,
         status: 'processing',
-        progress: 0,
+        progress: 10,
+        step: 'Initializing AI...',
         startedAt: Date.now(),
       },
     ]);
-
-    // ── Simulate progress (non-linear, slows near 90%) ────────────────────
-    let simProgress = 0;
-    const progressInterval = setInterval(() => {
-      simProgress += simProgress < 30 ? 3 : simProgress < 60 ? 1.5 : simProgress < 85 ? 0.5 : 0.1;
-      const clamped = Math.min(Math.round(simProgress), 89); // Never reach 100 until done
-      setJobs(prev => prev.map(j =>
-        j.jobId === jobId && j.status === 'processing'
-          ? { ...j, progress: clamped }
-          : j
-      ));
-    }, 2000);
-    progressRefs.current.set(jobId, progressInterval);
 
     // ── Poll backend for real status ───────────────────────────────────────
     const pollInterval = setInterval(async () => {
@@ -109,27 +98,34 @@ export const VideoGenProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           stopPolling(jobId);
           setJobs(prev => prev.map(j =>
             j.jobId === jobId
-              ? { ...j, status: 'completed', progress: 100, videoUrl: data.videoUrl, provider: data.provider }
+              ? { ...j, status: 'completed', progress: 100, step: 'Video Ready!', videoUrl: data.resultUrl || data.videoUrl, provider: data.provider }
               : j
           ));
-          // Auto-dismiss after 8 seconds (now with proper cleanup)
+          // Auto-dismiss after 10 seconds
           const timeout = setTimeout(() => {
             setJobs(prev => prev.filter(j => j.jobId !== jobId));
             autoDismissRefs.current.delete(jobId);
-          }, 8000);
+          }, 10000);
           autoDismissRefs.current.set(jobId, timeout);
+        } else if (data.status === 'processing') {
+          // UPDATE REAL PROGRESS AND STEP
+          setJobs(prev => prev.map(j =>
+            j.jobId === jobId
+              ? { ...j, progress: data.progress || j.progress, step: data.step || j.step }
+              : j
+          ));
         } else if (data.status === 'failed') {
           stopPolling(jobId);
           setJobs(prev => prev.map(j =>
             j.jobId === jobId
-              ? { ...j, status: 'failed', progress: 0, error: data.error || 'Generation failed' }
+              ? { ...j, status: 'failed', progress: 0, step: 'Failed', error: data.error || 'Generation failed' }
               : j
           ));
         }
-      } catch {
-        // Network error — keep polling silently
+      } catch (err) {
+        console.warn('Poll failed:', err);
       }
-    }, 8000); // Poll every 8s
+    }, 5000); // Poll every 5s for real-time feel
 
     pollingRefs.current.set(jobId, pollInterval);
   }, [stopPolling]);

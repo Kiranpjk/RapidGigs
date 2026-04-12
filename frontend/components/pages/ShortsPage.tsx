@@ -6,6 +6,9 @@ import {
     ShareIcon,
     PaperAirplaneIcon,
     EyeIcon,
+    BriefcaseIcon,
+    MapPinIcon,
+    SparklesIcon,
 } from '../icons/Icons';
 import { shortsAPI } from '../../services/api';
 import { useSwipeGesture } from '../../hooks/useSwipeGesture';
@@ -159,9 +162,22 @@ const ShortCard: React.FC<ShortCardProps> = ({
                     <h2 className="text-xl font-bold mb-1 tracking-tight">{item.title}</h2>
                     <p className="text-sm line-clamp-2 text-white/90 mb-2">{item.description}</p>
                     {isJob && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-3">
                             <span className="font-extrabold text-green-400 text-lg">{item.pay}</span>
-                            <span className="bg-white/20 text-[10px] px-2 py-0.5 rounded backdrop-blur-sm">Job Market Short</span>
+                            <div 
+                                onClick={(e) => { e.stopPropagation(); if (onNavigate) onNavigate('jobs'); }}
+                                className="flex items-center gap-1 text-white/80 text-xs bg-white/10 px-2 py-1 rounded-lg backdrop-blur-md hover:bg-white/30 transition-colors cursor-pointer border border-white/5"
+                            >
+                                <MapPinIcon className="w-3 h-3" />
+                                <span>{item.location || 'Remote'}</span>
+                            </div>
+                            <div 
+                                onClick={(e) => { e.stopPropagation(); if (onNavigate) onNavigate('jobs'); }}
+                                className="flex items-center gap-1 text-indigo-300 text-xs bg-indigo-500/10 px-2 py-1 rounded-lg backdrop-blur-md border border-indigo-500/20 hover:bg-indigo-500/20 transition-colors cursor-pointer"
+                            >
+                                <SparklesIcon className="w-3 h-3" />
+                                <span>Good WLB • High Impact</span>
+                            </div>
                         </div>
                     )}
                     {/* Stats */}
@@ -194,38 +210,18 @@ const ShortCard: React.FC<ShortCardProps> = ({
                         </div>
                     </button>
 
-                    {/* Share */}
-                    <div className="relative">
+                    {/* Job Details Button (Below Share) */}
+                    {isJob && (
                         <button
-                            onClick={() => onToggleShareMenu(showShareMenu === item.id ? null : item.id)}
+                            onClick={() => onNavigateToJobDetail?.(item.jobId || item.id)}
                             className="flex flex-col items-center group"
                         >
-                            <div className="w-14 h-14 bg-white/10 backdrop-blur-md group-hover:bg-white/20 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 shadow-lg">
-                                <ShareIcon className="w-8 h-8 text-white" />
+                            <div className="w-14 h-14 bg-white/10 backdrop-blur-md hover:bg-white/20 rounded-full flex items-center justify-center transition-all duration-300 group-hover:scale-110 shadow-lg border border-white/10">
+                                <BriefcaseIcon className="w-8 h-8 text-white" />
                             </div>
+                            <span className="text-[10px] font-bold mt-1 text-white/70">JOB INFO</span>
                         </button>
-                        {showShareMenu === item.id && (
-                            <div className="absolute right-16 bottom-0 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-2 space-y-1 min-w-[140px] z-50 border border-white/20">
-                                <button onClick={() => onShare(item, 'whatsapp')} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-800 dark:text-white text-xs font-bold">📱 WhatsApp</button>
-                                <button onClick={() => onShare(item, 'twitter')} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-800 dark:text-white text-xs font-bold">🐦 X / Twitter</button>
-                                <button onClick={() => onShare(item, 'copy')} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-800 dark:text-white text-xs font-bold">📋 Copy Link</button>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Apply / Navigate */}
-                    <button
-                        className="bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white p-4 rounded-2xl shadow-2xl transition-all duration-300 transform hover:scale-110 hover:rotate-3"
-                        onClick={() => {
-                            if (isJob) {
-                                if (item.jobId) onNavigateToJobDetail?.(item.jobId);
-                                else onApplyNow(item);
-                            }
-                            else if (item.author?.id) onViewProfile(item.author.id);
-                        }}
-                    >
-                        <PaperAirplaneIcon className="w-7 h-7 rotate-45" />
-                    </button>
+                    )}
                 </div>
             </div>
         </div>
@@ -249,17 +245,19 @@ const ShortsPage: React.FC<ShortsPageProps> = ({ onApplyNow, onNavigateToJobDeta
     const [viewingStats, setViewingStats] = useState<any>(null);
     const [loadingProfile, setLoadingProfile] = useState(false);
     const viewedRefs = useRef<Set<string>>(new Set());
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const [revealEmail, setRevealEmail] = useState(false);
     const API_BASE = (import.meta.env.VITE_API_BASE as string) || 'http://localhost:3001/api';
 
     const handleViewProfile = async (authorId: string) => {
         if (!authorId) return;
+        setRevealEmail(false);
         setLoadingProfile(true);
         try {
             const data = await fetchWithAuth(`${API_BASE}/users/${authorId}`);
             setViewingProfile(data.user || data);
             setViewingStats(data.stats);
         } catch {
-            // fallback generic profile info if failing
             setViewingProfile({ id: authorId, name: 'Candidate', role: 'student' });
         }
         setLoadingProfile(false);
@@ -309,12 +307,30 @@ const ShortsPage: React.FC<ShortsPageProps> = ({ onApplyNow, onNavigateToJobDeta
         return () => { refs.forEach(v => { if (v) observer.unobserve(v); }); };
     }, [shorts]);
 
-    // Arrow key navigation
+    // Snappy Keyboard Navigation (Up/Down Arrows)
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'ArrowLeft' && onNavigateToJobDetail) {
-                const el = document.querySelector('[data-job-id]') as HTMLElement;
-                if (el) onNavigateToJobDetail(el.getAttribute('data-job-id') || '');
+            if (!scrollContainerRef.current) return;
+            
+            const container = scrollContainerRef.current;
+            const cardHeight = container.clientHeight;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                container.scrollBy({ top: cardHeight, behavior: 'smooth' });
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                container.scrollBy({ top: -cardHeight, behavior: 'smooth' });
+            } else if (e.key === 'ArrowLeft' && onNavigateToJobDetail) {
+                // Find current visible job id
+                const visibleCard = Array.from(container.children).find(child => {
+                    const rect = child.getBoundingClientRect();
+                    return rect.top >= 0 && rect.top < container.clientHeight / 2;
+                });
+                if (visibleCard) {
+                    const id = visibleCard.getAttribute('data-job-id');
+                    if (id) onNavigateToJobDetail(id);
+                }
             }
         };
         window.addEventListener('keydown', handleKeyDown);
@@ -386,11 +402,11 @@ const ShortsPage: React.FC<ShortsPageProps> = ({ onApplyNow, onNavigateToJobDeta
         );
     }
 
-    const avatarUrl = (name?: string, url?: string) =>
-        url || `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'U')}&size=80&background=6366f1&color=fff`;
-
     return (
-        <div className="relative h-[calc(100vh-64px)] w-full overflow-y-auto snap-y snap-mandatory scroll-smooth bg-black">
+        <div 
+            ref={scrollContainerRef}
+            className="relative h-[calc(100vh-64px)] w-full overflow-y-auto snap-y snap-mandatory scroll-smooth bg-black scrollbar-hide"
+        >
             {/* Profile Drawer */}
             {viewingProfile && (
                 <div className="fixed inset-0 z-[60] flex justify-end">
@@ -412,11 +428,21 @@ const ShortsPage: React.FC<ShortsPageProps> = ({ onApplyNow, onNavigateToJobDeta
                             </div>
                             <div className="space-y-4">
                                 <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4">
-                                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3">Contact Info</p>
-                                    <div className="space-y-2">
-                                        <div className="flex items-center gap-2 text-sm">
-                                            <span className="text-slate-400">📧</span>
-                                            <span className="text-slate-700 dark:text-slate-300">{viewingProfile.email || 'Contact via message'}</span>
+                                    <div className="space-y-3">
+                                        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Contact Details</p>
+                                        <div className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-lg">
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-lg">📧</span>
+                                                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                                    {revealEmail ? viewingProfile.email : '••••••••@••••.com'}
+                                                </span>
+                                            </div>
+                                            {!revealEmail && (
+                                                <button 
+                                                    onClick={() => setRevealEmail(true)}
+                                                    className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md"
+                                                >REVEAL</button>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

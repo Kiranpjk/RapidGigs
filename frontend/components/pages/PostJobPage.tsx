@@ -5,9 +5,8 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Page } from '../../types';
-import { jobsAPI, categoriesAPI, shortsAPI } from '../../services/api';
-import { CheckCircleIcon, TrashIcon, VideoCameraIcon } from '../icons/Icons';
-import { SparklesIcon } from '../icons/Icons';
+import { jobsAPI, categoriesAPI, shortsAPI, aiAPI } from '../../services/api';
+import { CheckCircleIcon, TrashIcon, VideoCameraIcon, SparklesIcon, XMarkIcon } from '../icons/Icons';
 import { useVideoGen } from '../../context/VideoGenContext';
 import Swal from 'sweetalert2';
 
@@ -30,6 +29,7 @@ interface FormState {
 interface DraftState {
   form: FormState;
   videoSource: 'ai' | 'sample' | null;
+  activeVideoJobId: string | null;
   generateVideoOnPost: boolean;
   success: boolean;
   postedJobId: string | null;
@@ -97,15 +97,19 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
   const initial = useRef(loadDraft());
   const [form, setForm] = useState<FormState>(initial.current.form);
   const [videoSource, setVideoSource] = useState<'ai' | 'sample' | null>(initial.current.videoSource);
+  const [activeVideoJobId, setActiveVideoJobId] = useState<string | null>(initial.current.activeVideoJobId || null);
   const [generateVideoOnPost, setGenerateVideoOnPost] = useState(initial.current.generateVideoOnPost);
   const [success, setSuccess] = useState(initial.current.success);
   const [postedJobId, setPostedJobId] = useState<string | null>(initial.current.postedJobId);
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
+  const [showMagicPaste, setShowMagicPaste] = useState(false);
+  const [magicText, setMagicText] = useState('');
+  const [isExtracting, setIsExtracting] = useState(false);
 
   // ── Persist draft to localStorage on every change ───────────────────────
   useEffect(() => {
-    saveDraft({ form, videoSource, generateVideoOnPost, success, postedJobId });
-  }, [form, videoSource, generateVideoOnPost, success, postedJobId]);
+    saveDraft({ form, videoSource, activeVideoJobId, generateVideoOnPost, success, postedJobId });
+  }, [form, videoSource, activeVideoJobId, generateVideoOnPost, success, postedJobId]);
 
   // ── Load categories ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -202,6 +206,7 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
     try {
       const response = await shortsAPI.generateFromJob(jobId);
       if (response.jobId) {
+        setActiveVideoJobId(response.jobId);
         // This fires the floating background indicator in the header!
         startJob(response.jobId, `${title} @ ${company}`);
         console.log(`🎬 Background video generation started for "${title}" (tracking ID: ${response.jobId})`);
@@ -233,6 +238,7 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
       });
 
       if (response.jobId) {
+        setActiveVideoJobId(response.jobId);
         startJob(response.jobId, fallbackTitle);
         setVideoSource('ai');
       } else if (response.short?.videoUrl || response.videoUrl) {
@@ -267,6 +273,37 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
     }
   };
 
+  // ── Magic Paste Handler ───────────────────────────────────────────────────
+  const handleExtractJob = async () => {
+    if (!magicText.trim()) return;
+    setIsExtracting(true);
+    try {
+      const data = await aiAPI.extractJob(magicText);
+      setForm(prev => ({
+        ...prev,
+        title: data.title || prev.title,
+        company: data.company || prev.company,
+        location: data.location || prev.location,
+        type: ['Remote', 'On-site', 'Hybrid'].includes(data.type) ? data.type as any : prev.type,
+        pay: data.pay || prev.pay,
+        description: data.description || prev.description,
+      }));
+      setShowMagicPaste(false);
+      setMagicText('');
+      Swal.fire({
+        title: 'Extracted!',
+        text: 'The form has been auto-filled by AI.',
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false
+      });
+    } catch (err: any) {
+      Swal.fire('Error', err.message || 'Failed to extract JSON from text', 'error');
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
   // Check if any of our video jobs completed — update form with the URL
   useEffect(() => {
     const completedJob = videoJobs.find(j => j.status === 'completed' && j.videoUrl);
@@ -276,8 +313,20 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
     }
   }, [videoJobs, form.shortVideoUrl]);
 
-  // ── Check if a background video is currently processing ──────────────────
-  const isVideoProcessing = videoJobs.some(j => j.status === 'processing');
+  // Check if a background video is currently processing
+  const processingJob = videoJobs.find(j => j.jobId === activeVideoJobId && j.status === 'processing');
+  const isVideoProcessing = !!processingJob;
+
+  // Clear activeJobId when done
+  useEffect(() => {
+    if (activeVideoJobId) {
+      const job = videoJobs.find(j => j.jobId === activeVideoJobId);
+      if (job && job.status !== 'processing') {
+        // give user a second to see the 100%
+        setTimeout(() => setActiveVideoJobId(null), 2000);
+      }
+    }
+  }, [videoJobs, activeVideoJobId]);
 
   // ══════════════════════════════════════════════════════════════════════════
   // SUCCESS SCREEN — also persisted, so coming back from Shorts still shows it
@@ -353,11 +402,55 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
     'w-full bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-700 rounded-2xl py-3.5 px-5 text-gray-900 dark:text-white placeholder-gray-300 dark:placeholder-slate-600 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 transition-all font-medium';
   const LabelClass = 'block text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2 px-1';
 
-  // Check if the form has any user-entered data (for showing "clear draft" button)
   const hasFormData = form.title || form.company || form.description || form.location || form.pay;
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10 animate-slide-up">
+      {/* ── AI Video Generation Progress Modal ─────────────────────────────── */}
+      {isVideoProcessing && processingJob && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-xl animate-fade-in">
+          <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl border border-gray-100 dark:border-slate-700 animate-slide-up text-center">
+            <div className="w-20 h-20 mx-auto mb-8 relative">
+              <div className="absolute inset-0 border-4 border-indigo-100 dark:border-indigo-900/30 rounded-full" />
+              <div 
+                className="absolute inset-0 border-4 border-indigo-600 rounded-full border-t-transparent animate-spin" 
+                style={{ clipPath: `inset(0 0 0 0)` }}
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-xl font-black text-indigo-600 dark:text-indigo-400">{processingJob.progress}%</span>
+              </div>
+            </div>
+
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">AI is Crafting Your Video</h3>
+            <p className="text-sm font-medium text-gray-500 dark:text-slate-400 mb-8 h-10 flex items-center justify-center">
+              {processingJob.step || 'Starting AI Engine...'}
+            </p>
+
+            <div className="w-full h-3 bg-gray-100 dark:bg-slate-900 rounded-full overflow-hidden mb-8 shadow-inner">
+              <div 
+                className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 transition-all duration-700 ease-out"
+                style={{ width: `${processingJob.progress}%` }}
+              />
+            </div>
+
+            <div className="bg-indigo-50/50 dark:bg-indigo-900/20 p-5 rounded-2xl border border-indigo-100/50 dark:border-indigo-800/30">
+              <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-black uppercase tracking-widest mb-3">
+                Pro Tip & Fun Fact
+              </p>
+              <p className="text-xs text-indigo-500 dark:text-indigo-400/80 leading-relaxed italic">
+                {VIDEO_GEN_FACTS[Math.floor((processingJob.progress / 100) * VIDEO_GEN_FACTS.length) % VIDEO_GEN_FACTS.length]}
+              </p>
+            </div>
+
+            <button 
+              onClick={() => setActiveVideoJobId(null)}
+              className="mt-8 text-xs font-bold text-gray-400 hover:text-gray-600 transition-colors uppercase tracking-widest cursor-pointer"
+            >
+              Minimize to Background
+            </button>
+          </div>
+        </div>
+      )}
       <div className="mb-10 flex justify-between items-start">
         <div>
           <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight">New Job Posting</h1>
@@ -390,9 +483,71 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
           </div>
         )}
 
+        {/* ── Magic Paste Section ───────────────────────────────────────── */}
+        {!showMagicPaste ? (
+          <div className="bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/30 rounded-3xl p-6 flex items-center justify-between">
+            <div>
+              <h4 className="text-sm font-bold text-indigo-900 dark:text-indigo-400 flex items-center gap-2">
+                <SparklesIcon className="w-4 h-4" />
+                Magic Paste
+              </h4>
+              <p className="text-xs text-indigo-600 dark:text-indigo-500/80 mt-1">
+                Have a messy job description? Paste it here and let AI auto-fill the form.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowMagicPaste(true)}
+              className="px-5 py-2.5 bg-indigo-600 text-white font-bold text-xs rounded-xl shadow-lg hover:bg-indigo-500 hover:scale-105 transition-all cursor-pointer"
+            >
+              Try Magic Paste
+            </button>
+          </div>
+        ) : (
+          <div className="bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/30 rounded-3xl p-6 animate-slide-up">
+            <div className="flex justify-between items-center mb-4">
+              <h4 className="text-sm font-bold text-indigo-900 dark:text-indigo-400 flex items-center gap-2">
+                <SparklesIcon className="w-4 h-4" />
+                Paste Raw Job Details
+              </h4>
+              <button type="button" onClick={() => setShowMagicPaste(false)} className="text-indigo-400 hover:text-indigo-600 cursor-pointer">
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+            <textarea
+              rows={4}
+              placeholder="Paste any format, PDF text, or messy draft..."
+              className={`${InputClass} mb-4 bg-white dark:bg-slate-800 rounded-2xl`}
+              value={magicText}
+              onChange={e => setMagicText(e.target.value)}
+            />
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowMagicPaste(false)}
+                className="px-5 py-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 rounded-xl transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleExtractJob}
+                disabled={isExtracting || !magicText.trim()}
+                className="px-5 py-2 flex items-center gap-2 text-xs font-bold bg-indigo-600 text-white rounded-xl shadow-lg disabled:opacity-50 hover:bg-indigo-500 transition-all cursor-pointer"
+              >
+                {isExtracting ? (
+                  <><div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Extracting...</>
+                ) : (
+                  <><SparklesIcon className="w-3.5 h-3.5" /> Auto-Fill Form</>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ── Section: Basic Info ───────────────────────────────────────── */}
         <div>
-          <h3 className="text-xs font-black text-indigo-500 uppercase tracking-[0.2em] mb-6">Basic Information</h3>
+          <h3 className="text-xs font-black text-indigo-500 uppercase tracking-[0.2em] mb-6 mt-4">Basic Information</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className={LabelClass} htmlFor="title">Job Title *</label>
