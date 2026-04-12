@@ -10,6 +10,7 @@ import MessagesPage from '../pages/MessagesPage';
 import UploadVideoPage from '../pages/UploadVideoPage';
 import JobApplicationPage from '../pages/JobApplicationPage';
 import AdminPage from '../pages/AdminPage';
+import SettingsPage from '../pages/SettingsPage';
 import { useAuth } from '../../context/AuthContext';
 import { canAccessPage } from '../../utils/rbac';
 
@@ -65,6 +66,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ currentPage, navigate, onLogout
                 return <UploadVideoPage navigate={navigate} />;
             case 'job_application':
                 return <JobApplicationPage job={selectedJob} navigate={navigate} previousPage={previousPage} />;
+            case 'settings':
+                return <SettingsPage navigate={navigate} theme={theme} toggleTheme={toggleTheme} onLogout={onLogout} />;
             case 'admin':
                 if (!isAuthenticated || !canAccessPage(user?.role, 'admin')) {
                     return <DashboardPage navigate={navigate} onApplyNow={handleApplyNow} />;
@@ -77,7 +80,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ currentPage, navigate, onLogout
 
     const handleNavigate = (page: Page) => {
         // Require auth for protected pages
-        const protectedPages: Page[] = ['profile', 'messages', 'notifications', 'upload_video', 'admin'];
+        const protectedPages: Page[] = ['profile', 'messages', 'notifications', 'upload_video', 'admin', 'settings'];
 
         if (protectedPages.includes(page) && !isAuthenticated) {
             requireAuth(() => navigate(page), currentPage);

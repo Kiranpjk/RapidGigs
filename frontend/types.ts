@@ -16,7 +16,8 @@ export type Page =
   | 'admin'
   | 'post_job'
   | 'review_applications'
-  | 'candidates';
+  | 'candidates'
+  | 'settings';
 
 export interface User {
   id: string; // ✅ was: number

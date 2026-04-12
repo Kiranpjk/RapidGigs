@@ -620,10 +620,10 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
                                 <ProfileSection title="Company Videos" noPadding>
                                     <div className="p-8">
                                         <div className="flex justify-between items-center mb-6">
-                                            <p className="text-slate-600 dark:text-slate-400">Showcase your company culture and attract top talent.</p>
+                                            <p className="text-gray-500 dark:text-slate-400 text-sm">Showcase your company culture and attract top talent.</p>
                                             <button
                                                 onClick={() => navigate('upload_video')}
-                                                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-6 rounded-lg flex items-center gap-2"
+                                                className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold py-3 px-6 rounded-2xl flex items-center gap-2 shadow-xl shadow-gray-200 dark:shadow-none hover:scale-[1.02] transition-all cursor-pointer"
                                             >
                                                 <VideoCameraIcon className="w-5 h-5" />
                                                 Upload Video
@@ -632,13 +632,13 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
                                         {myVideos.length > 0 ? (
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                                 {myVideos.map((video) => (
-                                                    <div key={video._id} className="bg-slate-50 dark:bg-slate-800/50 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700">
-                                                        <div className="relative aspect-video bg-slate-200 dark:bg-slate-700">
+                                                    <div key={video._id} className="bg-gray-50 dark:bg-slate-900/50 rounded-2xl overflow-hidden border border-gray-100 dark:border-slate-700 hover:shadow-lg transition-all">
+                                                        <div className="relative aspect-video bg-gray-100 dark:bg-slate-800">
                                                             <video src={getMediaUrl(video.videoUrl)} controls className="w-full h-full object-cover" poster={video.thumbnailUrl ? getMediaUrl(video.thumbnailUrl) : undefined} />
                                                         </div>
-                                                        <div className="p-4">
-                                                            <h3 className="font-semibold text-slate-800 dark:text-white">{video.title}</h3>
-                                                            <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2 mt-1">{video.description}</p>
+                                                        <div className="p-5">
+                                                            <h3 className="font-bold text-gray-900 dark:text-white">{video.title}</h3>
+                                                            <p className="text-sm text-gray-500 dark:text-slate-400 line-clamp-2 mt-1">{video.description}</p>
                                                         </div>
                                                     </div>
                                                 ))}
@@ -661,8 +661,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
                                 <ProfileSection title="My Videos" noPadding>
                                     <div className="p-8">
                                         <div className="flex justify-between items-center mb-6">
-                                            <p className="text-slate-600 dark:text-slate-400">Showcase your skills and personality to potential employers.</p>
-                                            <button onClick={() => navigate('upload_video')} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-6 rounded-lg flex items-center gap-2">
+                                            <p className="text-gray-500 dark:text-slate-400 text-sm">Showcase your skills and personality to potential employers.</p>
+                                            <button onClick={() => navigate('upload_video')} className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold py-3 px-6 rounded-2xl flex items-center gap-2 shadow-xl shadow-gray-200 dark:shadow-none hover:scale-[1.02] transition-all cursor-pointer">
                                                 <VideoCameraIcon className="w-5 h-5" />
                                                 Upload New Video
                                             </button>
@@ -715,22 +715,22 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
                             <div id="saved-jobs" className="scroll-mt-20">
                                 <ProfileSection title="Saved Jobs" noPadding>
                                     {savedJobs.length === 0 ? (
-                                        <div className="p-8 text-center">
-                                            <BookmarkIcon className="w-16 h-16 mx-auto text-slate-300 dark:text-slate-600 mb-4" />
-                                            <p className="text-slate-600 dark:text-slate-400 mb-4">You haven't saved any jobs yet.</p>
-                                            <button onClick={() => navigate('jobs')} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-6 rounded-lg">Browse Jobs</button>
+                                        <div className="p-10 text-center">
+                                            <BookmarkIcon className="w-16 h-16 mx-auto text-gray-200 dark:text-slate-700 mb-4" />
+                                            <p className="text-gray-500 dark:text-slate-400 mb-6 font-medium">You haven't saved any jobs yet.</p>
+                                            <button onClick={() => navigate('jobs')} className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold py-3 px-8 rounded-2xl shadow-xl shadow-gray-200 dark:shadow-none hover:scale-[1.02] transition-all cursor-pointer">Browse Jobs</button>
                                         </div>
                                     ) : (
-                                        <div className="divide-y divide-slate-200 dark:divide-slate-700">
+                                        <div className="divide-y divide-gray-50 dark:divide-slate-700">
                                             {savedJobs.map((job) => (
-                                                <div key={job.id} className="p-6 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                                                <div key={job.id} className="p-6 hover:bg-gray-50 dark:hover:bg-slate-800/30 transition-all">
                                                     <div className="flex justify-between items-start">
                                                         <div className="flex-1">
-                                                            <h3 className="text-lg font-bold text-slate-800 dark:text-white">{job.title}</h3>
-                                                            <p className="text-slate-600 dark:text-slate-400">{job.company}</p>
-                                                            <div className="flex items-center gap-4 mt-2 text-sm text-slate-500 dark:text-slate-400">
-                                                                <span>{job.location}</span><span>•</span>
-                                                                <span className="text-green-600 dark:text-green-400 font-semibold">{job.pay}</span>
+                                                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">{job.title}</h3>
+                                                            <p className="text-gray-500 dark:text-slate-400 text-sm">{job.company}</p>
+                                                            <div className="flex items-center gap-4 mt-2 text-sm text-gray-400 dark:text-slate-500">
+                                                                <span>{job.location}</span><span>·</span>
+                                                                <span className="text-green-600 dark:text-green-400 font-bold">{job.pay}</span>
                                                             </div>
                                                         </div>
                                                         <button onClick={() => unsaveJob(job.id)} className="text-slate-400 hover:text-red-500 dark:hover:text-red-400" title="Remove">
@@ -758,8 +758,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
                                         </div>
                                     ) : (
                                         <div className="overflow-x-auto">
-                                            <table className="w-full text-sm text-left text-slate-500 dark:text-slate-400">
-                                                <thead className="text-xs text-slate-700 dark:text-slate-300 uppercase bg-slate-100 dark:bg-slate-700/50">
+                                            <table className="w-full text-sm text-left text-gray-500 dark:text-slate-400">
+                                                <thead className="text-[10px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest bg-gray-50 dark:bg-slate-900/30">
                                                     <tr>
                                                         <th scope="col" className="px-6 py-3">Company</th>
                                                         <th scope="col" className="px-6 py-3">Position</th>
@@ -773,8 +773,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
                                                         const title = app.job?.title || (app as any).jobId?.title || '—';
                                                         const date = app.dateApplied || (app as any).createdAt || new Date().toISOString();
                                                         return (
-                                                            <tr key={app.id || (app as any)._id} className="border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/70">
-                                                                <th scope="row" className="px-6 py-4 font-medium text-slate-900 dark:text-white whitespace-nowrap">{company}</th>
+                                                            <tr key={app.id || (app as any)._id} className="border-b border-gray-50 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800/70">
+                                                                <th scope="row" className="px-6 py-5 font-bold text-gray-900 dark:text-white whitespace-nowrap">{company}</th>
                                                                 <td className="px-6 py-4">{title}</td>
                                                                 <td className="px-6 py-4">{new Date(date).toLocaleDateString()}</td>
                                                                 <td className="px-6 py-4"><StatusBadge status={app.status} /></td>

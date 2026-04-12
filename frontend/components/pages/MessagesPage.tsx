@@ -8,7 +8,6 @@ import {
     EllipsisVerticalIcon,
     PaperAirplaneIcon,
     XMarkIcon,
-    BellIcon,
 } from '../icons/Icons';
 
 interface Msg {
@@ -58,8 +57,8 @@ const MessagesPage: React.FC = () => {
 
     const socket = useRef<Socket | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-    // Scroll to bottom of chat
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
@@ -71,7 +70,6 @@ const MessagesPage: React.FC = () => {
     // Connect WebSocket
     useEffect(() => {
         if (!user) return;
-
         const token = localStorage.getItem('authToken');
         socket.current = io(SOCKET_URL, {
             auth: { token },
@@ -88,13 +86,7 @@ const MessagesPage: React.FC = () => {
             setThreads(prev => prev.map(thread => {
                 if (thread.user.id === data.senderId) {
                     const newMsg: Msg = { id: Date.now().toString(), sender: 'them', text: data.message, time: timeStr };
-                    return {
-                        ...thread,
-                        lastMessage: data.message,
-                        timestamp: 'Just now',
-                        unreadCount: thread.unreadCount + 1,
-                        messages: [...thread.messages, newMsg],
-                    };
+                    return { ...thread, lastMessage: data.message, timestamp: 'Just now', unreadCount: thread.unreadCount + 1, messages: [...thread.messages, newMsg] };
                 }
                 return thread;
             }));
@@ -108,15 +100,10 @@ const MessagesPage: React.FC = () => {
             });
         });
 
-        return () => {
-            socket.current?.disconnect();
-        };
+        return () => { socket.current?.disconnect(); };
     }, [user]);
 
-    // Load threads on mount
-    useEffect(() => {
-        loadThreads();
-    }, []);
+    useEffect(() => { loadThreads(); }, []);
 
     const loadThreads = async () => {
         setLoadingThreads(true);
@@ -131,9 +118,7 @@ const MessagesPage: React.FC = () => {
                 messages: [],
             })) : [];
             setThreads(loaded);
-            if (loaded.length > 0 && !activeThread) {
-                openThread(loaded[0]);
-            }
+            if (loaded.length > 0 && !activeThread) openThread(loaded[0]);
         } catch { }
         setLoadingThreads(false);
     };
@@ -147,12 +132,8 @@ const MessagesPage: React.FC = () => {
         try {
             const msgs = await messagesAPI.getThread(thread.user.id);
             const mapped: Msg[] = Array.isArray(msgs) ? msgs.map((m: any) => ({
-                id: m.id,
-                sender: m.sender,
-                text: m.text,
-                time: m.time,
+                id: m.id, sender: m.sender, text: m.text, time: m.time,
             })) : [];
-
             setActiveThread(t => t ? { ...t, messages: mapped, unreadCount: 0 } : t);
             setThreads(prev => prev.map(t => t.user.id === thread.user.id ? { ...t, unreadCount: 0 } : t));
         } catch { }
@@ -163,6 +144,7 @@ const MessagesPage: React.FC = () => {
         if (!messageInput.trim() || !activeThread || isSending) return;
         const text = messageInput.trim();
         setMessageInput('');
+        if (textareaRef.current) textareaRef.current.style.height = 'auto';
         setIsSending(true);
 
         const optimisticMsg: Msg = {
@@ -172,7 +154,6 @@ const MessagesPage: React.FC = () => {
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         };
 
-        // Optimistic update
         setActiveThread(t => t ? { ...t, messages: [...t.messages, optimisticMsg] } : t);
         setThreads(prev => prev.map(t =>
             t.user.id === activeThread.user.id ? { ...t, lastMessage: text, timestamp: 'Just now' } : t
@@ -180,27 +161,23 @@ const MessagesPage: React.FC = () => {
 
         try {
             await messagesAPI.send(activeThread.user.id, text);
-            // Also emit via socket for real-time
-            socket.current?.emit('send-message', {
-                receiverId: activeThread.user.id,
-                message: text,
-                senderId: user?.id,
-            });
+            socket.current?.emit('send-message', { receiverId: activeThread.user.id, message: text, senderId: user?.id });
         } catch {
-            // Remove optimistic message on failure
             setActiveThread(t => t ? { ...t, messages: t.messages.filter(m => m.id !== optimisticMsg.id) } : t);
         }
         setIsSending(false);
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
     };
 
-    // Search user by ID or email
+    const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        setMessageInput(e.target.value);
+        e.target.style.height = 'auto';
+        e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+    };
+
     const handleSearch = async () => {
         if (!searchQuery.trim()) return;
         setSearching(true);
@@ -223,10 +200,7 @@ const MessagesPage: React.FC = () => {
             const newThread: Thread = {
                 id: foundUser.id,
                 user: { id: foundUser.id, name: foundUser.name, avatarUrl: foundUser.avatarUrl, role: foundUser.role },
-                lastMessage: '',
-                timestamp: '',
-                unreadCount: 0,
-                messages: [],
+                lastMessage: '', timestamp: '', unreadCount: 0, messages: [],
             };
             setThreads(prev => [newThread, ...prev]);
             openThread(newThread);
@@ -241,142 +215,147 @@ const MessagesPage: React.FC = () => {
         url || `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'U')}&size=48&background=6366f1&color=fff`;
 
     const roleBadge = (role?: string) => {
-        if (role === 'recruiter') return <span className="text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded-full">Recruiter</span>;
-        if (role === 'student') return <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-1.5 py-0.5 rounded-full">Student</span>;
+        if (role === 'recruiter') return <span className="text-[10px] font-black uppercase tracking-widest bg-indigo-50 dark:bg-indigo-900/20 text-indigo-500 px-2 py-0.5 rounded-lg">Recruiter</span>;
+        if (role === 'student') return <span className="text-[10px] font-black uppercase tracking-widest bg-green-50 dark:bg-green-900/20 text-green-500 px-2 py-0.5 rounded-lg">Student</span>;
         return null;
     };
 
     return (
-        <div className="container mx-auto p-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 animate-slide-up">
             {/* New Chat Modal */}
             {showNewChat && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6">
-                        <div className="flex items-center justify-between mb-5">
-                            <h3 className="text-xl font-bold text-slate-800 dark:text-white">Start a New Chat</h3>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4">
+                    <div className="bg-white dark:bg-slate-800 rounded-[2rem] shadow-2xl shadow-gray-200/50 dark:shadow-black/30 w-full max-w-md p-8 border border-gray-100 dark:border-slate-700">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">New Message</h3>
                             <button onClick={() => { setShowNewChat(false); setSearchQuery(''); setSearchResult(null); setSearchError(''); }}
-                                className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700">
-                                <XMarkIcon className="w-5 h-5 text-slate-500" />
+                                className="w-9 h-9 flex items-center justify-center rounded-2xl bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 transition-all cursor-pointer">
+                                <XMarkIcon className="w-5 h-5 text-gray-500 dark:text-slate-400" />
                             </button>
                         </div>
 
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-                            Enter a user's <strong>User ID</strong> or <strong>Email Address</strong> to find them and start a conversation.
+                        <p className="text-sm text-gray-500 dark:text-slate-400 mb-5">
+                            Enter a <strong className="text-gray-900 dark:text-white">User ID</strong> or <strong className="text-gray-900 dark:text-white">Email</strong> to start a conversation.
                         </p>
 
-                        <div className="flex gap-2 mb-4">
+                        <div className="flex gap-3 mb-5">
                             <input
                                 type="text"
-                                placeholder="User ID or email address..."
+                                placeholder="User ID or email..."
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
                                 onKeyDown={e => e.key === 'Enter' && handleSearch()}
-                                className="flex-1 bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                className="flex-1 bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-700 rounded-2xl px-5 py-3.5 text-sm font-medium focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 transition-all text-gray-900 dark:text-white placeholder-gray-300 dark:placeholder-slate-600"
                             />
                             <button
                                 onClick={handleSearch}
                                 disabled={searching || !searchQuery.trim()}
-                                className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors"
+                                className="px-5 py-3.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-sm font-bold rounded-2xl hover:scale-[1.02] transition-all disabled:opacity-40 disabled:scale-100 cursor-pointer shadow-lg shadow-gray-200 dark:shadow-none"
                             >
-                                {searching ? '...' : 'Search'}
+                                {searching ? '...' : 'Find'}
                             </button>
                         </div>
 
                         {searchError && (
-                            <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2 mb-3">
+                            <div className="text-sm text-red-500 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-800/20 rounded-2xl px-4 py-3 mb-4 font-medium">
                                 {searchError}
                             </div>
                         )}
 
                         {searchResult && (
-                            <div className="border border-slate-200 dark:border-slate-700 rounded-xl p-4 flex items-center gap-3">
+                            <div className="border border-gray-100 dark:border-slate-700 rounded-2xl p-4 flex items-center gap-4 bg-gray-50 dark:bg-slate-900/50 mb-4">
                                 <img src={avatarUrl(searchResult.name, searchResult.avatarUrl)} alt={searchResult.name}
-                                    className="w-12 h-12 rounded-full object-cover ring-2 ring-indigo-200 dark:ring-indigo-700" />
+                                    className="w-12 h-12 rounded-2xl object-cover" />
                                 <div className="flex-1 min-w-0">
-                                    <p className="font-bold text-slate-800 dark:text-white truncate">{searchResult.name}</p>
-                                    <p className="text-sm text-slate-500 dark:text-slate-400 truncate">{searchResult.email}</p>
-                                    {searchResult.title && <p className="text-xs text-slate-400 truncate">{searchResult.title}</p>}
+                                    <p className="font-bold text-gray-900 dark:text-white truncate">{searchResult.name}</p>
+                                    <p className="text-sm text-gray-500 dark:text-slate-400 truncate">{searchResult.email}</p>
                                     <div className="mt-1">{roleBadge(searchResult.role)}</div>
                                 </div>
                                 <button
                                     onClick={() => startChatWith(searchResult)}
-                                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-lg transition-colors whitespace-nowrap"
+                                    className="px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-sm font-bold rounded-2xl hover:scale-[1.02] transition-all cursor-pointer shadow-lg shadow-gray-200 dark:shadow-none"
                                 >
                                     Message
                                 </button>
                             </div>
                         )}
 
-                        <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-700/30 rounded-lg">
-                            <p className="text-xs text-slate-500 dark:text-slate-400">
-                                💡 <strong>Tip:</strong> Share your User ID with others so they can find you.<br />
-                                Your ID: <span className="font-mono text-indigo-500 dark:text-indigo-400 select-all text-xs">{user?.id}</span>
+                        <div className="p-4 bg-gray-50 dark:bg-slate-900/50 rounded-2xl border border-gray-100 dark:border-slate-700">
+                            <p className="text-xs text-gray-400 dark:text-slate-500 font-medium">
+                                💡 Your User ID — share it so others can find you:<br />
+                                <span className="font-mono text-indigo-500 select-all text-xs break-all mt-1 block">{user?.id}</span>
                             </p>
                         </div>
                     </div>
                 </div>
             )}
 
-            <div className="flex h-[calc(100vh-88px)] bg-white dark:bg-slate-800/20 border border-slate-200 dark:border-slate-700/50 rounded-xl overflow-hidden shadow-lg">
-                {/* Chat List Sidebar */}
-                <aside className={`w-full md:w-72 lg:w-80 flex-shrink-0 bg-white dark:bg-slate-800/50 border-r border-slate-200 dark:border-slate-700/50 flex-col ${isChatListVisible ? 'flex' : 'hidden md:flex'}`}>
-                    <div className="p-4 border-b border-slate-200 dark:border-slate-700/50">
-                        <div className="flex items-center justify-between mb-3">
-                            <h2 className="text-xl font-bold text-slate-800 dark:text-white">Messages</h2>
-                            <button
-                                onClick={() => setShowNewChat(true)}
-                                className="p-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors"
-                                title="Start new chat"
-                            >
-                                <PlusIcon className="w-4 h-4" />
-                            </button>
-                        </div>
+            {/* Main Chat Container */}
+            <div className="flex h-[calc(100vh-120px)] bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-[2rem] overflow-hidden shadow-sm">
+
+                {/* Sidebar */}
+                <aside className={`w-full md:w-80 flex-shrink-0 border-r border-gray-50 dark:border-slate-700/60 flex flex-col ${isChatListVisible ? 'flex' : 'hidden md:flex'}`}>
+                    {/* Sidebar Header */}
+                    <div className="px-6 py-5 border-b border-gray-50 dark:border-slate-700/60 flex items-center justify-between flex-shrink-0">
+                        <h2 className="text-xl font-extrabold text-gray-900 dark:text-white tracking-tight">Messages</h2>
+                        <button
+                            onClick={() => setShowNewChat(true)}
+                            className="w-9 h-9 flex items-center justify-center bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl hover:scale-110 transition-all cursor-pointer shadow-lg shadow-gray-200 dark:shadow-none"
+                            title="New message"
+                        >
+                            <PlusIcon className="w-4 h-4" />
+                        </button>
                     </div>
 
+                    {/* Thread List */}
                     <div className="flex-1 overflow-y-auto">
                         {loadingThreads ? (
-                            <div className="p-8 text-center text-slate-400">
-                                <div className="animate-spin w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full mx-auto mb-3"></div>
-                                Loading conversations...
+                            <div className="p-10 text-center">
+                                <div className="w-8 h-8 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                                <p className="text-sm text-gray-400 font-medium">Loading...</p>
                             </div>
                         ) : threads.length === 0 ? (
-                            <div className="p-8 text-center">
-                                <div className="text-4xl mb-3">💬</div>
-                                <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">No conversations yet</p>
-                                <p className="text-slate-400 dark:text-slate-500 text-xs">Click + to start a new chat</p>
+                            <div className="p-10 text-center">
+                                <div className="w-16 h-16 bg-gray-50 dark:bg-slate-700 rounded-3xl flex items-center justify-center mx-auto mb-4 text-2xl">💬</div>
+                                <p className="text-gray-900 dark:text-white font-bold mb-1">No messages yet</p>
+                                <p className="text-gray-400 dark:text-slate-500 text-sm">Click + to start a conversation</p>
                             </div>
                         ) : (
                             threads.map(thread => (
                                 <div
                                     key={thread.id}
                                     onClick={() => openThread(thread)}
-                                    className={`flex items-center gap-3 px-4 py-3.5 cursor-pointer transition-colors border-b border-slate-100 dark:border-slate-700/30 ${activeThread?.user.id === thread.user.id
-                                            ? 'bg-indigo-50 dark:bg-indigo-900/20 border-l-4 border-l-indigo-500'
-                                            : 'hover:bg-slate-50 dark:hover:bg-slate-700/30'
-                                        }`}
+                                    className={`flex items-center gap-3.5 px-5 py-4 cursor-pointer transition-all ${
+                                        activeThread?.user.id === thread.user.id
+                                            ? 'bg-gray-50 dark:bg-slate-700/50'
+                                            : 'hover:bg-gray-50/60 dark:hover:bg-slate-700/30'
+                                    }`}
                                 >
                                     <div className="relative flex-shrink-0">
                                         <img
                                             src={avatarUrl(thread.user.name, thread.user.avatarUrl)}
                                             alt={thread.user.name}
-                                            className="w-12 h-12 rounded-full object-cover"
+                                            className="w-12 h-12 rounded-2xl object-cover"
                                         />
-                                        <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-green-500 ring-2 ring-white dark:ring-slate-800"></span>
+                                        <span className="absolute -bottom-0.5 -right-0.5 block h-3 w-3 rounded-full bg-green-400 ring-2 ring-white dark:ring-slate-800" />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <div className="flex items-center justify-between gap-1">
-                                            <p className="font-semibold text-slate-800 dark:text-white text-sm truncate">{thread.user.name}</p>
-                                            <p className="text-xs text-slate-400 flex-shrink-0">{thread.timestamp}</p>
+                                        <div className="flex items-center justify-between gap-1 mb-0.5">
+                                            <p className={`text-sm truncate ${thread.unreadCount > 0 ? 'font-bold text-gray-900 dark:text-white' : 'font-semibold text-gray-700 dark:text-slate-200'}`}>
+                                                {thread.user.name}
+                                            </p>
+                                            <p className="text-[10px] text-gray-400 dark:text-slate-500 flex-shrink-0 font-medium">{thread.timestamp}</p>
                                         </div>
                                         <div className="flex items-center justify-between gap-1">
-                                            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{thread.lastMessage || 'Start a conversation'}</p>
+                                            <p className={`text-xs truncate ${thread.unreadCount > 0 ? 'text-gray-700 dark:text-slate-300 font-medium' : 'text-gray-400 dark:text-slate-500'}`}>
+                                                {thread.lastMessage || 'Start a conversation'}
+                                            </p>
                                             {thread.unreadCount > 0 && (
-                                                <span className="bg-indigo-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full flex-shrink-0">
+                                                <span className="bg-indigo-500 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full flex-shrink-0">
                                                     {thread.unreadCount}
                                                 </span>
                                             )}
                                         </div>
-                                        <div className="mt-0.5">{roleBadge(thread.user.role)}</div>
                                     </div>
                                 </div>
                             ))
@@ -389,72 +368,74 @@ const MessagesPage: React.FC = () => {
                     {activeThread ? (
                         <>
                             {/* Chat Header */}
-                            <div className="p-4 border-b border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-800/50 flex items-center justify-between flex-shrink-0">
+                            <div className="px-6 py-4 border-b border-gray-50 dark:border-slate-700/60 bg-white dark:bg-slate-800 flex items-center justify-between flex-shrink-0">
                                 <div className="flex items-center gap-3">
-                                    <button className="md:hidden p-1" onClick={() => setIsChatListVisible(true)}>
-                                        <span className="text-slate-500">←</span>
+                                    <button className="md:hidden p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-700 transition-all" onClick={() => setIsChatListVisible(true)}>
+                                        <span className="text-gray-500 text-lg">←</span>
                                     </button>
                                     <div className="relative">
                                         <img
                                             src={avatarUrl(activeThread.user.name, activeThread.user.avatarUrl)}
                                             alt={activeThread.user.name}
-                                            className="w-10 h-10 rounded-full object-cover"
+                                            className="w-10 h-10 rounded-2xl object-cover"
                                         />
-                                        <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 ring-1 ring-white dark:ring-slate-800"></span>
+                                        <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-green-400 ring-2 ring-white dark:ring-slate-800" />
                                     </div>
                                     <div>
-                                        <h2 className="font-bold text-slate-800 dark:text-white leading-none">{activeThread.user.name}</h2>
-                                        <div className="flex items-center gap-2 mt-0.5">
+                                        <h2 className="font-extrabold text-gray-900 dark:text-white text-sm leading-none tracking-tight">{activeThread.user.name}</h2>
+                                        <div className="flex items-center gap-2 mt-1">
                                             {roleBadge(activeThread.user.role)}
-                                            <span className="text-xs text-green-500">● Online</span>
+                                            <span className="text-[10px] font-bold text-green-500 uppercase tracking-widest">● Online</span>
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2 text-xs text-slate-400">
-                                    <span className="font-mono hidden sm:block">ID: {activeThread.user.id.slice(-8)}</span>
-                                    <EllipsisVerticalIcon className="w-5 h-5 text-slate-400 cursor-pointer hover:text-slate-600" />
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs text-gray-300 dark:text-slate-600 font-mono hidden sm:block">ID: {activeThread.user.id.slice(-8)}</span>
+                                    <button className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-50 dark:hover:bg-slate-700 transition-all cursor-pointer">
+                                        <EllipsisVerticalIcon className="w-5 h-5 text-gray-400" />
+                                    </button>
                                 </div>
                             </div>
 
-                            {/* Messages */}
-                            <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-3 bg-slate-50 dark:bg-gray-900/30">
+                            {/* Messages Area */}
+                            <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-3 bg-gray-50/50 dark:bg-slate-900/20">
                                 {loadingMessages ? (
-                                    <div className="flex-1 flex items-center justify-center text-slate-400">
+                                    <div className="flex-1 flex items-center justify-center">
                                         <div className="text-center">
-                                            <div className="animate-spin w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full mx-auto mb-3"></div>
-                                            Loading messages...
+                                            <div className="w-8 h-8 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                                            <p className="text-sm text-gray-400 font-medium">Loading messages...</p>
                                         </div>
                                     </div>
                                 ) : activeThread.messages.length === 0 ? (
                                     <div className="flex-1 flex items-center justify-center">
                                         <div className="text-center py-12">
-                                            <div className="text-5xl mb-4">👋</div>
-                                            <p className="font-semibold text-slate-700 dark:text-slate-300 mb-1">Say hello to {activeThread.user.name}!</p>
-                                            <p className="text-sm text-slate-400">This is the beginning of your conversation.</p>
+                                            <div className="w-20 h-20 bg-white dark:bg-slate-800 rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-sm text-4xl">👋</div>
+                                            <p className="font-extrabold text-gray-900 dark:text-white tracking-tight mb-2">Say hello to {activeThread.user.name}!</p>
+                                            <p className="text-sm text-gray-400 dark:text-slate-500">This is the start of your conversation.</p>
                                         </div>
                                     </div>
                                 ) : (
                                     activeThread.messages.map((msg, idx) => {
                                         const isMe = msg.sender === 'me';
                                         return (
-                                            <div key={msg.id || idx} className={`flex items-end gap-2 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                            <div key={msg.id || idx} className={`flex items-end gap-2.5 ${isMe ? 'justify-end' : 'justify-start'}`}>
                                                 {!isMe && (
                                                     <img src={avatarUrl(activeThread.user.name, activeThread.user.avatarUrl)}
-                                                        className="w-7 h-7 rounded-full object-cover flex-shrink-0" alt="" />
+                                                        className="w-8 h-8 rounded-xl object-cover flex-shrink-0 mb-1" alt="" />
                                                 )}
-                                                <div className={`max-w-xs sm:max-w-md lg:max-w-lg ${isMe
-                                                    ? 'bg-indigo-600 text-white rounded-2xl rounded-br-sm'
-                                                    : 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 rounded-2xl rounded-bl-sm shadow-sm'
-                                                    } px-4 py-2.5`}
-                                                >
+                                                <div className={`max-w-xs sm:max-w-sm lg:max-w-md ${
+                                                    isMe
+                                                        ? 'bg-gray-900 dark:bg-indigo-600 text-white rounded-3xl rounded-br-lg'
+                                                        : 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-3xl rounded-bl-lg shadow-sm border border-gray-50 dark:border-slate-600'
+                                                } px-5 py-3`}>
                                                     <p className="text-sm leading-relaxed">{msg.text}</p>
-                                                    <div className={`flex items-center justify-end gap-1 mt-1 ${isMe ? 'text-indigo-200' : 'text-slate-400'}`}>
-                                                        <p className="text-xs">{msg.time}</p>
+                                                    <div className={`flex items-center justify-end gap-1 mt-1.5 ${isMe ? 'text-white/50' : 'text-gray-300 dark:text-slate-500'}`}>
+                                                        <p className="text-[10px] font-medium">{msg.time}</p>
                                                         {isMe && (
-                                                            <span className="text-xs" title={msg.isRead ? 'Read' : 'Sent'}>
+                                                            <span className="text-[10px]">
                                                                 {msg.isRead
-                                                                    ? <span className="text-sky-300" title="Read">✓✓</span>
-                                                                    : <span className="opacity-70" title="Sent">✓</span>
+                                                                    ? <span className="text-sky-300">✓✓</span>
+                                                                    : <span className="opacity-70">✓</span>
                                                                 }
                                                             </span>
                                                         )}
@@ -467,46 +448,47 @@ const MessagesPage: React.FC = () => {
                                 <div ref={messagesEndRef} />
                             </div>
 
-                            {/* Input */}
-                            <div className="p-3 md:p-4 border-t border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-800/50 flex-shrink-0">
-                                <div className="flex items-end gap-2 bg-slate-100 dark:bg-slate-700 rounded-xl p-1.5">
+                            {/* Input Bar */}
+                            <div className="px-5 py-4 border-t border-gray-50 dark:border-slate-700/60 bg-white dark:bg-slate-800 flex-shrink-0">
+                                <div className="flex items-end gap-3 bg-gray-50 dark:bg-slate-900/50 rounded-3xl px-5 py-3 border border-gray-100 dark:border-slate-700">
                                     <textarea
+                                        ref={textareaRef}
                                         rows={1}
                                         value={messageInput}
-                                        onChange={e => setMessageInput(e.target.value)}
+                                        onChange={handleTextareaChange}
                                         onKeyDown={handleKeyDown}
-                                        placeholder="Type a message... (Enter to send)"
-                                        className="flex-1 bg-transparent resize-none focus:outline-none px-3 py-2 text-sm text-slate-800 dark:text-white placeholder-slate-400 max-h-32"
-                                        style={{ minHeight: '40px' }}
+                                        placeholder="Message..."
+                                        className="flex-1 bg-transparent resize-none focus:outline-none text-sm text-gray-900 dark:text-white placeholder-gray-300 dark:placeholder-slate-600 font-medium leading-relaxed"
+                                        style={{ minHeight: '24px', maxHeight: '120px' }}
                                     />
                                     <button
                                         onClick={sendMessage}
                                         disabled={!messageInput.trim() || isSending}
-                                        className="p-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg transition-all flex-shrink-0"
+                                        className="w-9 h-9 flex items-center justify-center bg-gray-900 dark:bg-indigo-600 text-white rounded-2xl hover:scale-110 transition-all disabled:opacity-30 disabled:scale-100 cursor-pointer flex-shrink-0"
                                     >
-                                        <PaperAirplaneIcon className="w-5 h-5" />
+                                        <PaperAirplaneIcon className="w-4 h-4" />
                                     </button>
                                 </div>
-                                <p className="text-xs text-slate-400 mt-1.5 px-1">Press <kbd className="bg-slate-200 dark:bg-slate-700 px-1 rounded text-xs">Enter</kbd> to send · <kbd className="bg-slate-200 dark:bg-slate-700 px-1 rounded text-xs">Shift+Enter</kbd> for new line</p>
+                                <p className="text-[10px] text-gray-300 dark:text-slate-600 mt-2 px-2 font-bold uppercase tracking-widest text-center">
+                                    Enter to send · Shift+Enter for new line
+                                </p>
                             </div>
                         </>
                     ) : (
-                        <div className="flex-1 flex items-center justify-center bg-slate-50 dark:bg-gray-900/30">
-                            <div className="text-center py-12 px-6">
-                                <div className="text-6xl mb-6">💬</div>
-                                <h3 className="text-xl font-bold text-slate-700 dark:text-slate-300 mb-2">Your Messages</h3>
-                                <p className="text-slate-500 dark:text-slate-400 mb-6 max-w-xs">Connect with students and recruiters. Find someone by their ID or email to start chatting.</p>
+                        <div className="flex-1 flex items-center justify-center bg-gray-50/30 dark:bg-slate-900/10">
+                            <div className="text-center py-12 px-8">
+                                <div className="w-24 h-24 bg-white dark:bg-slate-800 rounded-4xl flex items-center justify-center mx-auto mb-6 shadow-sm text-5xl border border-gray-100 dark:border-slate-700">💬</div>
+                                <h3 className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight mb-2">Your Messages</h3>
+                                <p className="text-gray-400 dark:text-slate-500 mb-8 max-w-xs text-sm leading-relaxed">Connect with students and recruiters. Find someone to start a conversation.</p>
                                 <button
                                     onClick={() => setShowNewChat(true)}
-                                    className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition-colors shadow-lg shadow-indigo-500/20"
+                                    className="px-8 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold rounded-2xl hover:scale-[1.02] transition-all shadow-xl shadow-gray-200 dark:shadow-none cursor-pointer"
                                 >
-                                    Start a New Conversation
+                                    Start a Conversation
                                 </button>
-                                <div className="mt-6 p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-left">
-                                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                                        🆔 Your User ID<br />
-                                        <span className="font-mono text-indigo-500 dark:text-indigo-400 select-all text-xs break-all">{user?.id}</span>
-                                    </p>
+                                <div className="mt-6 p-4 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-2xl text-left">
+                                    <p className="text-[10px] text-gray-400 dark:text-slate-500 uppercase tracking-widest font-bold mb-1">Your User ID</p>
+                                    <span className="font-mono text-indigo-500 select-all text-xs break-all">{user?.id}</span>
                                 </div>
                             </div>
                         </div>

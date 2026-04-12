@@ -21,6 +21,7 @@ import ProfilePage from '../pages/ProfilePage';
 import MessagesPage from '../pages/MessagesPage';
 import JobApplicationPage from '../pages/JobApplicationPage';
 import UploadVideoPage from '../pages/UploadVideoPage';
+import SettingsPage from '../pages/SettingsPage';
 import { Job } from '../../types';
 import { VideoGenIndicator } from '../common/VideoGenIndicator';
 import { NotificationDropdown } from '../common/NotificationDropdown';
@@ -44,13 +45,13 @@ interface NavLinkItem {
 const NavLink: React.FC<{ item: NavLinkItem; isActive: boolean; onClick: () => void }> = ({ item, isActive, onClick }) => (
     <button
         onClick={onClick}
-        className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium cursor-pointer transition-all duration-200 border-none ${isActive
-            ? 'text-gray-900 dark:text-white font-semibold'
-            : 'bg-transparent text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-slate-800/50'
+        className={`relative flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold cursor-pointer transition-all duration-200 border-none ${isActive
+            ? 'text-gray-900 dark:text-white'
+            : 'bg-transparent text-gray-400 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800/50'
         }`}
     >
         {isActive && (
-            <div className="absolute inset-0 bg-gray-100 dark:bg-white/10 rounded-xl -z-10" />
+            <div className="absolute inset-0 bg-gray-50 dark:bg-white/10 rounded-2xl -z-10" />
         )}
         {item.icon} {item.name}
     </button>
@@ -141,6 +142,8 @@ const RecruiterLayout: React.FC<RecruiterLayoutProps> = ({
                 return <UploadVideoPage navigate={navigate} />;
             case 'job_application':
                 return <JobApplicationPage job={selectedJob} navigate={navigate} previousPage={previousPage} />;
+            case 'settings':
+                return <SettingsPage navigate={navigate} theme={theme} toggleTheme={toggleTheme} onLogout={onLogout} />;
             default:
                 return <RecruiterDashboardPage navigate={navigate} />;
         }
@@ -156,8 +159,8 @@ const RecruiterLayout: React.FC<RecruiterLayoutProps> = ({
                             <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('dashboard')}>
                                 <LogoIcon className="h-8 w-8 text-indigo-500" />
                                 <div>
-                                    <span className="text-xl font-bold text-slate-800 dark:text-white tracking-tighter">RapidGig</span>
-                                    <span className="ml-2 text-xs font-semibold bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full">Recruiter</span>
+                                <span className="text-xl font-extrabold text-gray-900 dark:text-white tracking-tight">RapidGig</span>
+                                    <span className="ml-2 text-[10px] font-black uppercase tracking-widest bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500 dark:text-indigo-400 px-2.5 py-1 rounded-lg">Recruiter</span>
                                 </div>
                             </div>
                             <nav className="hidden md:flex items-center space-x-1">
@@ -185,16 +188,18 @@ const RecruiterLayout: React.FC<RecruiterLayoutProps> = ({
                                     />
                                 </button>
                                 {isProfileMenuOpen && (
-                                    <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-700 rounded-md shadow-lg py-1 z-50 ring-1 ring-black/5">
-                                        <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-600">
-                                            <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{user?.name}</p>
-                                            <p className="text-xs text-indigo-500 dark:text-indigo-400">Recruiter</p>
+                                    <div className="absolute right-0 mt-3 w-56 bg-white dark:bg-slate-800 rounded-2xl shadow-xl py-2 z-50 border border-gray-100 dark:border-slate-700 overflow-hidden">
+                                        <div className="px-5 py-3 border-b border-gray-50 dark:border-slate-700">
+                                            <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{user?.name}</p>
+                                            <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest mt-0.5">Recruiter</p>
                                         </div>
-                                        <button onClick={() => { navigate('profile'); setIsProfileMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer">Your Profile</button>
-                                        <button onClick={() => { navigate('post_job'); setIsProfileMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer">Post a Job</button>
-                                        <button onClick={() => { navigate('candidates'); setIsProfileMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer">Browse Candidates</button>
-                                        <div className="border-t border-slate-200 dark:border-slate-600 my-1"></div>
-                                        <button onClick={() => { onLogout(); setIsProfileMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-red-500 dark:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer">Sign out</button>
+                                        <button onClick={() => { navigate('profile'); setIsProfileMenuOpen(false); }} className="block w-full text-left px-5 py-3 text-sm font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer transition-all">Your Profile</button>
+                                        <button onClick={() => { navigate('settings'); setIsProfileMenuOpen(false); }} className="block w-full text-left px-5 py-3 text-sm font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer transition-all">Settings</button>
+                                        <button onClick={() => { navigate('post_job'); setIsProfileMenuOpen(false); }} className="block w-full text-left px-5 py-3 text-sm font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer transition-all">Post a Job</button>
+                                        <button onClick={() => { navigate('candidates'); setIsProfileMenuOpen(false); }} className="block w-full text-left px-5 py-3 text-sm font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer transition-all">Browse Candidates</button>
+                                        <div className="border-t border-gray-50 dark:border-slate-700 mt-1 pt-1">
+                                            <button onClick={() => { onLogout(); setIsProfileMenuOpen(false); }} className="block w-full text-left px-5 py-3 text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 cursor-pointer transition-all">Sign out</button>
+                                        </div>
                                     </div>
                                 )}
                             </div>

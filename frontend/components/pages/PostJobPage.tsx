@@ -284,64 +284,61 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
   // ══════════════════════════════════════════════════════════════════════════
   if (success) {
     return (
-      <div className="container mx-auto max-w-2xl px-4 py-16 text-center">
-        <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 p-12 rounded-2xl shadow-xl">
-          <div className="text-6xl mb-4">🎉</div>
-          <h2 className="text-3xl font-bold text-slate-800 dark:text-white mb-3">Job Posted Successfully!</h2>
-          <p className="text-slate-500 dark:text-slate-400 mb-4">Your job is now live and visible to students on the platform.</p>
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center animate-slide-up">
+        <div className="bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 p-16 rounded-[2.5rem] shadow-sm">
+          <div className="w-20 h-20 bg-green-50 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto mb-8">
+            <span className="text-4xl">🎉</span>
+          </div>
+          <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight mb-3">Job Posted Successfully!</h2>
+          <p className="text-gray-500 dark:text-slate-400 max-w-sm mx-auto">Your job is now live and visible to students on the platform.</p>
           
           {/* Show video generation status */}
           {isVideoProcessing && (
-            <div className="mb-6 p-4 bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/50 rounded-xl">
-              <div className="flex items-center justify-center gap-2 text-indigo-600 dark:text-indigo-400 mb-1">
-                <div className="w-4 h-4 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin" />
-                <span className="font-semibold text-sm">AI Video Generating in Background</span>
+            <div className="mt-8 p-6 bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-800/30 rounded-3xl">
+              <div className="flex items-center justify-center gap-3 text-indigo-600 dark:text-indigo-400 mb-2">
+                <div className="w-5 h-5 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+                <span className="font-bold text-sm">AI Video Generating in Background</span>
               </div>
-              <p className="text-xs text-indigo-500/70 dark:text-indigo-400/70">
-                You can navigate freely — check the <span className="font-bold">🎬 indicator</span> in the header to track progress.
-                The video will be automatically attached to your job when ready.
+              <p className="text-xs text-indigo-400 dark:text-indigo-400/70 max-w-xs mx-auto">
+                Navigate freely — check the <span className="font-bold">🎬 indicator</span> in the header to track progress.
               </p>
             </div>
           )}
 
           {/* Show if video completed */}
           {!isVideoProcessing && videoJobs.some(j => j.status === 'completed') && form.shortVideoUrl && (
-            <div className="mb-6 overflow-hidden bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800/50 rounded-xl shadow-inner">
-              <div className="p-4 border-b border-green-200 dark:border-green-800/50 flex flex-col items-center justify-center gap-2 text-green-600 dark:text-green-400">
+            <div className="mt-8 overflow-hidden bg-green-50/50 dark:bg-green-950/20 border border-green-100 dark:border-green-800/30 rounded-3xl">
+              <div className="p-6 border-b border-green-100 dark:border-green-800/30 flex flex-col items-center gap-2 text-green-600 dark:text-green-400">
                 <div className="flex items-center gap-2">
                   <CheckCircleIcon className="w-5 h-5" />
-                  <span className="font-semibold text-sm">AI Video Ready & Attached to Your Job!</span>
+                  <span className="font-bold text-sm">AI Video Ready & Attached!</span>
                 </div>
-                <p className="text-xs text-green-500/80 dark:text-green-400/80 text-center max-w-sm">
-                  Your job is now standing out in the Shorts feed. Preview your AI-generated marketing video below.
+                <p className="text-xs text-green-500/70 max-w-sm">
+                  Your job stands out in the Shorts feed. Preview below.
                 </p>
               </div>
-              <div className="relative aspect-[9/16] bg-black max-w-[200px] mx-auto m-4 rounded-lg overflow-hidden shadow-lg border-2 border-green-300 dark:border-green-700/50">
+              <div className="relative aspect-[9/16] bg-black max-w-[180px] mx-auto my-6 rounded-2xl overflow-hidden shadow-2xl border-4 border-white dark:border-slate-800">
                 <video
                   src={form.shortVideoUrl.startsWith('http') ? form.shortVideoUrl : `${import.meta.env.VITE_API_BASE?.replace('/api', '') || 'http://localhost:3001'}${form.shortVideoUrl}`}
                   className="w-full h-full object-cover"
-                  loop
-                  muted
-                  autoPlay
-                  playsInline
-                  controls
+                  loop muted autoPlay playsInline controls
                 />
               </div>
             </div>
           )}
 
-          <div className="flex gap-3 justify-center flex-wrap">
+          <div className="flex gap-4 justify-center flex-wrap mt-10">
             <button
               onClick={() => resetForm(false)}
-              className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition-colors"
+              className="px-8 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-gray-200 dark:shadow-none cursor-pointer"
             >
               Post Another Job
             </button>
-            <button onClick={() => navigate('review_applications')} className="px-6 py-3 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold rounded-lg transition-colors">
+            <button onClick={() => navigate('review_applications')} className="px-8 py-4 bg-gray-50 dark:bg-slate-700 hover:bg-gray-100 dark:hover:bg-slate-600 text-gray-900 dark:text-white font-bold rounded-2xl transition-all cursor-pointer">
               View Applications
             </button>
-            <button onClick={() => navigate('dashboard')} className="px-6 py-3 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold rounded-lg transition-colors">
-              Go to Dashboard
+            <button onClick={() => navigate('dashboard')} className="px-8 py-4 bg-gray-50 dark:bg-slate-700 hover:bg-gray-100 dark:hover:bg-slate-600 text-gray-900 dark:text-white font-bold rounded-2xl transition-all cursor-pointer">
+              Dashboard
             </button>
           </div>
         </div>
@@ -353,24 +350,24 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
   // FORM — all fields persist across navigation via localStorage
   // ══════════════════════════════════════════════════════════════════════════
   const InputClass =
-    'w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg py-3 px-4 text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all';
-  const LabelClass = 'block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2';
+    'w-full bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-700 rounded-2xl py-3.5 px-5 text-gray-900 dark:text-white placeholder-gray-300 dark:placeholder-slate-600 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 transition-all font-medium';
+  const LabelClass = 'block text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2 px-1';
 
   // Check if the form has any user-entered data (for showing "clear draft" button)
   const hasFormData = form.title || form.company || form.description || form.location || form.pay;
 
   return (
-    <div className="container mx-auto max-w-3xl px-4 py-8">
-      <div className="mb-8 flex justify-between items-start">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10 animate-slide-up">
+      <div className="mb-10 flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-800 dark:text-white tracking-tighter">Post a Job</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">Fill in the details below to reach top talent on RapidGig.</p>
+          <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight">New Job Posting</h1>
+          <p className="text-lg text-gray-500 dark:text-slate-400 mt-2">Reach top student talent on RapidGig.</p>
         </div>
         {hasFormData && (
           <button
             type="button"
             onClick={() => resetForm(true)}
-            className="flex items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-red-500 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20"
+            className="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-red-500 transition-colors px-4 py-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/20 cursor-pointer"
           >
             <TrashIcon className="w-3.5 h-3.5" />
             Clear Draft
@@ -380,84 +377,93 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
 
       {/* Saved draft indicator */}
       {hasFormData && (
-        <div className="mb-4 flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
+        <div className="mb-6 flex items-center gap-2 text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest">
           <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-          Draft auto-saved — your form is safe even if you navigate away
+          Draft auto-saved
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-2xl p-8 shadow-lg space-y-6">
+      <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-[2.5rem] p-10 shadow-sm space-y-8">
         {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
+          <div className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-800/30 text-red-600 dark:text-red-400 px-6 py-4 rounded-2xl text-sm font-medium">
             {error}
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className={LabelClass} htmlFor="title">Job Title *</label>
-            <input id="title" name="title" type="text" required placeholder="e.g. Frontend Developer" className={InputClass} value={form.title} onChange={handleChange} />
-          </div>
-          <div>
-            <label className={LabelClass} htmlFor="company">Company Name *</label>
-            <input id="company" name="company" type="text" required placeholder="e.g. DesignCo Inc." className={InputClass} value={form.company} onChange={handleChange} />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className={LabelClass} htmlFor="location">Location *</label>
-            <input id="location" name="location" type="text" required placeholder="e.g. Remote" className={InputClass} value={form.location} onChange={handleChange} />
-          </div>
-          <div>
-            <label className={LabelClass} htmlFor="type">Work Type</label>
-            <select id="type" name="type" className={InputClass} value={form.type} onChange={handleChange}>
-              <option value="Remote">Remote</option>
-              <option value="On-site">On-site</option>
-              <option value="Hybrid">Hybrid</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className={LabelClass} htmlFor="pay">Salary / Pay Rate *</label>
-            <input id="pay" name="pay" type="text" required placeholder="e.g. $40–60/hr" className={InputClass} value={form.pay} onChange={handleChange} />
-          </div>
-          <div>
-            <label className={LabelClass} htmlFor="maxSlots">Number of Positions</label>
-            <input id="maxSlots" name="maxSlots" type="number" min="1" max="100" placeholder="e.g. 5" className={InputClass} value={form.maxSlots} onChange={handleChange} />
-            <p className="text-xs text-slate-400 mt-1">How many freelancers do you need for this job?</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className={LabelClass} htmlFor="category">Category</label>
-            <select id="category" name="category" className={InputClass} value={form.category} onChange={handleChange}>
-              <option value="">Select a category</option>
-              {categories.length > 0
-                ? categories.map((c: any) => <option key={c._id || c.id} value={c.name}>{c.name}</option>)
-                : <>
-                    <option value="Web Development">Web Development</option>
-                    <option value="Mobile Development">Mobile Development</option>
-                    <option value="UI/UX Design">UI/UX Design</option>
-                    <option value="Data Science">Data Science</option>
-                  </>
-              }
-            </select>
-          </div>
-        </div>
-
+        {/* ── Section: Basic Info ───────────────────────────────────────── */}
         <div>
-          <div className="flex justify-between items-end mb-2">
-            <label className={LabelClass} htmlFor="description">Job Description *</label>
+          <h3 className="text-xs font-black text-indigo-500 uppercase tracking-[0.2em] mb-6">Basic Information</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className={LabelClass} htmlFor="title">Job Title *</label>
+              <input id="title" name="title" type="text" required placeholder="e.g. Frontend Developer" className={InputClass} value={form.title} onChange={handleChange} />
+            </div>
+            <div>
+              <label className={LabelClass} htmlFor="company">Company *</label>
+              <input id="company" name="company" type="text" required placeholder="e.g. DesignCo Inc." className={InputClass} value={form.company} onChange={handleChange} />
+            </div>
+          </div>
+        </div>
+
+        {/* ── Section: Work Details ─────────────────────────────────────── */}
+        <div>
+          <h3 className="text-xs font-black text-indigo-500 uppercase tracking-[0.2em] mb-6">Work Details</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className={LabelClass} htmlFor="location">Location *</label>
+              <input id="location" name="location" type="text" required placeholder="e.g. Remote" className={InputClass} value={form.location} onChange={handleChange} />
+            </div>
+            <div>
+              <label className={LabelClass} htmlFor="type">Work Type</label>
+              <select id="type" name="type" className={InputClass} value={form.type} onChange={handleChange}>
+                <option value="Remote">Remote</option>
+                <option value="On-site">On-site</option>
+                <option value="Hybrid">Hybrid</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <div>
+              <label className={LabelClass} htmlFor="pay">Salary / Pay Rate *</label>
+              <input id="pay" name="pay" type="text" required placeholder="e.g. $40–60/hr" className={InputClass} value={form.pay} onChange={handleChange} />
+            </div>
+            <div>
+              <label className={LabelClass} htmlFor="maxSlots">Positions Available</label>
+              <input id="maxSlots" name="maxSlots" type="number" min="1" max="100" placeholder="e.g. 5" className={InputClass} value={form.maxSlots} onChange={handleChange} />
+              <p className="text-[10px] text-gray-300 dark:text-slate-600 mt-2 px-1 font-bold uppercase tracking-widest">How many freelancers needed?</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <div>
+              <label className={LabelClass} htmlFor="category">Category</label>
+              <select id="category" name="category" className={InputClass} value={form.category} onChange={handleChange}>
+                <option value="">Select a category</option>
+                {categories.length > 0
+                  ? categories.map((c: any) => <option key={c._id || c.id} value={c.name}>{c.name}</option>)
+                  : <>
+                      <option value="Web Development">Web Development</option>
+                      <option value="Mobile Development">Mobile Development</option>
+                      <option value="UI/UX Design">UI/UX Design</option>
+                      <option value="Data Science">Data Science</option>
+                    </>
+                }
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Section: Description & Video ──────────────────────────────── */}
+        <div>
+          <div className="flex justify-between items-end mb-6">
+            <h3 className="text-xs font-black text-indigo-500 uppercase tracking-[0.2em]">Description & Media</h3>
             {!form.shortVideoUrl ? (
               <button
                 type="button"
                 onClick={handleGenerateVideo}
                 disabled={isGeneratingVideo}
-                className="flex items-center gap-2 text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-3 py-1.5 rounded-full shadow-md transition-all transform hover:scale-105 disabled:opacity-50"
+                className="flex items-center gap-2 text-xs font-black bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-5 py-2.5 rounded-2xl shadow-lg transition-all hover:scale-105 disabled:opacity-50 cursor-pointer"
               >
                 {isGeneratingVideo ? (
                   <>
@@ -467,103 +473,107 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
                 ) : (
                   <>
                     <SparklesIcon className="w-3.5 h-3.5" />
-                    Generate Video Now
+                    Generate Video
                   </>
                 )}
               </button>
             ) : isVideoProcessing ? (
               <div className="flex items-center gap-2 text-xs font-bold text-indigo-500 dark:text-indigo-400 animate-pulse">
                 <div className="w-3 h-3 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin" />
-                Video generating in background — you can navigate away!
+                Processing...
               </div>
             ) : (
               <div className="flex items-center gap-2 text-xs font-bold text-green-600 dark:text-green-400">
                 <CheckCircleIcon className="w-4 h-4" />
-                {videoSource === 'ai' ? 'AI Video Generated!' : 'Sample Video Added'}
+                {videoSource === 'ai' ? 'AI Video Ready' : 'Sample Added'}
               </div>
             )}
           </div>
-          <textarea
-            id="description" name="description" required rows={5}
-            placeholder="Describe the role, responsibilities, and what makes it exciting..."
-            className={InputClass}
-            value={form.description} onChange={handleChange}
-          />
+          <div>
+            <label className={LabelClass} htmlFor="description">Job Description *</label>
+            <textarea
+              id="description" name="description" required rows={5}
+              placeholder="Describe the role, responsibilities, and what makes it exciting..."
+              className={`${InputClass} rounded-[2rem] px-6 py-5 leading-relaxed`}
+              value={form.description} onChange={handleChange}
+            />
+          </div>
 
           {form.shortVideoUrl && (
-            <div className="mt-4 p-4 bg-slate-100 dark:bg-slate-700/50 rounded-xl border border-dashed border-slate-300 dark:border-slate-600">
-              <div className="flex justify-between items-center mb-3">
-                <h4 className="text-sm font-bold flex items-center gap-2">
+            <div className="mt-6 p-6 bg-gray-50 dark:bg-slate-900/50 rounded-3xl border border-gray-100 dark:border-slate-700">
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="text-xs font-black uppercase tracking-widest flex items-center gap-2 text-gray-900 dark:text-white">
                   <VideoCameraIcon className="w-4 h-4 text-indigo-500" />
-                  {videoSource === 'ai' ? 'AI-Generated Job Video' : 'Sample Job Video Preview'}
+                  {videoSource === 'ai' ? 'AI-Generated Video' : 'Sample Video'}
                 </h4>
                 <button
                   type="button"
                   onClick={() => { setForm(prev => ({ ...prev, shortVideoUrl: '' })); setVideoSource(null); }}
-                  className="text-slate-400 hover:text-red-500 transition-colors"
+                  className="text-gray-300 hover:text-red-500 transition-colors cursor-pointer"
                 >
                   <TrashIcon className="w-4 h-4" />
                 </button>
               </div>
-              <div className="relative aspect-video rounded-lg overflow-hidden bg-black shadow-inner">
+              <div className="relative aspect-video rounded-2xl overflow-hidden bg-black shadow-inner border-4 border-white dark:border-slate-800">
                 <video src={form.shortVideoUrl} className="w-full h-full object-cover" loop muted autoPlay playsInline />
               </div>
               {videoSource === 'sample' && (
-                <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
-                  ⚠️ Using a sample video — AI service is unavailable. Start the Helios service for real AI generation.
+                <p className="mt-3 text-xs text-amber-500 font-bold">
+                  ⚠️ Sample video — AI service unavailable. Start Helios for real generation.
                 </p>
               )}
             </div>
           )}
         </div>
 
+        {/* ── Section: Requirements ─────────────────────────────────────── */}
         <div>
-          <label className={LabelClass} htmlFor="requirements">Requirements <span className="font-normal text-slate-400">(one per line)</span></label>
+          <label className={LabelClass} htmlFor="requirements">Requirements <span className="font-normal normal-case tracking-normal text-gray-300">(one per line)</span></label>
           <textarea
             id="requirements" name="requirements" rows={4}
             placeholder={"3+ years of React experience\nTypeScript proficiency\nStrong communication skills"}
-            className={InputClass}
+            className={`${InputClass} rounded-[2rem] px-6 py-5 leading-relaxed`}
             value={form.requirements} onChange={handleChange}
           />
         </div>
 
-        {/* ── AI Video Toggle ────────────────────────────────────────────────── */}
+        {/* ── AI Video Toggle ────────────────────────────────────────────── */}
         {!form.shortVideoUrl && (
-          <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 border border-indigo-200/50 dark:border-indigo-800/30 rounded-xl">
-            <label className="relative inline-flex items-center cursor-pointer">
+          <div className="flex items-center gap-4 p-6 bg-gray-50 dark:bg-slate-900/30 border border-gray-100 dark:border-slate-700 rounded-3xl">
+            <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
               <input
                 type="checkbox"
                 checked={generateVideoOnPost}
                 onChange={(e) => setGenerateVideoOnPost(e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-500 rounded-full peer dark:bg-slate-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-500/10 rounded-full peer dark:bg-slate-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-200 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-500"></div>
             </label>
             <div>
-              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+              <p className="text-sm font-bold text-gray-900 dark:text-white">
                 <SparklesIcon className="w-4 h-4 inline-block mr-1 text-indigo-500" />
-                Auto-generate AI marketing video on post
+                Auto-generate AI marketing video
               </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                The AI reads your job details and creates a cinematic video in the background. You can navigate freely while it generates.
+              <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">
+                Creates a cinematic video from your job details in the background.
               </p>
             </div>
           </div>
         )}
 
-        <div className="flex justify-end gap-4 pt-2">
-          <button type="button" onClick={() => navigate('dashboard')} className="px-6 py-3 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold rounded-lg transition-colors">
+        {/* ── Actions ────────────────────────────────────────────────────── */}
+        <div className="flex justify-end gap-4 pt-4">
+          <button type="button" onClick={() => navigate('dashboard')} className="px-8 py-4 bg-gray-50 dark:bg-slate-700 hover:bg-gray-100 dark:hover:bg-slate-600 text-gray-900 dark:text-white font-bold rounded-2xl transition-all cursor-pointer">
             Cancel
           </button>
 
-          {/* Main submit button */}
           <button
             type="submit"
             disabled={isLoading}
-            className={`px-8 py-3 text-white font-bold rounded-lg transition-all transform hover:scale-105 shadow-lg disabled:opacity-50 ${
+            className={`px-10 py-4 text-white font-bold rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98] shadow-xl disabled:opacity-50 cursor-pointer ${
               generateVideoOnPost && !form.shortVideoUrl
-                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-indigo-500/20'
-                : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-500/20'
+                ? 'bg-gray-900 dark:bg-white dark:text-gray-900 shadow-gray-200 dark:shadow-none'
+                : 'bg-gray-900 dark:bg-white dark:text-gray-900 shadow-gray-200 dark:shadow-none'
             }`}
           >
             {isLoading ? (
@@ -574,10 +584,10 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
             ) : generateVideoOnPost && !form.shortVideoUrl ? (
               <span className="flex items-center gap-2">
                 <SparklesIcon className="w-4 h-4" />
-                🚀 Post Job & Generate Video
+                Post & Generate Video
               </span>
             ) : (
-              '🚀 Post Job'
+              'Post Job'
             )}
           </button>
         </div>

@@ -48,13 +48,13 @@ interface NavLinkItem {
 const NavLink: React.FC<{ item: NavLinkItem; isActive: boolean; onClick: () => void; isMobile?: boolean }> = ({ item, isActive, onClick, isMobile }) => (
     <button
         onClick={onClick}
-        className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium cursor-pointer transition-all duration-200 border-none ${isMobile ? 'w-full justify-start' : ''} ${isActive
-            ? 'text-gray-900 dark:text-white font-semibold'
-            : 'bg-transparent text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-slate-800/50'
+        className={`relative flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold cursor-pointer transition-all duration-200 border-none ${isMobile ? 'w-full justify-start mt-1' : ''} ${isActive
+            ? 'text-gray-900 dark:text-white'
+            : 'bg-transparent text-gray-400 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800/50'
         }`}
     >
         {isActive && (
-            <div className="absolute inset-0 bg-gray-100 dark:bg-white/10 rounded-xl -z-10" />
+            <div className="absolute inset-0 bg-gray-50 dark:bg-white/10 rounded-2xl -z-10" />
         )}
         <div className="flex-shrink-0">{item.icon}</div>
         <span>{item.name}</span>
@@ -181,12 +181,17 @@ const Header: React.FC<HeaderProps> = ({ navigate, onLogout, currentPage, theme,
                                         <div 
                                             ref={floatingRefs.setFloating} 
                                             style={floatingStyles}
-                                            className="w-48 bg-white dark:bg-slate-700 rounded-md shadow-lg py-1 z-50 ring-1 ring-black/5"
+                                            className="w-56 bg-white dark:bg-slate-800 rounded-2xl shadow-xl py-2 z-50 border border-gray-100 dark:border-slate-700 overflow-hidden"
                                         >
-                                            <button onClick={() => { navigate('profile'); setIsProfileMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer">Your Profile</button>
-                                            <button onClick={() => { showAlert("Coming Soon", "Settings page is under development!", "info"); setIsProfileMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer">Settings</button>
-                                            <div className="border-t border-slate-200 dark:border-slate-600 my-1"></div>
-                                            <button onClick={() => { onLogout(); setIsProfileMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-red-500 dark:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer">Sign out</button>
+                                            <div className="px-5 py-3 border-b border-gray-50 dark:border-slate-700">
+                                                <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{user?.name}</p>
+                                                {user?.role && <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest mt-0.5">{user.role}</p>}
+                                            </div>
+                                            <button onClick={() => { navigate('profile'); setIsProfileMenuOpen(false); }} className="block w-full text-left px-5 py-3 text-sm font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer transition-all">Your Profile</button>
+                                            <button onClick={() => { navigate('settings'); setIsProfileMenuOpen(false); }} className="block w-full text-left px-5 py-3 text-sm font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer transition-all">Settings</button>
+                                            <div className="border-t border-gray-50 dark:border-slate-700 mt-1 pt-1">
+                                                <button onClick={() => { onLogout(); setIsProfileMenuOpen(false); }} className="block w-full text-left px-5 py-3 text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 cursor-pointer transition-all">Sign out</button>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
