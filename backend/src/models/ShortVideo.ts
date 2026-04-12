@@ -10,6 +10,7 @@ export interface IShortVideo extends Document {
   views: number;
   likes: number;
   duration?: string;
+  status: 'ready' | 'processing' | 'failed';
   createdAt: Date;
 }
 
@@ -49,6 +50,11 @@ const ShortVideoSchema: Schema = new Schema(
     },
     duration: {
       type: String,
+    },
+    status: {
+      type: String,
+      enum: ['ready', 'processing', 'failed'],
+      default: 'ready',
     },
   },
   {
