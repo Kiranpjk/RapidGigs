@@ -155,7 +155,7 @@ const PrimaryButton: React.FC<{ children: React.ReactNode; type: 'submit' | 'but
 );
 
 const FormContainer: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-xl border border-gray-200/50 dark:border-gray-700/50 p-8 rounded-2xl shadow-2xl shadow-black/10 dark:shadow-black/30 animate-fade-in">
+  <div className="bg-white/90 dark:bg-gray-800/90 sm:bg-white/50 sm:dark:bg-gray-800/50 backdrop-blur-xl border border-gray-200/50 dark:border-gray-700/50 p-6 sm:p-8 rounded-2xl shadow-2xl shadow-black/10 dark:shadow-black/30 animate-fade-in w-full transition-all duration-300">
     {children}
   </div>
 );
@@ -208,7 +208,7 @@ const useGoogleButton = (
       g.accounts.id.renderButton(el, {
         theme: 'outline',
         size: 'large',
-        width: 380,
+        width: Math.min(window.innerWidth - 64, 380),
         text: buttonText,
       });
     };

@@ -12,6 +12,7 @@ import {
 import { CATEGORIES } from '../../data/mockData';
 import { useAuth } from '../../context/AuthContext';
 import { jobsAPI } from '../../services/api';
+import Swal from 'sweetalert2';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Card from '../../components/ui/Card';
@@ -30,16 +31,23 @@ function getInitials(name: string): string {
 }
 
 // JobLogo component — outlined circle (transparent fill, colored border) + briefcase badge
-const JobLogo: React.FC<{ company: string }> = ({ company }) => (
-    <div className="relative flex-shrink-0">
-        <div className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-base shadow-sm border-2" style={{ borderColor: stringToColor(company), color: stringToColor(company) }} title={company}>
-            {getInitials(company)}
+const JobLogo: React.FC<{ company: string }> = ({ company }) => {
+    const color = stringToColor(company);
+    return (
+        <div className="relative flex-shrink-0">
+            <div 
+                className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-base shadow-sm text-white transition-all duration-300 group-hover:scale-105" 
+                style={{ backgroundColor: color }} 
+                title={company}
+            >
+                {getInitials(company)}
+            </div>
+            <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-indigo-500 rounded-full flex items-center justify-center shadow-lg ring-2 ring-white dark:ring-gray-900 transition-transform duration-300">
+                <BriefcaseIcon className="w-3.5 h-3.5 text-white" />
+            </div>
         </div>
-        <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-indigo-500 rounded-full flex items-center justify-center shadow-sm ring-1 ring-white dark:ring-gray-800">
-            <BriefcaseIcon className="w-3 h-3 text-white" />
-        </div>
-    </div>
-);
+    );
+};
 
 interface DashboardPageProps {
     navigate: (page: Page) => void;
@@ -94,7 +102,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
 
     const CategoryButton: React.FC<{ children: React.ReactNode; isActive: boolean; onClick: () => void }> = ({ children, isActive, onClick }) => (
         <Button
-            variant={isActive ? 'primary' : 'outline'}
+            variant={isActive ? 'primary' : 'secondary'}
             size="sm"
             onClick={onClick}
             className={`rounded-full ${isActive ? 'font-medium' : ''}`}
@@ -103,9 +111,22 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
         </Button>
     );
 
-    const JobCard: React.FC<{ job: Job }> = ({ job }) => (
-        <Card className="border border-border bg-background hover:shadow-lg transition-shadow duration-300">
-            <div className="flex items-start gap-4 mb-4">
+    // Determine jobs to display based on category
+    const filteredJobs = selectedCategory === 'All' 
+        ? allJobs 
+        : allJobs.filter(job => job.category === selectedCategory);
+
+    const JobCard: React.FC<{ job: Job; index: number }> = ({ job, index }) => (
+        <Card 
+            variant="elevated"
+            className="h-full flex flex-col border-none ring-1 ring-slate-200 dark:ring-slate-800 group relative overflow-hidden transform-gpu"
+            data-aos="fade-up"
+            data-aos-delay={index * 50}
+        >
+            <div className="absolute top-0 right-0 py-1 px-3 bg-indigo-100/50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold uppercase tracking-wider rounded-bl-lg backdrop-blur-sm transition-colors group-hover:bg-indigo-600 group-hover:text-white">
+                {job.category}
+            </div>
+            <div className="flex items-start gap-4 mb-4 mt-2">
                 <JobLogo company={job.company} />
                 <div>
                     <h3 className="font-bold text-foreground text-lg">{job.title}</h3>
@@ -119,7 +140,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
             <p className="text-sm text-muted-foreground flex-grow mb-6 line-clamp-3">{job.description}</p>
             
             {(job.companyVideoUrl || job.freelancerVideoUrl) && (
-                <div className="border-t border-slate-200 dark:border-slate-700 pt-4 mt-auto mb-4 space-y-2">
+                <div className="pt-4 mt-auto mb-4 space-y-2">
                     {job.companyVideoUrl && (
                         <a href={job.companyVideoUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-indigo-600 dark:text-indigo-400 hover:underline">
                             <PlayCircleIcon className="w-5 h-5"/>
@@ -148,8 +169,11 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
             )}
 
             <button
-                className={`w-full mt-auto bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 ${job.status === 'Full' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                onClick={() => onApplyNow(job)}
+                className={`w-full mt-auto bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-4 rounded-xl transition-all duration-300 transform group-hover:scale-[1.02] active:scale-95 shadow-md hover:shadow-indigo-500/25 ${job.status === 'Full' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                onClick={() => {
+                    if (job.status === 'Full') return;
+                    onApplyNow(job);
+                }}
                 disabled={job.status === 'Full'}
             >
                 {job.status === 'Full' ? 'Positions Filled' : 'Apply Now'}
@@ -174,7 +198,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
 
     return (
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="relative rounded-lg p-12 text-center mb-12 overflow-hidden bg-gray-200 dark:bg-gray-900">
+            <div className="relative rounded-2xl p-6 sm:p-12 text-center mb-12 overflow-hidden bg-gray-200 dark:bg-gray-900 border border-white/20 shadow-xl shadow-indigo-500/5 transition-all duration-500">
                 <div className="absolute inset-0 bg-cover bg-center opacity-10 dark:opacity-20" style={{backgroundImage: 'url(https://picsum.photos/seed/bg/1200/400)'}}></div>
                 <div className="absolute inset-0 bg-gradient-to-t from-gray-100 dark:from-gray-900 via-gray-100/80 dark:via-gray-900/80 to-transparent"></div>
                 <div className="relative z-10">
@@ -211,22 +235,16 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
             <section className="mb-12">
                 <h2 className="text-3xl font-bold mb-6 text-slate-800 dark:text-white">
                     {selectedCategory === 'All' ? (isRecruiter ? 'Recent Opportunities to Fill' : 'Nearby Gigs') : `${selectedCategory} Gigs`}
-                    {liveJobs.length > 0 && <span className="ml-3 text-sm font-normal bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2.5 py-1 rounded-full">{liveJobs.length} live</span>}
+                    {filteredJobs.length > 0 && <span className="ml-3 text-sm font-normal bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2.5 py-1 rounded-full">{filteredJobs.length} live</span>}
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {(selectedCategory === 'All' 
-                        ? allJobs 
-                        : allJobs.filter(job => job.category === selectedCategory)
-                    ).map((job, idx) => <JobCard key={job.id ?? idx} job={job} />)}
+                    {filteredJobs.map((job, idx) => <JobCard key={job.id ?? idx} job={job} index={idx} />)}
                 </div>
-                {(selectedCategory === 'All' 
-                        ? allJobs 
-                        : allJobs.filter(job => job.category === selectedCategory)
-                    ).length === 0 && !isLoading && (
+                {filteredJobs.length === 0 && !isLoading && (
                     <div className="text-center py-16 col-span-3">
                         <div className="text-5xl mb-4">💼</div>
-                        <h3 className="text-xl font-bold text-slate-700 dark:text-white mb-2">No jobs posted yet</h3>
-                        <p className="text-slate-400 text-sm">Recruiters haven't posted any jobs yet. Check back soon!</p>
+                        <h3 className="text-xl font-bold text-slate-700 dark:text-white mb-2">No jobs in this category</h3>
+                        <p className="text-slate-400 text-sm">Try exploring other categories or check back later!</p>
                     </div>
                 )}
             </section>

@@ -45,10 +45,10 @@ interface NavLinkItem {
     requiresAuth?: boolean;
 }
 
-const NavLink: React.FC<{ item: NavLinkItem; isActive: boolean; onClick: () => void }> = ({ item, isActive, onClick }) => (
+const NavLink: React.FC<{ item: NavLinkItem; isActive: boolean; onClick: () => void; isMobile?: boolean }> = ({ item, isActive, onClick, isMobile }) => (
     <button
         onClick={onClick}
-        className={`relative flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-medium cursor-pointer transition-all duration-300 border-none ${isActive
+        className={`relative flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-medium cursor-pointer transition-all duration-300 border-none ${isMobile ? 'w-full justify-start' : ''} ${isActive
             ? 'text-indigo-800 dark:text-indigo-200 font-bold translate-y-[-2px]'
             : 'bg-transparent text-slate-500 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100/50 dark:hover:bg-slate-800/50'
         }`}
@@ -57,7 +57,8 @@ const NavLink: React.FC<{ item: NavLinkItem; isActive: boolean; onClick: () => v
         {isActive && (
             <div className="absolute inset-0 bg-gradient-to-b from-white/80 to-white/40 dark:from-white/20 dark:to-white/5 backdrop-blur-xl border border-white/60 dark:border-white/20 shadow-[0_8px_32px_0_rgba(0,0,0,0.1)] dark:shadow-[0_8px_32px_0_rgba(255,255,255,0.05)] rounded-2xl -z-10 animate-fade-in-up"></div>
         )}
-        {item.icon} {item.name}
+        <div className="flex-shrink-0">{item.icon}</div>
+        <span>{item.name}</span>
     </button>
 );
 
@@ -131,11 +132,11 @@ const Header: React.FC<HeaderProps> = ({ navigate, onLogout, currentPage, theme,
                 <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
                         <div className="flex items-center gap-8">
-                            <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('dashboard')}>
+                            <div className="flex items-center gap-2 cursor-pointer flex-shrink-0" onClick={() => navigate('dashboard')}>
                                 <LogoIcon className="h-8 w-8 text-indigo-500" />
-                                <span className="text-xl font-bold text-slate-800 dark:text-white tracking-tighter">RapidGig</span>
+                                <span className="text-xl font-bold text-slate-800 dark:text-white tracking-tighter hidden sm:block">RapidGig</span>
                             </div>
-                            <nav className="hidden md:flex items-center space-x-1">
+                            <nav className="hidden lg:flex items-center space-x-1">
                                 {navItems.map(item => (
                                     !item.requiresAuth || isAuthenticated ? (
                                         <NavLink key={item.name} item={item} isActive={currentPage === item.page} onClick={() => handleNav(item.page)} />
@@ -143,10 +144,10 @@ const Header: React.FC<HeaderProps> = ({ navigate, onLogout, currentPage, theme,
                                 ))}
                             </nav>
                         </div>
-                        <div className="flex items-center gap-2 md:gap-4">
-                            <div className="relative hidden sm:block">
+                        <div className="flex items-center gap-2 sm:gap-4">
+                            <div className="relative hidden xl:block">
                                 <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 dark:text-slate-400" />
-                                <input type="text" placeholder="Search..." className="bg-slate-100 dark:bg-gray-700/50 border border-slate-300 dark:border-gray-600 rounded-lg pl-10 pr-4 py-2 w-40 md:w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-300" />
+                                <input type="text" placeholder="Search..." className="bg-slate-100 dark:bg-gray-700/50 border border-slate-300 dark:border-gray-600 rounded-lg pl-10 pr-4 py-2 w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-300" />
                             </div>
                             <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors duration-200">
                                 {theme === 'dark' ? <SunIcon className="h-6 w-6 text-slate-300" /> : <MoonIcon className="h-6 w-6 text-slate-600" />}
@@ -191,20 +192,26 @@ const Header: React.FC<HeaderProps> = ({ navigate, onLogout, currentPage, theme,
                                     )}
                                 </div>
                             )}
-                            <div className="md:hidden">
-                                <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700">
+                            <div className="lg:hidden">
+                                <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
                                     {isMenuOpen ? <XMarkIcon className="w-6 h-6" /> : <Bars3Icon className="w-6 h-6" />}
                                 </button>
                             </div>
                         </div>
                     </div>
                     {isMenuOpen && (
-                        <div ref={mobileMenuRef} className="md:hidden pb-4 space-y-1">
+                        <div ref={mobileMenuRef} className="lg:hidden pb-6 pt-2 space-y-1.5 animate-in slide-in-from-top-4 duration-300">
                             {navItems.map(item => (
                                 !item.requiresAuth || isAuthenticated ? (
-                                    <NavLink key={item.name} item={item} isActive={currentPage === item.page} onClick={() => handleNav(item.page)} />
+                                    <NavLink key={item.name} item={item} isActive={currentPage === item.page} onClick={() => handleNav(item.page)} isMobile={true} />
                                 ) : null
                             ))}
+                            {!isAuthenticated && (
+                                <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-col gap-2">
+                                    <button onClick={() => handleNav('login')} className="w-full text-left px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300">Login</button>
+                                    <button onClick={() => handleNav('signup')} className="w-full bg-indigo-600 text-white rounded-xl py-3 text-sm font-bold shadow-lg shadow-indigo-500/20">Sign Up</button>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

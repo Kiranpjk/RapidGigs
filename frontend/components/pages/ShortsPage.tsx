@@ -126,9 +126,9 @@ const ShortCard: React.FC<ShortCardProps> = ({
             )}
 
             {/* Bottom Overlay */}
-            <div className="absolute bottom-0 left-0 p-6 text-white w-full flex justify-between items-end drop-shadow-2xl z-10">
+            <div className="absolute bottom-0 left-0 p-4 sm:p-6 text-white w-full flex justify-between items-end drop-shadow-2xl z-10 transition-all duration-300">
                 {/* Left: Info */}
-                <div className="w-3/4">
+                <div className="flex-1 min-w-0 pr-2">
                     <div className="flex items-center gap-3 mb-3">
                         <img
                             src={item.author?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.author?.name || 'A')}`}

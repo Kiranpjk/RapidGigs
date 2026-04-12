@@ -78,27 +78,27 @@ const Modal: React.FC<ModalProps> = ({
       ></div>
       
       {/* Modal */}
-      <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 animate-scaleIn">
+      <div className="relative bg-white dark:bg-slate-800 rounded-2xl premium-shadow-xl max-w-md w-full p-6 animate-scaleIn border border-white/20 dark:border-slate-700/50">
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+          className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-premium"
         >
           <XMarkIcon className="w-6 h-6" />
         </button>
 
         {/* Icon */}
-        <div className="flex justify-center mb-4">
+        <div className="flex justify-center mb-4 transition-premium transform hover:scale-110">
           {getIcon()}
         </div>
 
         {/* Title */}
-        <h3 className="text-2xl font-bold text-center text-slate-800 dark:text-white mb-2">
+        <h3 className="text-2xl font-bold text-center text-slate-800 dark:text-white mb-2 text-balance text-premium-heading tracking-tight">
           {title}
         </h3>
 
         {/* Message */}
-        <p className="text-center text-slate-600 dark:text-slate-300 mb-6">
+        <p className="text-center text-slate-600 dark:text-slate-300 mb-6 text-balance leading-relaxed">
           {message}
         </p>
 
@@ -107,7 +107,7 @@ const Modal: React.FC<ModalProps> = ({
           {showCancel && (
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-3 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-semibold rounded-lg transition-colors"
+              className="flex-1 px-4 py-3 bg-slate-100 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl transition-premium hover-premium-shadow border border-slate-200 dark:border-slate-700"
             >
               {cancelText}
             </button>
@@ -118,7 +118,7 @@ const Modal: React.FC<ModalProps> = ({
                 onConfirm();
                 onClose();
               }}
-              className={`flex-1 px-4 py-3 ${getButtonColor()} text-white font-semibold rounded-lg transition-colors`}
+              className={`flex-1 px-4 py-3 ${getButtonColor()} text-white font-bold rounded-xl transition-premium hover-premium-shadow shadow-lg shadow-indigo-500/20`}
             >
               {confirmText}
             </button>

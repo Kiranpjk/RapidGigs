@@ -101,7 +101,7 @@ export const NotificationDropdown: React.FC<{ navigate: (page: Page) => void }> 
                 <div 
                     ref={refs.setFloating} 
                     style={floatingStyles}
-                    className="w-80 sm:w-96 bg-white/40 dark:bg-slate-900/60 backdrop-blur-3xl rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] border border-white/50 dark:border-slate-700/50 z-50 overflow-hidden transform animate-fade-in-up"
+                    className="w-80 sm:w-96 bg-white/60 dark:bg-slate-900/80 backdrop-blur-3xl rounded-3xl premium-shadow-xl border border-white/50 dark:border-slate-700/50 z-50 overflow-hidden transform animate-fade-in-up"
                 >
                     <div className="p-5 border-b border-white/20 dark:border-slate-700/50 flex justify-between items-center bg-white/30 dark:bg-slate-800/30">
                         <h3 className="font-extrabold text-slate-800 dark:text-white text-lg drop-shadow-sm">Notifications</h3>
