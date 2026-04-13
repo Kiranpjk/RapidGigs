@@ -1,0 +1,25 @@
+[project]
+name = "metaai-sdk"
+version = "0.1.0"
+description = "Python SDK + FastAPI server for Meta AI image and video generation"
+authors = [{name = "Claude Code", email = "noreply@anthropic.com"}]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "httpx>=0.25.0",
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.23.0",
+    "pydantic[v2]>=2.7.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.dependencies]
+httpx = ">=0.25.0"
+fastapi = ">=0.110.0"
+uvicorn = ">=0.23.0"
+pydantic = ">=2.7.0"
+python-dotenv = ">=1.0.0"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

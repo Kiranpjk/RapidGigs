@@ -48,6 +48,29 @@ export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   return {};
 };
 
+export const fetchBlobWithAuth = async (url: string, options: RequestInit = {}) => {
+  const token = getAuthToken();
+  const headers: Record<string, string> = {};
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const mergedHeaders = { ...headers, ...(options.headers as Record<string, string> || {}) };
+  const response = await fetch(url, { ...options, headers: mergedHeaders });
+  if (!response.ok) {
+    let errorMessage = `Request failed with status ${response.status}`;
+    try {
+      const errorBody = await response.json();
+      errorMessage = errorBody.error || errorMessage;
+    } catch {
+      // Ignore non-JSON error payloads
+    }
+    throw new Error(errorMessage);
+  }
+  return response.blob();
+};
+
 // ─── Auth API ─────────────────────────────────────────────────────────────────
 
 export const authAPI = {
@@ -189,6 +212,12 @@ export const jobsAPI = {
 
   delete: async (jobId: string) =>
     fetchWithAuth(`${API_BASE_URL}/jobs/${jobId}`, { method: 'DELETE' }),
+
+  parseDescription: async (text: string) =>
+    fetchWithAuth(`${API_BASE_URL}/jobs/parse-description`, {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    }),
 };
 
 // ─── Applications API ─────────────────────────────────────────────────────────
@@ -219,6 +248,9 @@ export const applicationsAPI = {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     }),
+
+  getResumeEndpoint: (applicationId: string, mode: 'inline' | 'download' = 'inline') =>
+    `${API_BASE_URL}/applications/${applicationId}/resume?mode=${mode}`,
 };
 
 // ─── Messages API ─────────────────────────────────────────────────────────────
@@ -334,12 +366,6 @@ export const aiAPI = {
     fetchWithAuth(`${API_BASE_URL}/ai/generate-text`, {
       method: 'POST',
       body: JSON.stringify({ prompt }),
-    }),
-
-  extractJob: async (text: string) =>
-    fetchWithAuth(`${API_BASE_URL}/ai/extract-job`, {
-      method: 'POST',
-      body: JSON.stringify({ text }),
     }),
 };
 

@@ -15,7 +15,7 @@ import RecruiterLayout from './components/layout/RecruiterLayout';
 const VALID_PAGES: Page[] = [
   'dashboard', 'shorts', 'jobs', 'profile', 'messages',
   'notifications', 'upload_video', 'job_application',
-  'admin', 'post_job', 'review_applications', 'candidates',
+  'admin', 'post_job', 'review_applications', 'candidates', 'settings',
 ];
 
 /** Read the current browser path and return the matching Page, or fallback to dashboard */

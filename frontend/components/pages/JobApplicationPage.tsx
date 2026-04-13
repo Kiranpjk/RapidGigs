@@ -5,7 +5,6 @@ import {
     BriefcaseIcon,
     MapPinIcon,
     CurrencyDollarIcon,
-    PlayCircleIcon,
     VideoCameraIcon
 } from '../icons/Icons';
 import { useJobs } from '../../context/JobContext';
@@ -232,15 +231,9 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ job, navigate, 
         await submitApplication(job, resumeFile, videoFile, coverLetter);
         
         showSuccess('Application Submitted!', `Your application for ${job.title} at ${job.company} has been sent successfully!`, () => {
-            navigate('profile');
+            navigate('jobs');
         });
-        setTimeout(() => navigate('profile'), 2000);
-        
-        // Scroll to my-applications section
-        setTimeout(() => {
-          const el = document.getElementById('my-applications');
-          if (el) el.scrollIntoView({ behavior: 'smooth' });
-        }, 100);
+        setTimeout(() => navigate('jobs'), 2000);
       } catch (err: any) {
         const message = err?.message || 'Failed to submit application. Please try again.';
         showAlert('Submission Failed', message, 'danger');
@@ -464,81 +457,81 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ job, navigate, 
                 <aside className="w-full lg:w-1/3">
                     <div className="sticky top-24">
                         <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 p-6 rounded-lg">
-                            <h2 className="text-xl font-bold mb-4">Job Details</h2>
-                            <div className="space-y-4 text-slate-700 dark:text-slate-300">
-                                <div className="flex items-center gap-2"><BriefcaseIcon className="w-5 h-5 text-indigo-500 dark:text-indigo-400"/><span>{job.type}</span></div>
-                                <div className="flex items-center gap-2"><MapPinIcon className="w-5 h-5 text-indigo-500 dark:text-indigo-400"/><span>{job.location}</span></div>
-                                <div className="flex items-center gap-2"><CurrencyDollarIcon className="w-5 h-5 text-green-600 dark:text-green-400"/><span>{job.pay}</span></div>
-                            </div>
-                            
-                            {(job.companyVideoUrl || job.freelancerVideoUrl) && <div className="border-t border-slate-200 dark:border-slate-700 my-6"></div>}
-                            
-                            <div className="space-y-4">
-                                {job.companyVideoUrl && (
-                                    <div>
-                                        <p className="text-sm font-semibold mb-2">Project Brief from {job.company}</p>
-                                        <a href={job.companyVideoUrl} target="_blank" rel="noopener noreferrer" className="block relative group">
-                                            <img src="https://picsum.photos/seed/companyvideo/400/225" className="rounded-lg w-full"/>
-                                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <PlayCircleIcon className="w-12 h-12 text-white"/>
-                                            </div>
-                                        </a>
-                                    </div>
-                                )}
-                                {job.freelancerVideoUrl && (
-                                    <div>
-                                        <p className="text-sm font-semibold mb-2">Freelancer Walkthrough</p>
-                                        <a href={job.freelancerVideoUrl} target="_blank" rel="noopener noreferrer" className="block relative group">
-                                            <img src="https://picsum.photos/seed/freelancervideo/400/225" className="rounded-lg w-full"/>
-                                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <PlayCircleIcon className="w-12 h-12 text-white"/>
-                                            </div>
-                                        </a>
-                                    </div>
-                                )}
+                            <div className="mb-5">
+                                <p className="text-[11px] font-black text-slate-500 uppercase tracking-[0.18em] mb-2">Job Details</p>
+                                <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">{job.title}</h2>
+                                <p className="text-sm text-slate-500 dark:text-slate-400">{job.company}</p>
                             </div>
 
-                            <div className="border-t border-slate-200 dark:border-slate-700 my-6"></div>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">{job.description}</p>
-                            
-                            {/* Company Brief Section */}
-                            {job.companyBrief && (
-                                <>
-                                    <div className="border-t border-slate-200 dark:border-slate-700 my-6"></div>
-                                    <div className="space-y-4">
-                                        <h3 className="text-lg font-bold">About {job.company}</h3>
-                                        <p className="text-sm text-slate-600 dark:text-slate-400">{job.companyBrief.about}</p>
-                                        
-                                        <div>
-                                            <h4 className="text-sm font-semibold mb-2">Company Culture</h4>
-                                            <p className="text-sm text-slate-600 dark:text-slate-400">{job.companyBrief.culture}</p>
-                                        </div>
-                                        
-                                        <div>
-                                            <h4 className="text-sm font-semibold mb-2">Benefits</h4>
-                                            <ul className="list-disc list-inside text-sm text-slate-600 dark:text-slate-400 space-y-1">
-                                                {job.companyBrief.benefits.map((benefit, index) => (
-                                                    <li key={index}>{benefit}</li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                        
-                                        <div className="flex flex-wrap gap-4 text-sm">
-                                            <div>
-                                                <span className="font-semibold">Size:</span> <span className="text-slate-600 dark:text-slate-400">{job.companyBrief.size}</span>
-                                            </div>
-                                            <div>
-                                                <span className="font-semibold">Industry:</span> <span className="text-slate-600 dark:text-slate-400">{job.companyBrief.industry}</span>
-                                            </div>
-                                        </div>
-                                        
-                                        {job.companyBrief.website && (
-                                            <a href={job.companyBrief.website} target="_blank" rel="noopener noreferrer" className="text-sm text-indigo-500 dark:text-indigo-400 hover:underline">
-                                                Visit Company Website →
-                                            </a>
-                                        )}
+                            <div className="flex flex-wrap gap-2 mb-5">
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 text-xs font-bold">
+                                    <BriefcaseIcon className="w-3.5 h-3.5" />
+                                    {job.type}
+                                </span>
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700/60 text-slate-700 dark:text-slate-200 text-xs font-bold">
+                                    <MapPinIcon className="w-3.5 h-3.5" />
+                                    {job.location}
+                                </span>
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 text-xs font-bold">
+                                    <CurrencyDollarIcon className="w-3.5 h-3.5" />
+                                    {job.pay}
+                                </span>
+                            </div>
+
+                            {(job.shortVideoUrl || job.companyVideoUrl || job.freelancerVideoUrl) && (
+                                <div className="mb-6">
+                                    <p className="text-[11px] font-black text-slate-500 uppercase tracking-[0.18em] mb-2">Marketing Video</p>
+                                    <video
+                                        src={job.shortVideoUrl || job.companyVideoUrl || job.freelancerVideoUrl}
+                                        controls
+                                        className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-black"
+                                    />
+                                </div>
+                            )}
+
+                            <div className="space-y-4">
+                                <div>
+                                    <p className="text-[11px] font-black text-slate-500 uppercase tracking-[0.18em] mb-2">About The Role</p>
+                                    <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{job.description}</p>
+                                </div>
+
+                                {job.companyBrief?.culture && (
+                                    <div>
+                                        <p className="text-[11px] font-black text-slate-500 uppercase tracking-[0.18em] mb-2">Team Culture</p>
+                                        <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{job.companyBrief.culture}</p>
                                     </div>
-                                </>
+                                )}
+
+                                {job.companyBrief?.benefits?.length ? (
+                                    <div>
+                                        <p className="text-[11px] font-black text-slate-500 uppercase tracking-[0.18em] mb-2">Benefits</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {job.companyBrief.benefits.map((benefit, index) => (
+                                                <span key={index} className="text-xs px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-700/60 text-slate-700 dark:text-slate-200">
+                                                    {benefit}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : null}
+                            </div>
+
+                            {job.companyBrief && (
+                                <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700 space-y-3">
+                                    <p className="text-[11px] font-black text-slate-500 uppercase tracking-[0.18em]">About {job.company}</p>
+                                    {job.companyBrief.about && (
+                                        <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{job.companyBrief.about}</p>
+                                    )}
+                                    <div className="flex flex-wrap gap-2 text-xs">
+                                        {job.companyBrief.size && <span className="px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-700/60 text-slate-700 dark:text-slate-200">Size: {job.companyBrief.size}</span>}
+                                        {job.companyBrief.industry && <span className="px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-700/60 text-slate-700 dark:text-slate-200">Industry: {job.companyBrief.industry}</span>}
+                                    </div>
+                                    {job.companyBrief.website && (
+                                        <a href={job.companyBrief.website} target="_blank" rel="noopener noreferrer" className="text-sm text-indigo-500 dark:text-indigo-400 hover:underline inline-block">
+                                            Visit Company Website →
+                                        </a>
+                                    )}
+                                </div>
                             )}
                         </div>
                     </div>

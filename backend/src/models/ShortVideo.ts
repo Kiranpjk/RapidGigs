@@ -2,6 +2,7 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface IShortVideo extends Document {
   userId: mongoose.Types.ObjectId;
+  jobId?: mongoose.Types.ObjectId;
   title: string;
   description?: string;
   videoUrl: string;
@@ -10,7 +11,6 @@ export interface IShortVideo extends Document {
   views: number;
   likes: number;
   duration?: string;
-  status: 'ready' | 'processing' | 'failed';
   createdAt: Date;
 }
 
@@ -20,6 +20,10 @@ const ShortVideoSchema: Schema = new Schema(
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
+    },
+    jobId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Job',
     },
     title: {
       type: String,
@@ -50,11 +54,6 @@ const ShortVideoSchema: Schema = new Schema(
     },
     duration: {
       type: String,
-    },
-    status: {
-      type: String,
-      enum: ['ready', 'processing', 'failed'],
-      default: 'ready',
     },
   },
   {

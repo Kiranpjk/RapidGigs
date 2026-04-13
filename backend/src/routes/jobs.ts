@@ -1,10 +1,12 @@
 import express from 'express';
 import { body, validationResult } from 'express-validator';
 import { Job } from '../models/Job';
+import { ShortVideo } from '../models/ShortVideo';
 import { Category } from '../models/Category';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { formatTimestamp } from '../utils/formatTimestamp';
 import mongoose from 'mongoose';
+import { parseJobDescription } from '../services/jobParser';
 
 const router = express.Router();
 
@@ -145,6 +147,26 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// AI Parse job description text into structured fields
+router.post('/parse-description', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const { text } = req.body;
+    if (!text) {
+      return res.status(400).json({ error: 'No text provided to parse' });
+    }
+
+    const parsed = await parseJobDescription(text);
+    if (!parsed) {
+      return res.status(500).json({ error: 'AI failed to parse the description' });
+    }
+
+    res.json(parsed);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
 // Create job (authenticated)
 router.post(
   '/',
@@ -195,6 +217,23 @@ router.post(
       });
 
       await job.save();
+
+      // If recruiter already attached a generated short while posting,
+      // mirror it into ShortVideo feed so students can see it in Shorts.
+      if (shortVideoUrl) {
+        const existingShort = await ShortVideo.findOne({ jobId: job._id });
+        if (!existingShort) {
+          await new ShortVideo({
+            userId: new mongoose.Types.ObjectId(req.user!.userId),
+            jobId: job._id,
+            title: `${job.title} @ ${job.company}`,
+            description: job.description,
+            videoUrl: shortVideoUrl,
+            likes: 0,
+            views: 0,
+          }).save();
+        }
+      }
 
       res.status(201).json({
         id: job._id.toString(),

@@ -97,8 +97,8 @@ export const huggingfaceService = {
    */
   async enhancePrompt(text: string): Promise<string> {
     try {
-      const { buildVideoPrompt } = await import('./promptBuilder');
-      return await buildVideoPrompt(text);
+      const { enhanceAsVideoPrompt } = await import('./promptBuilder');
+      return await enhanceAsVideoPrompt(text);
     } catch {
       // Fallback: use a trimmed version of the text itself
       return `Professional workplace scene: ${text.slice(0, 150)}`;

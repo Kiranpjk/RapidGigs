@@ -1,20 +1,35 @@
-import { generateMetaVideo } from './metaVideo';
+/**
+ * videoStitcher.ts — Generate videos using available providers
+ *
+ * This service orchestrates the high-level video generation flow.
+ * It primarily relies on videoEngine.ts for provider-specific logic and fallback chains.
+ */
+
 import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
-import ffmpeg from 'fluent-ffmpeg';
+import { v4 as uuidv4 } from 'uuid';
+import { VideoScript } from './promptBuilder';
+import { generateJobVideo } from './videoEngine';
 
-const TEMP_DIR = path.join(process.cwd(), 'temp_clips');
-if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
+const UPLOADS_DIR = path.join(process.cwd(), 'uploads', 'ai-videos');
 
-export interface ClipResult {
-  localPath: string;
-  provider: string;
-}
+// Ensure directory exists
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
-async function downloadFile(url: string, dest: string): Promise<void> {
-  const response = await axios({ method: 'GET', url, responseType: 'stream' });
-  const writer = fs.createWriteStream(dest);
+/** Download a file from URL to local disk (fallback for non-Cloudinary flows) */
+async function downloadFile(url: string, destPath: string): Promise<void> {
+  if (url.startsWith('data:')) {
+    const matches = url.match(/^data:[^;]+;base64,(.+)$/);
+    if (matches) {
+      fs.writeFileSync(destPath, Buffer.from(matches[1], 'base64'));
+      return;
+    }
+    throw new Error('Invalid data URL');
+  }
+
+  const response = await axios.get(url, { responseType: 'stream', timeout: 120_000 });
+  const writer = fs.createWriteStream(destPath);
   response.data.pipe(writer);
   return new Promise((resolve, reject) => {
     writer.on('finish', resolve);
@@ -23,76 +38,70 @@ async function downloadFile(url: string, dest: string): Promise<void> {
 }
 
 /**
- * Meta-Only Fallback Chain (Switches between different accounts)
+ * Build a comprehensive video prompt from a VideoScript
  */
-async function generateWithMetaFallback(
-  prompt: string,
-  clipId: string,
-  accountPriority: number[]
-): Promise<ClipResult | null> {
-  for (const accNum of accountPriority) {
-    try {
-      console.log(`  [clip ${clipId}] Trying Meta AI Account ${accNum}...`);
-      
-      const cookies = accNum === 1 
-        ? { datr: process.env.META_AI_COOKIE_DATR || '', ecto: process.env.META_AI_COOKIE_ECTO || '' }
-        : { datr: process.env.META_AI_COOKIE_DATR_2 || '', ecto: process.env.META_AI_COOKIE_ECTO_2 || '' };
+function buildVideoPrompt(script: VideoScript): string {
+  const segments = script.segments || [];
+  if (segments.length === 0) return 'Cinematic professional workspace scene, 4k';
 
-      const rawUrl = await generateMetaVideo(prompt, cookies);
-      
-      if (rawUrl) {
-        const localPath = path.join(TEMP_DIR, `clip-${clipId}-meta${accNum}.mp4`);
-        await downloadFile(rawUrl, localPath);
-        return { localPath, provider: `MetaAI-Acc${accNum}` };
+  const visualElements = segments.map(s => s.visualPrompt).filter(Boolean);
+  const allText = segments.map(s => s.overlayText).filter(Boolean).join(' • ');
+
+  let prompt = visualElements.join(' Then, ');
+  if (allText) prompt += `. Context: ${allText}`;
+  prompt += `. Cinematic lighting, photorealistic, 4K, smooth motion, professional color grading.`;
+  return prompt;
+}
+
+/**
+ * Generate a video from a VideoScript.
+ * Orchestrates calls to videoEngine which handles actual synthesis and fallback.
+ */
+export async function generateStitchedVideo(options: {
+  script: VideoScript;
+  onProgress?: (step: string, progress: number) => void;
+  coverImageUrl?: string;
+  jobId?: string;
+  provider?: 'together' | 'magichour' | 'zsky' | 'fal' | 'wavespeed' | 'meta' | 'auto';
+}): Promise<{
+  videoUrl: string;
+  duration: number;
+  clips: number;
+  providers: string[];
+}> {
+  const { script, onProgress, coverImageUrl, jobId, provider = 'auto' } = options;
+  const genJobId = jobId || uuidv4();
+
+  try {
+    const fullPrompt = buildVideoPrompt(script);
+    console.log(`\n[VideoStitcher] Starting video generation (job=${genJobId}, provider=${provider})`);
+    onProgress?.('Initializing AI video engine...', 0.03);
+
+    const result = await generateJobVideo(
+      {
+        prompt: fullPrompt,
+        coverImageUrl,
+        jobId: genJobId,
+        provider,
+      },
+      (step, p) => {
+        onProgress?.(step, 0.05 + p * 0.9);
       }
-    } catch (e: any) {
-      console.warn(`  [clip ${clipId}] ⚠️ Meta Account ${accNum} failed: ${e.message}`);
+    );
+
+    if (result) {
+      onProgress?.('Video ready! ✅', 1.0);
+      return {
+        videoUrl: result.videoUrl,
+        duration: 5,
+        clips: 1,
+        providers: [result.provider],
+      };
     }
+
+    throw new Error('Video generation failed across all selected providers');
+  } catch (error: any) {
+    console.error('[VideoStitcher] Fatal error:', error);
+    throw error;
   }
-  return null;
 }
-
-export async function generateStitchedVideo(params: {
-  script: { segments: Array<{ visualPrompt: string, overlayText: string }> },
-  onProgress?: (step: string, progress: number) => void,
-  segmentDuration?: number
-}): Promise<{ videoUrl: string, providers: string[], clips: number, duration: number }> {
-  const { script, onProgress } = params;
-  const jobId = `vj_${Date.now()}`;
-  const outputDir = path.join(process.cwd(), 'uploads');
-  if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
-  const finalPath = path.join(outputDir, `video-${jobId}.mp4`);
-
-  onProgress?.('Generating clips using Meta AI...', 20);
-  
-  // Parallel generation using split Meta accounts
-  const tasks = [
-    generateWithMetaFallback(script.segments[0].visualPrompt, `${jobId}_1`, [1, 2]),
-    generateWithMetaFallback(script.segments[1].visualPrompt, `${jobId}_2`, [2, 1]),
-    generateWithMetaFallback(script.segments[2].visualPrompt, `${jobId}_3`, [1, 2])
-  ];
-  
-  const results = await Promise.all(tasks);
-  const validClips = results.filter((r): r is ClipResult => r !== null);
-  if (validClips.length === 0) throw new Error('Meta AI failed on all accounts.');
-
-  onProgress?.('Stitching segments...', 70);
-  
-  await new Promise((resolve, reject) => {
-    let command = ffmpeg();
-    validClips.forEach(clip => command = command.input(clip.localPath));
-    command
-      .on('error', reject)
-      .on('end', resolve)
-      .mergeToFile(finalPath, TEMP_DIR);
-  });
-
-  return {
-    videoUrl: `/uploads/video-${jobId}.mp4`,
-    providers: validClips.map(c => c.provider),
-    clips: validClips.length,
-    duration: validClips.length * (params.segmentDuration || 10)
-  };
-}
-
-export const createStitchedVideo = generateStitchedVideo;

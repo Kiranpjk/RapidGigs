@@ -29,11 +29,9 @@ async function main() {
     console.log('\n--- Step 2: Generating Video from Prompt ---');
     console.log('(This may take several minutes depending on provider capacity)');
     
-    // We only generate 2 segments for the demo to save time and credits
+    // We generate the full video from the script
     const videoResult = await generateStitchedVideo({
-      prompt,
-      segments: 2,
-      segmentDuration: 5,
+      script: prompt,
       onProgress: (step, progress) => {
         console.log(`[Progress ${Math.round(progress * 100)}%] ${step}`);
       }

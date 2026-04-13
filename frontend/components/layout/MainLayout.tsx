@@ -13,6 +13,7 @@ import AdminPage from '../pages/AdminPage';
 import SettingsPage from '../pages/SettingsPage';
 import { useAuth } from '../../context/AuthContext';
 import { canAccessPage } from '../../utils/rbac';
+import { jobsAPI } from '../../services/api';
 
 
 interface MainLayoutProps {
@@ -38,9 +39,37 @@ const MainLayout: React.FC<MainLayoutProps> = ({ currentPage, navigate, onLogout
         }, currentPage);
     };
 
-    const handleNavigateToJobDetail = (_jobId: string) => {
-        // Navigate to jobs page since jobs now come from the backend
-        navigate('jobs');
+    const handleNavigateToJobDetail = async (jobId: string) => {
+        requireAuth(async () => {
+            try {
+                const data = await jobsAPI.getById(jobId);
+                const mappedJob: Job = {
+                    id: data.id || data._id || jobId,
+                    title: data.title,
+                    company: data.company,
+                    location: data.location,
+                    type: data.type || 'Remote',
+                    pay: data.pay,
+                    description: data.description,
+                    postedAgo: data.postedAgo || 'Recently',
+                    category: data.category,
+                    companyVideoUrl: data.companyVideoUrl,
+                    freelancerVideoUrl: data.freelancerVideoUrl,
+                    shortVideoUrl: data.shortVideoUrl,
+                    maxSlots: data.maxSlots,
+                    filledSlots: data.filledSlots,
+                    status: data.status,
+                    likes: data.likes || 0,
+                    comments: data.comments || 0,
+                    shares: data.shares || 0,
+                };
+                setSelectedJob(mappedJob);
+                setPreviousPage(currentPage);
+                navigate('job_application');
+            } catch {
+                navigate('jobs');
+            }
+        }, currentPage);
     };
 
     const renderContent = () => {

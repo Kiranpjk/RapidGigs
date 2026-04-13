@@ -14,7 +14,9 @@ import {
     SunIcon,
     MoonIcon,
     XMarkIcon,
-    Bars3Icon
+    Bars3Icon,
+    BriefcaseIcon,
+    Squares2X2Icon
 } from '../icons/Icons';
 import Modal from '../common/Modal';
 import useModal from '../../hooks/useModal';
@@ -48,7 +50,7 @@ interface NavLinkItem {
 const NavLink: React.FC<{ item: NavLinkItem; isActive: boolean; onClick: () => void; isMobile?: boolean }> = ({ item, isActive, onClick, isMobile }) => (
     <button
         onClick={onClick}
-        className={`relative flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold cursor-pointer transition-all duration-200 border-none ${isMobile ? 'w-full justify-start mt-1' : ''} ${isActive
+        className={`relative flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold cursor-pointer transition-all duration-200 border-none whitespace-nowrap ${isMobile ? 'w-full justify-start mt-1' : ''} ${isActive
             ? 'text-gray-900 dark:text-white'
             : 'bg-transparent text-gray-400 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800/50'
         }`}
@@ -76,9 +78,9 @@ const Header: React.FC<HeaderProps> = ({ navigate, onLogout, currentPage, theme,
     });
 
     const navItems: NavLinkItem[] = [
-        { name: 'Home', page: 'dashboard' as Page, icon: <HomeIcon className="w-5 h-5" /> },
+        { name: 'Home', page: 'dashboard' as Page, icon: <Squares2X2Icon className="w-5 h-5" /> },
         { name: 'Shorts', page: 'shorts' as Page, icon: <VideoCameraIcon className="w-5 h-5" /> },
-        { name: 'Jobs', page: 'jobs' as Page, icon: <BriefcaseSolidIcon className="w-5 h-5" /> },
+        { name: 'Jobs', page: 'jobs' as Page, icon: <BriefcaseIcon className="w-5 h-5" /> },
         ...(user && (user.role === 'admin' || user.role === 'moderator')
             ? [{ name: 'Admin', page: 'admin' as Page, icon: <Cog6ToothIcon className="w-5 h-5" />, requiresAuth: true }]
             : []),

@@ -11,6 +11,8 @@ import {
     SunIcon,
     MoonIcon,
     BellIcon,
+    PlusCircleIcon,
+    Squares2X2Icon,
 } from '../icons/Icons';
 import RecruiterDashboardPage from '../pages/RecruiterDashboardPage';
 import ShortsPage from '../pages/ShortsPage';
@@ -45,7 +47,7 @@ interface NavLinkItem {
 const NavLink: React.FC<{ item: NavLinkItem; isActive: boolean; onClick: () => void }> = ({ item, isActive, onClick }) => (
     <button
         onClick={onClick}
-        className={`relative flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold cursor-pointer transition-all duration-200 border-none ${isActive
+        className={`relative flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold cursor-pointer transition-all duration-200 border-none whitespace-nowrap ${isActive
             ? 'text-gray-900 dark:text-white'
             : 'bg-transparent text-gray-400 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800/50'
         }`}
@@ -60,7 +62,7 @@ const NavLink: React.FC<{ item: NavLinkItem; isActive: boolean; onClick: () => v
 const navItems: NavLinkItem[] = [
     {
         name: 'Home', page: 'dashboard' as Page,
-        icon: <HomeIcon className="w-5 h-5" />
+        icon: <Squares2X2Icon className="w-5 h-5" />
     },
     {
         name: 'Shorts', page: 'shorts' as Page,
@@ -68,7 +70,7 @@ const navItems: NavLinkItem[] = [
     },
     {
         name: 'Post Jobs', page: 'post_job' as Page,
-        icon: <BriefcaseSolidIcon className="w-5 h-5" />
+        icon: <PlusCircleIcon className="w-5 h-5" />
     },
     {
         name: 'Applications', page: 'review_applications' as Page,

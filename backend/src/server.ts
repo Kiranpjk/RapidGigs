@@ -87,6 +87,7 @@ app.use((_req, res, next) => {
 
 // Serve uploaded files
 app.use('/uploads', express.static('uploads'));
+app.use('/outputs', express.static('uploads'));
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -162,13 +163,9 @@ const startServer = async () => {
         envPath: path.resolve(process.cwd(), '.env'),
         envExists: fs.existsSync(path.resolve(process.cwd(), '.env')),
         env: {
-          HUGGINGFACE_TOKEN: !!process.env.HUGGINGFACE_TOKEN,
-          HF_LEN: process.env.HUGGINGFACE_TOKEN?.length || 0,
-          FAL_KEY: !!process.env.FAL_KEY,
-          REPLICATE_API_TOKEN: !!process.env.REPLICATE_API_TOKEN,
-          MODAL_ENDPOINT: !!process.env.MODAL_ENDPOINT,
-          HELIOS_SERVICE_URL: !!process.env.HELIOS_SERVICE_URL,
-          POLLINATIONS_KEY: !!process.env.POLLINATIONS_KEY,
+          META_AI_BRIDGE_URL: !!process.env.META_AI_BRIDGE_URL,
+          META_AI_COOKIE_DATR: !!process.env.META_AI_COOKIE_DATR,
+          META_AI_ECTO_1_SESS: !!process.env.META_AI_ECTO_1_SESS,
         }
       });
     });

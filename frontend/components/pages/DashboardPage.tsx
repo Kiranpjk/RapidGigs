@@ -257,8 +257,8 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Reach thousands of talented college students looking for opportunities</p>
                         </div>
                         <button
-                            onClick={() => navigate('jobs')}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium px-4 py-2 rounded-xl transition-colors flex-shrink-0 cursor-pointer"
+                            onClick={() => navigate('post_job')}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium px-4 py-2 rounded-xl transition-colors flex-shrink-0 cursor-pointer whitespace-nowrap"
                         >
                             Post Job
                         </button>

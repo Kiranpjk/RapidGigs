@@ -1,34 +1,41 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { jobsAPI, applicationsAPI, categoriesAPI, fetchWithAuth } from '../../services/api';
+import { jobsAPI, applicationsAPI, categoriesAPI, fetchWithAuth, fetchBlobWithAuth } from '../../services/api';
 import { PencilSquareIcon, XMarkIcon, CheckCircleIcon as CheckIcon } from '../icons/Icons';
 import Swal from 'sweetalert2';
 
 const API_BASE = (import.meta.env.VITE_API_BASE as string) || 'http://localhost:3001/api';
 
-// Component to preview PDF inline despite cross-origin Content-Disposition: attachment
-const PdfPreview: React.FC<{ url: string }> = ({ url }) => {
+// Component to preview PDF inline via authenticated resume proxy
+const PdfPreview: React.FC<{ applicationId: string }> = ({ applicationId }) => {
     const [blobUrl, setBlobUrl] = useState<string | null>(null);
+    const [isPdfBlob, setIsPdfBlob] = useState(false);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         let cancelled = false;
-        fetch(url)
-            .then(r => r.blob())
+        let localBlobUrl: string | null = null;
+        const endpoint = applicationsAPI.getResumeEndpoint(applicationId, 'inline');
+        fetchBlobWithAuth(endpoint)
             .then(blob => {
                 if (!cancelled) {
-                    setBlobUrl(URL.createObjectURL(blob));
+                    setIsPdfBlob(blob.type.includes('pdf'));
+                    localBlobUrl = URL.createObjectURL(blob);
+                    setBlobUrl(localBlobUrl);
                     setLoading(false);
                 }
             })
             .catch(() => {
                 if (!cancelled) setLoading(false);
             });
-        return () => { cancelled = true; };
-    }, [url]);
+        return () => {
+            cancelled = true;
+            if (localBlobUrl) URL.revokeObjectURL(localBlobUrl);
+        };
+    }, [applicationId]);
 
     if (loading) return <div className="flex items-center justify-center h-96 text-slate-400 text-sm">Loading preview...</div>;
-    if (blobUrl) return <object data={blobUrl} type="application/pdf" className="w-full h-96" title="Resume Preview" />;
-    return <div className="text-center text-sm text-red-500 py-8">Preview unavailable — <a href={url} target="_blank" rel="noreferrer" className="underline">open in new tab</a></div>;
+    if (blobUrl && isPdfBlob) return <iframe src={blobUrl} className="w-full h-96" title="Resume Preview" />;
+    return <div className="text-center text-sm text-red-500 py-8">Preview unavailable — try downloading the file.</div>;
 };
 
 const ReviewApplicationsPage: React.FC = () => {
@@ -162,6 +169,23 @@ const ReviewApplicationsPage: React.FC = () => {
         if (!url) return false;
         const lower = url.toLowerCase();
         return lower.endsWith('.pdf') || lower.includes('/raw/upload/') || lower.includes('.pdf?');
+    };
+
+    const handleResumeDownload = async (applicationId: string, applicantName?: string) => {
+        try {
+            const endpoint = applicationsAPI.getResumeEndpoint(applicationId, 'download');
+            const blob = await fetchBlobWithAuth(endpoint);
+            const downloadUrl = URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = downloadUrl;
+            anchor.download = `${(applicantName || 'candidate').replace(/\s+/g, '_')}_resume`;
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            URL.revokeObjectURL(downloadUrl);
+        } catch {
+            Swal.fire({ title: 'Download failed', text: 'Could not download resume right now.', icon: 'error' });
+        }
     };
 
     return (
@@ -478,22 +502,30 @@ const ReviewApplicationsPage: React.FC = () => {
                                                                 <div className="flex items-center justify-between mb-4">
                                                                      <h3 className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">📄 Resume / CV Preview</h3>
                                                                     {app.resumeUrl && isRealUrl(app.resumeUrl) && (
-                                                                        <a href={getMediaUrl(app.resumeUrl)} target="_blank" rel="noreferrer" className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-widest underline">
-                                                                            Download PDF
-                                                                        </a>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleResumeDownload(id, app.applicant?.name)}
+                                                                            className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-widest underline cursor-pointer"
+                                                                        >
+                                                                            Download Resume
+                                                                        </button>
                                                                     )}
                                                                 </div>
                                                                 <div className="flex-1 bg-gray-100 dark:bg-slate-950 rounded-3xl overflow-hidden border-8 border-gray-50 dark:border-slate-800 min-h-[600px] shadow-inner relative">
                                                                     {app.resumeUrl ? (
                                                                         isPdf(app.resumeUrl) ? (
-                                                                            <PdfPreview url={getMediaUrl(app.resumeUrl)} />
+                                                                            <PdfPreview applicationId={id} />
                                                                         ) : (
                                                                             <div className="h-full flex flex-col items-center justify-center p-10 text-center text-gray-900 dark:text-white bg-white dark:bg-slate-900">
                                                                                 <span className="text-6xl mb-6">📄</span>
                                                                                 <p className="font-bold text-xl mb-6 text-gray-500">Document available but preview unavailable</p>
-                                                                                <a href={getMediaUrl(app.resumeUrl)} target="_blank" rel="noreferrer" className="px-10 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-105 transition-all">
-                                                                                    Open Document
-                                                                                </a>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => handleResumeDownload(id, app.applicant?.name)}
+                                                                                    className="px-10 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-105 transition-all cursor-pointer"
+                                                                                >
+                                                                                    Download Document
+                                                                                </button>
                                                                             </div>
                                                                         )
                                                                     ) : (

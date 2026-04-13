@@ -59,7 +59,7 @@ const JobChip: React.FC<{ job: VideoGenJob; onClick: () => void }> = ({ job, onC
         <span className="absolute text-[9px] font-bold">{job.status === 'processing' ? `${job.progress}%` : icon}</span>
       </div>
       <span className="max-w-[120px] truncate">
-        {job.status === 'processing' ? (job.step || 'Generating...') : job.status === 'completed' ? 'Done!' : 'Failed'}
+        {job.title === ' @ ' ? 'Custom Job Video' : job.status === 'completed' ? 'Done!' : job.status === 'failed' ? 'Failed' : 'Generating...'}
       </span>
       {/* Pulse ring for active */}
       {job.status === 'processing' && (
@@ -145,7 +145,7 @@ const VideoGenPanel: React.FC<{
                     ? `✓ Video ready via ${job.provider?.replace('replicate-', '') || 'AI'}`
                     : job.status === 'failed'
                     ? `✗ ${job.error || 'Generation failed'}`
-                    : (job.step || 'Generating your short video in background...') }
+                    : 'Generating your short video in background...'}
                 </p>
 
                 {/* Progress bar */}

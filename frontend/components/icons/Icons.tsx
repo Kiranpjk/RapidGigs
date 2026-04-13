@@ -60,3 +60,15 @@ export const SparklesIcon = ({ className }: { className?: string }) => (
         <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.712L18 9.75l-.259-1.038a3.375 3.375 0 00-2.453-2.453L14.25 6l1.038-.259a3.375 3.375 0 002.453-2.453L18 2.25l.259 1.038a3.375 3.375 0 002.453 2.453L21.75 6l-1.038.259a3.375 3.375 0 00-2.453 2.453zM16.867 18.961L16.5 20.25l-.367-1.289a2.25 2.25 0 00-1.636-1.636l-1.289-.367 1.289-.367a2.25 2.25 0 001.636-1.636L16.5 13.75l.367 1.289a2.25 2.25 0 001.636 1.636l1.289.367-1.289.367a2.25 2.25 0 00-1.636 1.636z" />
     </svg>
 );
+
+export const PlusCircleIcon = ({ className }: { className?: string }) => (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+);
+
+export const Squares2X2Icon = ({ className }: { className?: string }) => (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75h6.75v6.75H3.75V3.75zm10.5 0h6.75v6.75h-6.75V3.75zm-10.5 10.5h6.75v6.75H3.75v-6.75zm10.5 0h6.75v6.75h-6.75v-6.75z" />
+    </svg>
+);

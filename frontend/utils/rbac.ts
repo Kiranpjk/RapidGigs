@@ -2,7 +2,7 @@ import { Page } from '../types';
 
 export type Role = 'student' | 'recruiter' | 'moderator' | 'admin';
 
-const COMMON_AUTH_PAGES: Page[] = ['profile', 'messages', 'notifications'];
+const COMMON_AUTH_PAGES: Page[] = ['profile', 'messages', 'notifications', 'settings'];
 const CREATOR_PAGES: Page[] = ['upload_video'];
 const RECRUITER_PAGES: Page[] = ['post_job', 'review_applications', 'candidates', 'upload_video'];
 

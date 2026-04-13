@@ -11,6 +11,9 @@ export interface IJob extends Document {
   companyVideoUrl?: string;
   freelancerVideoUrl?: string;
   shortVideoUrl?: string;
+  videoGenStatus?: 'Pending' | 'Processing' | 'Completed' | 'Failed';
+  videoGenProgress?: number;
+  videoGenStage?: string;
   postedBy: mongoose.Types.ObjectId;
   maxSlots: number;
   filledSlots: number;
@@ -65,6 +68,19 @@ const JobSchema: Schema = new Schema(
     },
     shortVideoUrl: {
       type: String,
+    },
+    videoGenStatus: {
+      type: String,
+      enum: ['Pending', 'Processing', 'Completed', 'Failed'],
+      default: 'Pending',
+    },
+    videoGenProgress: {
+      type: Number,
+      default: 0,
+    },
+    videoGenStage: {
+      type: String,
+      default: '',
     },
     postedBy: {
       type: Schema.Types.ObjectId,

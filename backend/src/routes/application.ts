@@ -1,5 +1,6 @@
 import express from 'express';
 import { body, validationResult } from 'express-validator';
+import axios from 'axios';
 import { Application } from '../models/Application';
 import { Job } from '../models/Job';
 import { Notification } from '../models/Notification';
@@ -7,8 +8,29 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 import { upload } from '../middleware/upload';
 import { localStorageService } from '../services/localStorage';
 import mongoose from 'mongoose';
+import path from 'path';
+import { promises as fs } from 'fs';
 
 const router = express.Router();
+
+const getFileNameFromUrl = (fileUrl: string) => {
+  try {
+    const pathname = new URL(fileUrl).pathname;
+    return decodeURIComponent(path.basename(pathname)) || 'resume';
+  } catch {
+    return path.basename(fileUrl) || 'resume';
+  }
+};
+
+const getMimeType = (fileName: string, fallback = 'application/octet-stream') => {
+  const ext = path.extname(fileName).toLowerCase();
+  if (ext === '.pdf') return 'application/pdf';
+  if (ext === '.doc') return 'application/msword';
+  if (ext === '.docx') {
+    return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  }
+  return fallback;
+};
 
 // Get user's applications
 router.get('/my-applications', authenticate, async (req: AuthRequest, res) => {
@@ -298,5 +320,68 @@ router.patch(
     }
   }
 );
+
+// Stream resume bytes for authorized users with inline/download mode
+router.get('/:id/resume', authenticate, async (req: AuthRequest, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid application ID' });
+    }
+
+    const mode = req.query.mode === 'download' ? 'download' : 'inline';
+    const application = await Application.findById(req.params.id);
+    if (!application || !application.resumeUrl) {
+      return res.status(404).json({ error: 'Resume not found' });
+    }
+
+    const job = await Job.findById(application.jobId);
+    if (!job) {
+      return res.status(404).json({ error: 'Associated job not found' });
+    }
+
+    const isApplicant = application.userId.toString() === req.user!.userId;
+    const isJobOwner = job.postedBy.toString() === req.user!.userId;
+    if (!isApplicant && !isJobOwner) {
+      return res.status(403).json({ error: 'Unauthorized to access this resume' });
+    }
+
+    const sourceUrl = application.resumeUrl;
+    let fileBuffer: Buffer;
+    let fileName = 'resume';
+    let contentType = 'application/octet-stream';
+
+    // For inline previews of remote files, redirect after auth check.
+    // This is more reliable than proxy-downloading for some providers/CDNs.
+    if (mode === 'inline' && sourceUrl.startsWith('http')) {
+      return res.redirect(sourceUrl);
+    }
+
+    if (sourceUrl.startsWith('/uploads/') || sourceUrl.startsWith('uploads/')) {
+      const localPath = sourceUrl.startsWith('/')
+        ? path.join(process.cwd(), sourceUrl.slice(1))
+        : path.join(process.cwd(), sourceUrl);
+      fileBuffer = await fs.readFile(localPath);
+      fileName = path.basename(localPath);
+      contentType = getMimeType(fileName);
+    } else {
+      const response = await axios.get(sourceUrl, { responseType: 'arraybuffer', timeout: 20000 });
+      fileBuffer = Buffer.from(response.data);
+      fileName = getFileNameFromUrl(sourceUrl);
+      contentType = getMimeType(fileName, response.headers['content-type'] || 'application/octet-stream');
+    }
+
+    const safeName = fileName || 'resume';
+    res.setHeader('Content-Type', contentType);
+    if (mode === 'download') {
+      res.setHeader('Content-Disposition', `attachment; filename="${safeName.replace(/"/g, '')}"`);
+    } else {
+      res.setHeader('Content-Disposition', 'inline');
+    }
+    res.setHeader('Cache-Control', 'private, max-age=60');
+    return res.send(fileBuffer);
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
 
 export default router;

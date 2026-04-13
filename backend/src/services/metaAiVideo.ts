@@ -10,36 +10,49 @@ import { v4 as uuidv4 } from 'uuid';
 
 const META_GRAPHQL_URL = 'https://www.meta.ai/api/graphql';
 
-// Doc IDs captured from browser (March 2026)
-const TEXT_TO_VIDEO_DOC_ID = 'd4e29678d29dc9703db0df437793864c';
-const POLL_MEDIA_DOC_ID = '10b7bd5aa8b7537e573e49d701a5b21b';
+// Doc IDs captured from browser (Updated April 2026)
+const TEXT_TO_VIDEO_DOC_ID = '8bb6b359f134542d8d32847a96030913';
+const POLL_MEDIA_DOC_ID = '7819875454921345'; // Updated poll ID
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36';
+
+interface Account {
+  datr: string;
+  ecto1: string;
+  name: string;
+}
 
 interface MetaAiSession {
   session: ReturnType<typeof axios.create>;
   datr: string;
   ecto1: string;
+  rd_challenge?: string;
+  ps_l?: string;
+  ps_n?: string;
 }
 
 function getSession(): MetaAiSession | null {
-  const accounts = [];
+  const accounts: Account[] = [];
   
-  if (process.env.META_AI_COOKIE_DATR && process.env.META_AI_COOKIE_ECTO) {
+  if (process.env.META_AI_COOKIE_DATR && process.env.META_AI_ECTO_1_SESS) {
     accounts.push({
       datr: process.env.META_AI_COOKIE_DATR,
-      ecto1: process.env.META_AI_COOKIE_ECTO,
+      ecto1: process.env.META_AI_ECTO_1_SESS,
       name: 'Account 1'
     });
   }
   
-  if (process.env.META_AI_COOKIE_DATR_2 && process.env.META_AI_COOKIE_ECTO_2) {
+  if (process.env.META_AI_COOKIE_DATR_2 && process.env.META_AI_ECTO_1_SESS_2) {
     accounts.push({
       datr: process.env.META_AI_COOKIE_DATR_2,
-      ecto1: process.env.META_AI_COOKIE_ECTO_2,
+      ecto1: process.env.META_AI_ECTO_1_SESS_2,
       name: 'Account 2'
     });
   }
+  
+  const rd_challenge = process.env.META_AI_RD_CHALLENGE;
+  const ps_l = process.env.META_AI_PS_L || '1';
+  const ps_n = process.env.META_AI_PS_N || '1';
 
   if (accounts.length === 0) {
     console.warn('[MetaAiVideo] Missing all META_AI_COOKIE_DATR/ECTO env vars');
@@ -69,8 +82,13 @@ function getSession(): MetaAiSession | null {
     timeout: 120_000,
   });
 
-  session.defaults.headers['Cookie'] = `datr=${datr}; ecto_1_sess=${ecto1}`;
-  return { session, datr, ecto1 };
+  let cookieStr = `datr=${datr}; ecto_1_sess=${ecto1}; ps_l=${ps_l}; ps_n=${ps_n}`;
+  if (rd_challenge) {
+    cookieStr += `; rd_challenge=${rd_challenge}`;
+  }
+  
+  session.defaults.headers['Cookie'] = cookieStr;
+  return { session, datr, ecto1, rd_challenge, ps_l, ps_n };
 }
 
 function buildVariables(prompt: string, conversationId: string): Record<string, unknown> {
@@ -130,10 +148,10 @@ export async function generateVideo(
   prompt: string,
   onProgress?: (step: string, progress: number) => void
 ): Promise<VideoGenerationResult | null> {
+  // Direct GraphQL implementation
   const sessionData = getSession();
   if (!sessionData) return null;
-
-  const { session } = sessionData;
+  const { session, datr, ecto1 } = sessionData;
   const conversationId = uuidv4();
   const variables = buildVariables(prompt, conversationId);
 
@@ -154,6 +172,12 @@ export async function generateVideo(
     });
 
     const text = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+    
+    // DEBUG: Log a snippet of the response to see why mediaIds are missing
+    console.log(`  [MetaAiVideo] Raw Response (first 200 chars): ${text.slice(0, 200)}...`);
+    if (text.includes('error')) {
+      console.warn(`  [MetaAiVideo] Found error in response: ${text.slice(text.indexOf('error') - 20, text.indexOf('error') + 100)}`);
+    }
 
     // Parse SSE
     const lines = text.split('\n');

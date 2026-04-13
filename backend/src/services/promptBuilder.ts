@@ -138,15 +138,36 @@ async function ollamaChatCompletion(model: string, system: string, user: string)
 
 function parseVideoScript(jsonString: string): VideoScript | null {
   try {
-    // Strip markdown formatting if the model still returns it
-    const cleanJson = jsonString.replace(/^[\s\S]*?```json/i, '').replace(/```[\s\S]*?$/i, '').trim() || jsonString;
+    if (!jsonString) return null;
+    
+    // 1. Strip markdown formatting if the model still returns it
+    let cleanJson = jsonString
+      .replace(/^[\s\S]*?```(?:json)?/i, '')
+      .replace(/```[\s\S]*?$/i, '')
+      .trim() || jsonString;
+
+    // 2. Remove illegal control characters that break JSON.parse
+    // Llama/Cerebras often leaks literal tabs or newlines inside strings
+    cleanJson = cleanJson.replace(/[\x00-\x1F\x7F-\x9F]/g, (c) => {
+      const map: Record<string, string> = { '\n': '\\n', '\r': '\\r', '\t': '\\t', '\b': '\\b', '\f': '\\f' };
+      return map[c] || `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`;
+    });
+
+    // 3. Last resort: try to find the first { and last }
+    const firstBrace = cleanJson.indexOf('{');
+    const lastBrace = cleanJson.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      cleanJson = cleanJson.substring(firstBrace, lastBrace + 1);
+    }
+
     const parsed = JSON.parse(cleanJson);
-    if (parsed.segments && Array.isArray(parsed.segments) && parsed.segments.length === 3) {
+    if (parsed.segments && Array.isArray(parsed.segments)) {
+      // Ensure we have at least 1 segment, preferably 3
       return parsed as VideoScript;
     }
     return null;
-  } catch (e) {
-    console.error("Failed to parse JSON Script from AI:", String(e));
+  } catch (e: any) {
+    console.warn("Failed to parse JSON Script from AI:", e.message);
     return null;
   }
 }
@@ -202,3 +223,12 @@ export async function buildVideoPrompt(jobDescription: string): Promise<VideoScr
   console.warn("⚠️ All LLM providers failed to return valid JSON. Falling back to default script.");
   return buildDefaultScript(jobDescription);
 }
+
+/**
+ * Legacy/Simple wrapper to get a single cinematic prompt string
+ */
+export async function enhanceAsVideoPrompt(text: string): Promise<string> {
+  const script = await buildVideoPrompt(text);
+  return script.segments[0].visualPrompt;
+}
+

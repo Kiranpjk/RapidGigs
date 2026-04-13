@@ -86,7 +86,7 @@ const RecruiterDashboardPage: React.FC<RecruiterDashboardPageProps> = ({ navigat
                 <div className="flex gap-3">
                     <button
                         onClick={() => navigate('post_job')}
-                        className="px-6 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-gray-200 dark:shadow-none cursor-pointer"
+                        className="px-6 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-gray-200 dark:shadow-none cursor-pointer whitespace-nowrap"
                     >
                         Post a Job
                     </button>

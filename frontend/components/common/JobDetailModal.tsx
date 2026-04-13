@@ -19,7 +19,7 @@ const JobDetailModal: React.FC<JobDetailModalProps> = ({ job, isOpen, onClose, o
 
             {/* Modal */}
             <div
-                className="relative bg-white dark:bg-slate-800 rounded-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto shadow-2xl animate-scale-in"
+                className="relative bg-white dark:bg-slate-800 rounded-2xl max-w-2xl w-full h-[85vh] shadow-2xl animate-scale-in flex flex-col"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Close button */}
@@ -42,8 +42,8 @@ const JobDetailModal: React.FC<JobDetailModalProps> = ({ job, isOpen, onClose, o
                     </div>
                 )}
 
-                {/* Content */}
-                <div className="p-6">
+                {/* Scrollable Content */}
+                <div className="p-6 overflow-y-auto flex-1">
                     {/* Header */}
                     <div className="mb-4">
                         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">{job.title}</h2>
@@ -68,6 +68,9 @@ const JobDetailModal: React.FC<JobDetailModalProps> = ({ job, isOpen, onClose, o
                                 <ClockIcon className="w-3.5 h-3.5" /> {job.postedAgo}
                             </span>
                         )}
+                        <span className="inline-flex items-center gap-1 text-xs text-pink-500 dark:text-pink-400">
+                            ❤ {job.likes || 0}
+                        </span>
                     </div>
 
                     {/* Full Description — the core content */}
@@ -110,7 +113,10 @@ const JobDetailModal: React.FC<JobDetailModalProps> = ({ job, isOpen, onClose, o
                         </div>
                     )}
 
-                    {/* Apply Button */}
+                </div>
+
+                {/* Fixed footer action */}
+                <div className="p-6 pt-4 border-t border-gray-100 dark:border-slate-700">
                     <button
                         className={`w-full py-3 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer ${job.status === 'Full'
                                 ? 'bg-gray-100 dark:bg-slate-700 text-gray-400 cursor-not-allowed'
