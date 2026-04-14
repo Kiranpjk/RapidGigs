@@ -3,7 +3,7 @@
  * Chrome/Edge-style download indicator for background video generation.
  *
  * Features:
- * - Floating pill next to notification bell in header
+ * - Inline chip next to the notification bell (not a viewport-fixed corner widget)
  * - Spinning ring progress indicator with percentage
  * - Zomato-style cycling fun facts while waiting
  * - Click to navigate → post-job page
@@ -12,6 +12,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { Page } from '../../types';
 import { useVideoGen, VIDEO_GEN_FACTS, VideoGenJob } from '../../context/VideoGenContext';
 
 // ── Circular progress SVG ─────────────────────────────────────────────────────
@@ -90,7 +91,7 @@ const VideoGenPanel: React.FC<{
   }, [hasProcessing]);
 
   return (
-    <div className="absolute right-0 bottom-14 w-[340px] bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[100] animate-fade-in-up">
+    <div className="absolute right-0 top-full mt-2 w-[min(340px,calc(100vw-2rem))] bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[100] animate-fade-in-up">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
         <div className="flex items-center gap-2">
@@ -222,11 +223,20 @@ const VideoGenPanel: React.FC<{
   );
 };
 
-// ── Main exported component — goes in the header ──────────────────────────────
-export const VideoGenIndicator: React.FC<{ onNavigate?: (page: any) => void }> = ({ onNavigate }) => {
+// ── Main exported component — sits inline next to the notification bell ───────
+export const VideoGenIndicator: React.FC<{
+  onNavigate?: (page: Page) => void;
+  /** When on Post Jobs, processing jobs started there use the in-page progress card instead */
+  currentPage?: Page;
+}> = ({ onNavigate, currentPage }) => {
   const { jobs, dismissJob, dismissAll } = useVideoGen();
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  const headerJobs =
+    currentPage === 'post_job'
+      ? jobs.filter(j => !(j.status === 'processing' && j.fromPostJob))
+      : jobs;
 
   // Close on outside click
   useEffect(() => {
@@ -237,34 +247,28 @@ export const VideoGenIndicator: React.FC<{ onNavigate?: (page: any) => void }> =
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Auto-open when a new job starts
-  useEffect(() => {
-    if (jobs.length > 0) setIsOpen(true);
-  }, [jobs.length]);
-
-  if (jobs.length === 0) return null;
+  if (headerJobs.length === 0) return null;
 
   return (
-    <div ref={ref} className="fixed bottom-6 right-6 z-[100] flex flex-col items-end gap-2">
-      {/* Always-visible chip(s) */}
+    <div ref={ref} className="relative z-[60] flex flex-col items-end">
       <div className="flex items-center gap-1">
-        {jobs.slice(0, 2).map(job => (
+        {headerJobs.slice(0, 2).map(job => (
           <JobChip key={job.jobId} job={job} onClick={() => setIsOpen(o => !o)} />
         ))}
-        {jobs.length > 2 && (
+        {headerJobs.length > 2 && (
           <button
+            type="button"
             onClick={() => setIsOpen(o => !o)}
             className="bg-slate-700 text-white text-xs font-bold rounded-full px-2 py-1 border border-white/10"
           >
-            +{jobs.length - 2}
+            +{headerJobs.length - 2}
           </button>
         )}
       </div>
 
-      {/* Expanded panel (pops UP above the chips) */}
       {isOpen && (
         <VideoGenPanel
-          jobs={jobs}
+          jobs={headerJobs}
           onDismiss={dismissJob}
           onDismissAll={dismissAll}
           onClose={() => setIsOpen(false)}

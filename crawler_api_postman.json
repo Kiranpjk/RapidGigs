@@ -1,0 +1,126 @@
+{
+  "info": {
+    "name": "RapidGigs Crawler API",
+    "description": "Website crawler and AI video generation pipeline",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Test Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/health",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["health"]
+        },
+        "description": "Check if backend is running"
+      }
+    },
+    {
+      "name": "Quick Generate (Text → Video)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jobDescription\": \"Senior Full Stack Engineer needed at innovative tech startup. Build scalable web applications using Node.js and React. 5+ years experience required. $120k-150k salary, remote work available. Apply now!\",\n  \"url\": \"https://example.com/jobs/senior-engineer\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/crawler/quick-generate",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "crawler", "quick-generate"]
+        },
+        "description": "Generate videos directly from a job description (no crawling needed)"
+      }
+    },
+    {
+      "name": "Crawl Website",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"targetUrl\": \"http://localhost:3000/jobs\",\n  \"pageCount\": 1,\n  \"maxScrolls\": 10,\n  \"videoDuration\": 10,\n  \"includeServices\": [\n    \"meta-ai\",\n    \"zsky\"\n  ]\n}"
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/crawler/crawl",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "crawler", "crawl"]
+        },
+        "description": "Crawl your website and automatically generate videos from job listings"
+      }
+    },
+    {
+      "name": "List All Active Jobs",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/api/crawler/jobs",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "crawler", "jobs"]
+        },
+        "description": "Get summary of all active and completed generation jobs"
+      }
+    },
+    {
+      "name": "Check Job Status",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/api/crawler/status/job_1712000000_abc123",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "crawler", "status", "job_1712000000_abc123"]
+        },
+        "description": "Get detailed status and generated videos for a specific job (replace jobId in URL)"
+      }
+    },
+    {
+      "name": "Schedule Recurring Crawl",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"interval\": \"0 9 * * *\",\n  \"targetUrl\": \"http://localhost:3000/jobs\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/crawler/schedule",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "crawler", "schedule"]
+        },
+        "description": "Schedule a recurring crawl using cron expression. Examples:\n- '0 9 * * *' = Daily at 9 AM\n- '*/5 * * * *' = Every 5 minutes\n- '0 */6 * * *' = Every 6 hours\n- '0 0 * * 0' = Weekly on Sunday"
+      }
+    }
+  ]
+}

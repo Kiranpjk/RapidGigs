@@ -16,24 +16,31 @@ Output ONLY valid JSON matching this exact schema:
 {
   "segments": [
     {
-      "visualPrompt": "Detailed cinematic prompt for AI video generator (day-to-day work). 4K, ultra-realistic.",
+      "visualPrompt": "Natural, realistic prompt for AI video generator (day-to-day work). Shot like iPhone footage, documentary feel.",
       "overlayText": "Short, punchy text to burn onto the video"
     },
     ...
   ]
 }
 
+Global style rules (VERY IMPORTANT):
+- Default look must be natural and realistic, like handheld/steady iPhone footage in a real workplace.
+- Prefer authentic human expressions, practical lighting, normal office/home/worksite environments.
+- Avoid artificial CGI, fantasy, surreal, overly glossy ad-style visuals unless the job explicitly requires that style.
+- Keep camera language simple: natural motion, mild depth of field, believable textures and skin tones.
+- If the role is in a creative field that requires stylization (e.g. VFX, game art, motion design), then moderate stylization is allowed.
+
 Instructions for the 3 segments: 
 Segment 1 (0-10s): 
-- visualPrompt: Cinematic establishing shot of the workplace/professional showing the environment. Ultra-realistic, 4K, golden hour lighting.
+- visualPrompt: Natural establishing shot of the workplace/professional showing the real environment. Smartphone-quality realism, authentic lighting.
 - overlayText: The Job Title, Company Name, Location, and Salary (if available). Clean and punchy. Include line breaks (\\n).
 
 Segment 2 (10-20s): 
-- visualPrompt: Close up, dynamic shot of the core day-to-day work tasks being performed with intense focus.
+- visualPrompt: Close-up realistic shot of day-to-day tasks being performed naturally (no dramatic cinematic effects).
 - overlayText: 2 short bullet points summarizing the main day-to-day responsibilities. Start with "Day-to-day:" and use \\n.
 
 Segment 3 (20-30s): 
-- visualPrompt: Wide shot of success, teamwork, impact, or satisfaction in the role.
+- visualPrompt: Wide realistic shot of teamwork, impact, or satisfaction in the role; natural interactions and expressions.
 - overlayText: Key requirements (e.g. Years of Exp) and/or top perks. Start with "Requirements/Perks:" and use \\n.
 
 CRITICAL: Output absolutely NOTHING except the raw JSON object. Do not wrap it in markdown block quotes (e.g. \`\`\`json). Just the raw {}.`;
@@ -137,37 +144,68 @@ async function ollamaChatCompletion(model: string, system: string, user: string)
 }
 
 function parseVideoScript(jsonString: string): VideoScript | null {
+  if (!jsonString) return null;
+
+  // Debug: log first 200 chars of raw response to help diagnose issues
+  console.log(`[parseVideoScript] Raw input (first 200): ${jsonString.slice(0, 200)}...`);
+
+  // 1. Strip markdown formatting if the model wraps in ```json ... ```
+  let cleanJson = jsonString
+    .replace(/^[\s\S]*?```(?:json)?/i, '')
+    .replace(/```[\s\S]*?$/i, '')
+    .trim() || jsonString;
+
+  // 2. Strip <think>...</think> tags some models add
+  cleanJson = cleanJson.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+
+  // 3. Extract the JSON object: find first { and last }
+  const firstBrace = cleanJson.indexOf('{');
+  const lastBrace = cleanJson.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    cleanJson = cleanJson.substring(firstBrace, lastBrace + 1);
+  }
+
+  // 4. Try direct parse first (works for well-formed JSON including pretty-printed)
   try {
-    if (!jsonString) return null;
-    
-    // 1. Strip markdown formatting if the model still returns it
-    let cleanJson = jsonString
-      .replace(/^[\s\S]*?```(?:json)?/i, '')
-      .replace(/```[\s\S]*?$/i, '')
-      .trim() || jsonString;
-
-    // 2. Remove illegal control characters that break JSON.parse
-    // Llama/Cerebras often leaks literal tabs or newlines inside strings
-    cleanJson = cleanJson.replace(/[\x00-\x1F\x7F-\x9F]/g, (c) => {
-      const map: Record<string, string> = { '\n': '\\n', '\r': '\\r', '\t': '\\t', '\b': '\\b', '\f': '\\f' };
-      return map[c] || `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`;
-    });
-
-    // 3. Last resort: try to find the first { and last }
-    const firstBrace = cleanJson.indexOf('{');
-    const lastBrace = cleanJson.lastIndexOf('}');
-    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-      cleanJson = cleanJson.substring(firstBrace, lastBrace + 1);
-    }
-
     const parsed = JSON.parse(cleanJson);
     if (parsed.segments && Array.isArray(parsed.segments)) {
-      // Ensure we have at least 1 segment, preferably 3
+      return parsed as VideoScript;
+    }
+    console.warn('[parseVideoScript] Parsed OK but no segments array found');
+    return null;
+  } catch (directErr: any) {
+    console.warn(`[parseVideoScript] Direct parse failed: ${directErr.message}`);
+  }
+
+  // 5. Fallback: escape control characters ONLY inside JSON string values
+  //    (don't touch structural whitespace like newlines between keys)
+  try {
+    // Remove only truly illegal control chars (not \n, \r, \t which are valid JSON whitespace)
+    let escaped = cleanJson.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, (c) => {
+      return `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`;
+    });
+    const parsed = JSON.parse(escaped);
+    if (parsed.segments && Array.isArray(parsed.segments)) {
       return parsed as VideoScript;
     }
     return null;
-  } catch (e: any) {
-    console.warn("Failed to parse JSON Script from AI:", e.message);
+  } catch (fallbackErr: any) {
+    console.warn(`[parseVideoScript] Fallback parse also failed: ${fallbackErr.message}`);
+  }
+
+  // 6. Last resort: try to fix unescaped newlines inside string values
+  try {
+    // Replace literal newlines inside quoted strings with \\n
+    let fixed = cleanJson.replace(/"([^"]*?)"/g, (match) => {
+      return match.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
+    });
+    const parsed = JSON.parse(fixed);
+    if (parsed.segments && Array.isArray(parsed.segments)) {
+      return parsed as VideoScript;
+    }
+    return null;
+  } catch (lastErr: any) {
+    console.warn('[parseVideoScript] All parse attempts failed:', lastErr.message);
     return null;
   }
 }
@@ -175,9 +213,9 @@ function parseVideoScript(jsonString: string): VideoScript | null {
 function buildDefaultScript(jobDescription: string): VideoScript {
   return {
     segments: [
-      { visualPrompt: "Cinematic ultra-realistic establishing shot of a modern professional workplace.", overlayText: "Job Opportunity" },
-      { visualPrompt: "Close up dynamic shot of a professional focusing on their day to day work.", overlayText: "Join an exciting team" },
-      { visualPrompt: "Wide shot of a successful team celebrating in the office.", overlayText: "Apply now" }
+      { visualPrompt: "Natural smartphone-style establishing shot of a real modern workplace, authentic lighting and people.", overlayText: "Job Opportunity" },
+      { visualPrompt: "Realistic close-up of a professional doing normal day-to-day work tasks, documentary style.", overlayText: "Join an exciting team" },
+      { visualPrompt: "Realistic wide shot of a team collaborating and celebrating outcomes in a real office setting.", overlayText: "Apply now" }
     ]
   };
 }

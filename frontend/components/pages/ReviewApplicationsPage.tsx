@@ -8,7 +8,7 @@ const API_BASE = (import.meta.env.VITE_API_BASE as string) || 'http://localhost:
 // Component to preview PDF inline via authenticated resume proxy
 const PdfPreview: React.FC<{ applicationId: string }> = ({ applicationId }) => {
     const [blobUrl, setBlobUrl] = useState<string | null>(null);
-    const [isPdfBlob, setIsPdfBlob] = useState(false);
+    const [canPreviewBlob, setCanPreviewBlob] = useState(false);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -18,7 +18,12 @@ const PdfPreview: React.FC<{ applicationId: string }> = ({ applicationId }) => {
         fetchBlobWithAuth(endpoint)
             .then(blob => {
                 if (!cancelled) {
-                    setIsPdfBlob(blob.type.includes('pdf'));
+                    const type = (blob.type || '').toLowerCase();
+                    const previewable =
+                        type.includes('pdf') ||
+                        type === 'application/octet-stream' ||
+                        type === '';
+                    setCanPreviewBlob(previewable);
                     localBlobUrl = URL.createObjectURL(blob);
                     setBlobUrl(localBlobUrl);
                     setLoading(false);
@@ -34,7 +39,7 @@ const PdfPreview: React.FC<{ applicationId: string }> = ({ applicationId }) => {
     }, [applicationId]);
 
     if (loading) return <div className="flex items-center justify-center h-96 text-slate-400 text-sm">Loading preview...</div>;
-    if (blobUrl && isPdfBlob) return <iframe src={blobUrl} className="w-full h-96" title="Resume Preview" />;
+    if (blobUrl && canPreviewBlob) return <iframe src={blobUrl} className="w-full h-96" title="Resume Preview" />;
     return <div className="text-center text-sm text-red-500 py-8">Preview unavailable — try downloading the file.</div>;
 };
 

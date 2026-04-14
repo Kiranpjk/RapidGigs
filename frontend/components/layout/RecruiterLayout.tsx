@@ -176,10 +176,10 @@ const RecruiterLayout: React.FC<RecruiterLayoutProps> = ({
                             <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
                                 {theme === 'dark' ? <SunIcon className="h-6 w-6 text-slate-300" /> : <MoonIcon className="h-6 w-6 text-slate-600" />}
                             </button>
-                            <NotificationDropdown navigate={navigate} />
-
-                            {/* Video generation progress indicator — Chrome download style */}
-                            <VideoGenIndicator onNavigate={navigate} />
+                            <div className="flex items-center gap-1 shrink-0">
+                                <NotificationDropdown navigate={navigate} />
+                                <VideoGenIndicator onNavigate={navigate} currentPage={currentPage} />
+                            </div>
 
                             <div className="relative">
                                 <button onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}>

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ApplicationStatus, Application, Page } from '../../types';
 import {
     HomeIcon,
@@ -60,6 +60,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
     const [myPostedApps, setMyPostedApps] = useState<number>(0);
     const [isGeneratingAvatar, setIsGeneratingAvatar] = useState(false);
     const [isGeneratingBanner, setIsGeneratingBanner] = useState(false);
+    const [resumeUploadingId, setResumeUploadingId] = useState<string | null>(null);
+    const resumeInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
     // Generate random banner gradient based on user ID
     const generateBannerGradient = () => {
@@ -189,6 +191,33 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
         const cls = statusClasses[s] || statusClasses['applied'];
         const label = status.charAt(0).toUpperCase() + status.slice(1);
         return <span className={`${baseClasses} ${cls}`}>{label}</span>;
+    };
+
+    const handleResumeReupload = async (applicationId: string, file: File) => {
+        const validTypes = [
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ];
+        if (!validTypes.includes(file.type)) {
+            showAlert('Invalid File Type', 'Please upload PDF, DOC, or DOCX only.', 'warning');
+            return;
+        }
+
+        try {
+            setResumeUploadingId(applicationId);
+            await applicationsAPI.reuploadResume(applicationId, file);
+            const refreshed = await applicationsAPI.getMyApplications();
+            setApplications(Array.isArray(refreshed) ? refreshed : []);
+            showSuccess('Resume Updated', 'Your resume was re-uploaded to Cloudinary.');
+        } catch (err: any) {
+            showAlert('Upload Failed', err?.message || 'Could not re-upload resume.', 'danger');
+        } finally {
+            setResumeUploadingId(null);
+            if (resumeInputRefs.current[applicationId]) {
+                resumeInputRefs.current[applicationId]!.value = '';
+            }
+        }
     };
 
     return (
@@ -765,6 +794,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
                                                         <th scope="col" className="px-6 py-3">Position</th>
                                                         <th scope="col" className="px-6 py-3">Date Applied</th>
                                                         <th scope="col" className="px-6 py-3">Status</th>
+                                                        <th scope="col" className="px-6 py-3">Resume</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -778,6 +808,30 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
                                                                 <td className="px-6 py-4">{title}</td>
                                                                 <td className="px-6 py-4">{new Date(date).toLocaleDateString()}</td>
                                                                 <td className="px-6 py-4"><StatusBadge status={app.status} /></td>
+                                                                <td className="px-6 py-4">
+                                                                    <input
+                                                                        ref={(el) => { resumeInputRefs.current[(app.id || (app as any)._id)] = el; }}
+                                                                        type="file"
+                                                                        accept=".pdf,.doc,.docx"
+                                                                        className="hidden"
+                                                                        onChange={(e) => {
+                                                                            const file = e.target.files?.[0];
+                                                                            const appId = app.id || (app as any)._id;
+                                                                            if (file && appId) handleResumeReupload(appId, file);
+                                                                        }}
+                                                                    />
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            const appId = app.id || (app as any)._id;
+                                                                            resumeInputRefs.current[appId]?.click();
+                                                                        }}
+                                                                        disabled={resumeUploadingId === (app.id || (app as any)._id)}
+                                                                        className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline disabled:opacity-50"
+                                                                    >
+                                                                        {resumeUploadingId === (app.id || (app as any)._id) ? 'Uploading...' : 'Re-upload Resume'}
+                                                                    </button>
+                                                                </td>
                                                             </tr>
                                                         );
                                                     })}

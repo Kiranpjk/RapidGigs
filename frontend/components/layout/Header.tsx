@@ -80,7 +80,7 @@ const Header: React.FC<HeaderProps> = ({ navigate, onLogout, currentPage, theme,
     const navItems: NavLinkItem[] = [
         { name: 'Home', page: 'dashboard' as Page, icon: <Squares2X2Icon className="w-5 h-5" /> },
         { name: 'Shorts', page: 'shorts' as Page, icon: <VideoCameraIcon className="w-5 h-5" /> },
-        { name: 'Jobs', page: 'jobs' as Page, icon: <BriefcaseIcon className="w-5 h-5" /> },
+        { name: 'Jobs', page: 'jobs' as Page, icon: <BriefcaseSolidIcon className="w-5 h-5" /> },
         ...(user && (user.role === 'admin' || user.role === 'moderator')
             ? [{ name: 'Admin', page: 'admin' as Page, icon: <Cog6ToothIcon className="w-5 h-5" />, requiresAuth: true }]
             : []),
@@ -153,8 +153,12 @@ const Header: React.FC<HeaderProps> = ({ navigate, onLogout, currentPage, theme,
                             <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors duration-200">
                                 {theme === 'dark' ? <SunIcon className="h-6 w-6 text-slate-300" /> : <MoonIcon className="h-6 w-6 text-slate-600" />}
                             </button>
-                            {isAuthenticated && <NotificationDropdown navigate={navigate} />}
-                            {isAuthenticated && <VideoGenIndicator onNavigate={navigate} />}
+                            {isAuthenticated && (
+                                <div className="flex items-center gap-1 shrink-0">
+                                    <NotificationDropdown navigate={navigate} />
+                                    <VideoGenIndicator onNavigate={navigate} currentPage={currentPage} />
+                                </div>
+                            )}
                             {!isAuthenticated ? (
                                 <div className="flex items-center gap-2">
                                     <button

@@ -6,6 +6,7 @@ import {
     PlayCircleIcon,
     BuildingOffice2Icon,
     BriefcaseIcon,
+    BriefcaseSolidIcon,
     SearchIcon,
     VideoCameraIcon,
     ClockIcon,
@@ -33,11 +34,14 @@ const JobLogo: React.FC<{ company: string }> = ({ company }) => {
     const color = stringToColor(company);
     return (
         <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center font-semibold text-sm text-white flex-shrink-0 shadow-sm"
+            className="relative w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0 shadow-sm overflow-hidden"
             style={{ backgroundColor: color }}
             title={company}
         >
-            {getInitials(company)}
+            <BriefcaseSolidIcon className="w-5 h-5 opacity-90" />
+            <span className="absolute -bottom-0.5 -right-0.5 text-[9px] font-black bg-black/45 rounded-md px-1">
+                {getInitials(company)}
+            </span>
         </div>
     );
 };

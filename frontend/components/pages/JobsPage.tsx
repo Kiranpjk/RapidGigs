@@ -4,6 +4,7 @@ import { Job } from '../../types';
 import {
     MapPinIcon,
     BookmarkIcon,
+    BriefcaseSolidIcon,
     ClockIcon,
     SearchIcon,
 } from '../icons/Icons';
@@ -86,10 +87,13 @@ const JobsPage: React.FC<JobsPageProps> = ({ onApplyNow }) => {
                 {/* Header */}
                 <div className="flex items-start gap-3 mb-3">
                     <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center font-semibold text-sm text-white flex-shrink-0 shadow-sm"
+                        className="relative w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0 shadow-sm overflow-hidden"
                         style={{ backgroundColor: stringToColor(job.company) }}
                     >
-                        {getInitials(job.company)}
+                        <BriefcaseSolidIcon className="w-5 h-5 opacity-90" />
+                        <span className="absolute -bottom-0.5 -right-0.5 text-[9px] font-black bg-black/45 rounded-md px-1">
+                            {getInitials(job.company)}
+                        </span>
                     </div>
                     <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-gray-900 dark:text-white text-[15px] leading-tight mb-0.5 truncate">

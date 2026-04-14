@@ -68,7 +68,7 @@ async function generateVideoUrl(
   script: any,
   jobId: string,
   mongoJobId?: string,
-  provider: string = 'auto'
+  provider: string = 'veoaifree'
 ): Promise<{ videoUrl: string; provider: string } | null> {
   try {
     const { generateStitchedVideo } = await import('../services/videoStitcher');
@@ -193,11 +193,19 @@ router.post('/generate', authenticate, async (req: AuthRequest, res) => {
         return;
       }
 
-      // Step 3: Mark completed — do NOT save to ShortVideo here.
-      // Videos only appear in the Shorts feed when created via /from-job
-      // (which runs after the job is actually posted to the DB).
-      // The standalone /generate is for pre-post preview only.
+      // Step 3: Save to ShortVideo so it appears in feed for BOTH students and recruiters
+      const newShort = new ShortVideo({
+        userId: req.user!.userId,
+        jobId: null, // No specific job associated with this generated video
+        title: title || 'AI Generated Short',
+        description: description || prompt,
+        videoUrl: result.videoUrl,
+        likes: 0,
+        views: 0,
+      });
+      await newShort.save();
 
+      // Step 4: Mark completed and update job store
       jobStore.set(jobId, {
         ...jobStore.get(jobId)!,
         status: 'completed',
@@ -211,7 +219,7 @@ router.post('/generate', authenticate, async (req: AuthRequest, res) => {
           userId: jobStore.get(jobId)!.userId,
           type: 'video',
           title: 'AI Video Ready',
-          message: 'Your 30-second AI pitch video is ready for preview!',
+          message: 'Your 30-second AI pitch video is ready and now visible in the Shorts feed!',
         });
         await videoNotification.save();
       } catch (err) {
@@ -426,7 +434,7 @@ router.post('/generate-long', authenticate, async (req: AuthRequest, res) => {
   });
 
   // Return job ID immediately — video generates in background
-  res.json({ jobId, status: 'processing', estimatedDuration: 5 });
+  res.json({ jobId, status: 'processing', estimatedDuration: 30 });
 
   // Run generation async
   (async () => {
@@ -698,26 +706,26 @@ router.get('/feed', authenticate, async (req: AuthRequest, res) => {
           };
         }
 
-        // Otherwise it's a student intro (only show if author is indeed a student)
-        if (user?.role === 'student' || user?.isStudent) {
-          return {
-            type: 'student_intro',
-            id: v._id.toString(),
-            title: v.title,
-            description: v.description || '',
-            videoUrl: v.videoUrl,
-            likes: v.likes || 0,
-            views: v.views || 0,
-            createdAt: v.createdAt,
-            authorId: user?._id?.toString(),
-            author: {
-              id: user?._id?.toString(),
-              name: user?.name,
-              avatar: user?.avatarUrl,
-            }
-          };
-        }
-        return null;
+        // Otherwise include intros/previews from any uploader role.
+        // This ensures videos uploaded to /api/videos (or AI-generated without jobId)
+        // are still visible in the student feed.
+        const uploaderIsRecruiter = user?.role === 'recruiter' || user?.role === 'admin' || user?.isRecruiter;
+        return {
+          type: uploaderIsRecruiter ? 'recruiter_intro' : 'student_intro',
+          id: v._id.toString(),
+          title: v.title,
+          description: v.description || '',
+          videoUrl: v.videoUrl,
+          likes: v.likes || 0,
+          views: v.views || 0,
+          createdAt: v.createdAt,
+          authorId: user?._id?.toString(),
+          author: {
+            id: user?._id?.toString(),
+            name: user?.name,
+            avatar: user?.avatarUrl,
+          }
+        };
       }).filter(Boolean);
 
       // Also include recruiter job videos that exist on Job.shortVideoUrl

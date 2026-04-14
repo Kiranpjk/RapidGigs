@@ -229,11 +229,12 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ job, navigate, 
       try {
         // Submit application - now goes to backend for real jobs
         await submitApplication(job, resumeFile, videoFile, coverLetter);
+                const destination = previousPage || 'jobs';
         
         showSuccess('Application Submitted!', `Your application for ${job.title} at ${job.company} has been sent successfully!`, () => {
-            navigate('jobs');
+                        navigate(destination);
         });
-        setTimeout(() => navigate('jobs'), 2000);
+                setTimeout(() => navigate(destination), 2000);
       } catch (err: any) {
         const message = err?.message || 'Failed to submit application. Please try again.';
         showAlert('Submission Failed', message, 'danger');

@@ -7,6 +7,7 @@ import { Notification } from '../models/Notification';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { upload } from '../middleware/upload';
 import { localStorageService } from '../services/localStorage';
+import { uploadToCloudinary } from '../services/cloudinary';
 import mongoose from 'mongoose';
 import path from 'path';
 import { promises as fs } from 'fs';
@@ -131,8 +132,14 @@ router.post(
       const videoFile = getFile('video');
 
       if (resumeFile) {
-        const savedPath = await localStorageService.saveFile(resumeFile.buffer, 'resumes', resumeFile.originalname);
-        result.resumeUrl = savedPath.startsWith('http') ? savedPath : localStorageService.getAbsoluteUrl(savedPath);
+        // Force resumes to Cloudinary for consistent recruiter preview/download.
+        const uploaded = await uploadToCloudinary(
+          resumeFile.buffer,
+          'resumes',
+          resumeFile.originalname,
+          'raw'
+        );
+        result.resumeUrl = uploaded.url;
       }
 
       if (videoFile) {
@@ -321,6 +328,49 @@ router.patch(
   }
 );
 
+// Re-upload resume for an existing application (student only, owner only)
+const handleResumeReupload = async (req: AuthRequest, res: express.Response) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid application ID' });
+    }
+
+    const file = req.file;
+    if (!file) {
+      return res.status(400).json({ error: 'No resume file uploaded' });
+    }
+
+    const application = await Application.findById(req.params.id);
+    if (!application) {
+      return res.status(404).json({ error: 'Application not found' });
+    }
+
+    if (application.userId.toString() !== req.user!.userId) {
+      return res.status(403).json({ error: 'Unauthorized to update this resume' });
+    }
+
+    const uploaded = await uploadToCloudinary(
+      file.buffer,
+      'resumes',
+      file.originalname,
+      'raw'
+    );
+
+    application.resumeUrl = uploaded.url;
+    await application.save();
+
+    return res.json({
+      id: application._id.toString(),
+      resumeUrl: application.resumeUrl,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+router.patch('/:id/resume', authenticate, upload.single('resume'), handleResumeReupload);
+router.post('/:id/resume', authenticate, upload.single('resume'), handleResumeReupload);
+
 // Stream resume bytes for authorized users with inline/download mode
 router.get('/:id/resume', authenticate, async (req: AuthRequest, res) => {
   try {
@@ -349,12 +399,6 @@ router.get('/:id/resume', authenticate, async (req: AuthRequest, res) => {
     let fileBuffer: Buffer;
     let fileName = 'resume';
     let contentType = 'application/octet-stream';
-
-    // For inline previews of remote files, redirect after auth check.
-    // This is more reliable than proxy-downloading for some providers/CDNs.
-    if (mode === 'inline' && sourceUrl.startsWith('http')) {
-      return res.redirect(sourceUrl);
-    }
 
     if (sourceUrl.startsWith('/uploads/') || sourceUrl.startsWith('uploads/')) {
       const localPath = sourceUrl.startsWith('/')

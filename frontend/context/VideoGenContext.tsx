@@ -17,11 +17,17 @@ export interface VideoGenJob {
   error?: string;
   startedAt: number;     // timestamp
   provider?: string;
+  /** When true, Post Job page shows detailed progress; header chip is hidden there to avoid duplicate UI */
+  fromPostJob?: boolean;
+}
+
+export interface StartVideoGenOptions {
+  fromPostJob?: boolean;
 }
 
 interface VideoGenContextValue {
   jobs: VideoGenJob[];
-  startJob: (jobId: string, title: string) => void;
+  startJob: (jobId: string, title: string, options?: StartVideoGenOptions) => void;
   dismissJob: (jobId: string) => void;
   dismissAll: () => void;
 }
@@ -74,7 +80,7 @@ export const VideoGenProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (timeout) { clearTimeout(timeout); autoDismissRefs.current.delete(jobId); }
   }, []);
 
-  const startJob = useCallback((jobId: string, title: string) => {
+  const startJob = useCallback((jobId: string, title: string, options?: StartVideoGenOptions) => {
     // Add to jobs list
     setJobs(prev => [
       ...prev.filter(j => j.jobId !== jobId),
@@ -84,6 +90,7 @@ export const VideoGenProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         status: 'processing',
         progress: 0,
         startedAt: Date.now(),
+        fromPostJob: options?.fromPostJob === true,
       },
     ]);
 
@@ -109,7 +116,7 @@ export const VideoGenProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           stopPolling(jobId);
           setJobs(prev => prev.map(j =>
             j.jobId === jobId
-              ? { ...j, status: 'completed', progress: 100, videoUrl: data.videoUrl, provider: data.provider }
+              ? { ...j, status: 'completed', progress: 100, videoUrl: data.videoUrl, provider: data.provider, fromPostJob: j.fromPostJob }
               : j
           ));
           // Auto-dismiss after 8 seconds (now with proper cleanup)
@@ -122,7 +129,7 @@ export const VideoGenProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           stopPolling(jobId);
           setJobs(prev => prev.map(j =>
             j.jobId === jobId
-              ? { ...j, status: 'failed', progress: 0, error: data.error || 'Generation failed' }
+              ? { ...j, status: 'failed', progress: 0, error: data.error || 'Generation failed', fromPostJob: j.fromPostJob }
               : j
           ));
         }

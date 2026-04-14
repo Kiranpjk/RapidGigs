@@ -249,6 +249,15 @@ export const applicationsAPI = {
       body: JSON.stringify({ status }),
     }),
 
+  reuploadResume: async (applicationId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('resume', file);
+    return fetchWithAuth(`${API_BASE_URL}/applications/${applicationId}/resume`, {
+      method: 'POST',
+      body: formData,
+    });
+  },
+
   getResumeEndpoint: (applicationId: string, mode: 'inline' | 'download' = 'inline') =>
     `${API_BASE_URL}/applications/${applicationId}/resume?mode=${mode}`,
 };

@@ -3,12 +3,12 @@
 //           Video only appears in Shorts AFTER you post the job (via from-job endpoint).
 //           Draft is auto-cleared on successful post or "Post Another Job".
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Page } from '../../types';
 import { jobsAPI, categoriesAPI, shortsAPI } from '../../services/api';
 import { CheckCircleIcon, TrashIcon, VideoCameraIcon } from '../icons/Icons';
 import { SparklesIcon } from '../icons/Icons';
-import { useVideoGen } from '../../context/VideoGenContext';
+import { useVideoGen, VIDEO_GEN_FACTS } from '../../context/VideoGenContext';
 import Swal from 'sweetalert2';
 
 // ── Local storage key for draft persistence ────────────────────────────────
@@ -104,6 +104,7 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
   const [isParsing, setIsParsing] = useState(false);
   const [magicText, setMagicText] = useState('');
   const [showMagicFill, setShowMagicFill] = useState(false);
+  const [inlineFactIndex, setInlineFactIndex] = useState(0);
 
   // ── Persist draft to localStorage on every change ───────────────────────
   useEffect(() => {
@@ -205,8 +206,8 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
     try {
       const response = await shortsAPI.generateFromJob(jobId);
       if (response.jobId) {
-        // This fires the floating background indicator in the header!
-        startJob(response.jobId, `${title} @ ${company}`);
+        // Background job: progress on Post Job page + chip next to notifications elsewhere
+        startJob(response.jobId, `${title} @ ${company}`, { fromPostJob: true });
         console.log(`🎬 Background video generation started for "${title}" (tracking ID: ${response.jobId})`);
       }
     } catch (err: any) {
@@ -236,7 +237,7 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
       });
 
       if (response.jobId) {
-        startJob(response.jobId, fallbackTitle);
+        startJob(response.jobId, fallbackTitle, { fromPostJob: true });
         setVideoSource('ai');
       } else if (response.short?.videoUrl || response.videoUrl) {
         setForm(prev => ({ ...prev, shortVideoUrl: response.short?.videoUrl || response.videoUrl }));
@@ -325,6 +326,24 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
   // ── Check if a background video is currently processing ──────────────────
   const isVideoProcessing = videoJobs.some(j => j.status === 'processing');
 
+  const postJobProcessingJobs = useMemo(
+    () => videoJobs.filter(j => j.fromPostJob && j.status === 'processing'),
+    [videoJobs]
+  );
+  const inlineVideoJob = useMemo(() => {
+    const sorted = [...postJobProcessingJobs].sort((a, b) => b.startedAt - a.startedAt);
+    return sorted[0];
+  }, [postJobProcessingJobs]);
+
+  useEffect(() => {
+    if (!inlineVideoJob) return;
+    setInlineFactIndex(0);
+    const t = setInterval(() => {
+      setInlineFactIndex(i => (i + 1) % VIDEO_GEN_FACTS.length);
+    }, 4000);
+    return () => clearInterval(t);
+  }, [inlineVideoJob?.jobId]);
+
   // ══════════════════════════════════════════════════════════════════════════
   // SUCCESS SCREEN — also persisted, so coming back from Shorts still shows it
   // ══════════════════════════════════════════════════════════════════════════
@@ -340,13 +359,28 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
           
           {/* Show video generation status */}
           {isVideoProcessing && (
-            <div className="mt-8 p-6 bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-800/30 rounded-3xl">
-              <div className="flex items-center justify-center gap-3 text-indigo-600 dark:text-indigo-400 mb-2">
-                <div className="w-5 h-5 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
-                <span className="font-bold text-sm">AI Video Generating in Background</span>
+            <div className="mt-8 p-6 bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-800/30 rounded-3xl text-left max-w-md mx-auto">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div className="flex items-center gap-3 text-indigo-600 dark:text-indigo-400">
+                  <div className="w-5 h-5 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin shrink-0" />
+                  <span className="font-bold text-sm">AI video generating</span>
+                </div>
+                {inlineVideoJob && (
+                  <span className="text-sm font-black tabular-nums text-indigo-600 dark:text-indigo-400 shrink-0">
+                    {inlineVideoJob.progress}%
+                  </span>
+                )}
               </div>
-              <p className="text-xs text-indigo-400 dark:text-indigo-400/70 max-w-xs mx-auto">
-                Navigate freely — check the <span className="font-bold">🎬 indicator</span> in the header to track progress.
+              {inlineVideoJob && (
+                <div className="h-2 rounded-full bg-white/70 dark:bg-slate-900/60 overflow-hidden border border-indigo-100/50 dark:border-indigo-900/30 mb-3">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-[width] duration-1000 ease-out"
+                    style={{ width: `${inlineVideoJob.progress}%` }}
+                  />
+                </div>
+              )}
+              <p className="text-xs text-indigo-600/90 dark:text-indigo-400/80">
+                You can leave this screen — a compact video chip next to the notification bell shows progress everywhere else.
               </p>
             </div>
           )}
@@ -398,6 +432,7 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
   const InputClass =
     'w-full bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-700 rounded-2xl py-3.5 px-5 text-gray-900 dark:text-white placeholder-gray-300 dark:placeholder-slate-600 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 transition-all font-medium';
   const LabelClass = 'block text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2 px-1';
+  const showVideoRunEditWarning = Boolean(inlineVideoJob);
 
   // Check if the form has any user-entered data (for showing "clear draft" button)
   const hasFormData = form.title || form.company || form.description || form.location || form.pay;
@@ -426,6 +461,47 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
         <div className="mb-6 flex items-center gap-2 text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest">
           <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
           Draft auto-saved
+        </div>
+      )}
+
+      {inlineVideoJob && (
+        <div className="sticky top-16 z-30 mb-8 rounded-2xl border border-indigo-200/80 dark:border-indigo-800/50 bg-indigo-50/90 dark:bg-indigo-950/40 backdrop-blur-md px-5 py-4 shadow-lg shadow-indigo-500/5">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md">
+                <VideoCameraIcon className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                  Generating your job video
+                </p>
+                <p className="text-xs text-indigo-700 dark:text-indigo-300/90 truncate">
+                  {inlineVideoJob.title}
+                  {postJobProcessingJobs.length > 1
+                    ? ` · +${postJobProcessingJobs.length - 1} more`
+                    : ''}
+                </p>
+              </div>
+            </div>
+            <span className="text-sm font-black tabular-nums text-indigo-600 dark:text-indigo-400 shrink-0">
+              {inlineVideoJob.progress}%
+            </span>
+          </div>
+          <div className="h-2 rounded-full bg-white/70 dark:bg-slate-900/60 overflow-hidden border border-indigo-100/50 dark:border-indigo-900/30">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-[width] duration-1000 ease-out"
+              style={{ width: `${inlineVideoJob.progress}%` }}
+            />
+          </div>
+          <p
+            className="mt-3 text-xs text-indigo-800/80 dark:text-indigo-200/80 leading-relaxed transition-all duration-500"
+            key={inlineFactIndex}
+          >
+            {VIDEO_GEN_FACTS[inlineFactIndex]}
+          </p>
+          <p className="mt-2 text-[11px] font-medium text-gray-500 dark:text-slate-500">
+            You can keep editing this form or open another tab — progress stays in sync. When you leave this page, use the chip next to the bell to check status.
+          </p>
         </div>
       )}
 
@@ -490,6 +566,17 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
         {error && (
           <div className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-800/30 text-red-600 dark:text-red-400 px-6 py-4 rounded-2xl text-sm font-medium">
             {error}
+          </div>
+        )}
+
+        {showVideoRunEditWarning && (
+          <div className="rounded-2xl border border-amber-200/80 dark:border-amber-700/40 bg-amber-50/80 dark:bg-amber-950/20 px-5 py-4">
+            <p className="text-sm font-bold text-amber-700 dark:text-amber-300">
+              Current video run is locked to the details that were already submitted.
+            </p>
+            <p className="mt-1 text-xs text-amber-700/80 dark:text-amber-300/80">
+              You can keep editing this form, but title, company, and description changes will only affect the next video generation.
+            </p>
           </div>
         )}
 
@@ -592,6 +679,13 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
               </div>
             )}
           </div>
+          {showVideoRunEditWarning && (
+            <div className="mb-4 rounded-2xl border border-indigo-100 dark:border-indigo-800/30 bg-indigo-50/70 dark:bg-indigo-950/20 px-4 py-3">
+              <p className="text-xs font-medium text-indigo-700 dark:text-indigo-300">
+                Editing the description now will not update the video currently being generated.
+              </p>
+            </div>
+          )}
           <div>
             <label className={LabelClass} htmlFor="description">Job Description *</label>
             <textarea
