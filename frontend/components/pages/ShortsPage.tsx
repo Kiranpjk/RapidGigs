@@ -14,6 +14,13 @@ import { useAuth } from '../../context/AuthContext';
 import { useJobs } from '../../context/JobContext';
 import { fetchWithAuth } from '../../services/api';
 
+/** Compact count formatter: 1200 → "1.2K", 3500000 → "3.5M" */
+const formatCount = (n: number): string => {
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+    return String(n);
+};
+
 interface ShortsPageProps {
     onApplyNow: (job: any) => void;
     onNavigateToJobDetail?: (jobId: string) => void;
@@ -39,6 +46,7 @@ interface ShortCardProps {
     onNavigateToJobDetail?: (jobId: string) => void;
     onNavigate?: (page: Page) => void;
     onViewProfile: (authorId: string) => void;
+    user: any;
 }
 
 const ShortCard: React.FC<ShortCardProps> = ({
@@ -57,6 +65,7 @@ const ShortCard: React.FC<ShortCardProps> = ({
     onNavigateToJobDetail,
     onNavigate,
     onViewProfile,
+    user,
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [connectState, setConnectState] = useState<'idle' | 'sending' | 'sent'>('idle');
@@ -103,7 +112,7 @@ const ShortCard: React.FC<ShortCardProps> = ({
                             muted
                             playsInline
                             controls={false}
-                            className="w-full h-full object-cover rounded-none sm:rounded-2xl bg-black"
+                            className="w-full h-full object-contain rounded-none sm:rounded-2xl bg-black"
                             onError={(e) => {
                                 // If video fails to load, hide it and show placeholder
                                 (e.target as HTMLVideoElement).style.display = 'none';
@@ -130,20 +139,20 @@ const ShortCard: React.FC<ShortCardProps> = ({
                 </div>
             )}
 
-                    {/* Bottom Overlay */}
-                    <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 text-white w-full flex justify-between items-end drop-shadow-2xl z-10 transition-all duration-300 min-h-[200px] pr-24 pl-4">
-                        {/* Left: Info */}
-                        <div className="flex-1 min-w-0 pr-4">
+                    {/* Bottom Overlay - Adjusted for better spacing and layering */}
+                    <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 text-white w-full flex justify-between items-end drop-shadow-2xl z-20 pointer-events-none">
+                        {/* Left: Info area (re-enable pointer events for text and buttons) */}
+                        <div className="flex-1 min-w-0 pr-6 pointer-events-auto max-w-[calc(100%-80px)]">
                             <div className="flex items-center gap-3 mb-3">
                                 <img
                                     src={item.author?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.author?.name || 'A')}`}
                                     alt={item.author?.name}
                                     onClick={() => { if (item.author?.id) onViewProfile(item.author.id); }}
-                                    className="w-11 h-11 rounded-full border-2 border-white/50 object-cover cursor-pointer hover:scale-105 transition-transform"
+                                    className="w-10 h-10 rounded-full border-2 border-white/40 object-cover cursor-pointer hover:scale-105 transition-transform shadow-lg"
                                 />
-                                <div>
-                                    <p onClick={() => { if (item.author?.id) onViewProfile(item.author.id); }} className="font-bold text-lg leading-tight cursor-pointer hover:underline">{item.author?.name}</p>
-                                    <p className="text-xs text-white/70">@{(item.author?.name || 'user').toLowerCase().replace(/\s+/g, '')}</p>
+                                <div className="min-w-0">
+                                    <p onClick={() => { if (item.author?.id) onViewProfile(item.author.id); }} className="font-bold text-base leading-tight cursor-pointer hover:underline truncate">{item.author?.name}</p>
+                                    <p className="text-[10px] text-white/60 truncate">@{(item.author?.name || 'user').toLowerCase().replace(/\s+/g, '')}</p>
                                 </div>
                                 {!isJob && (
                                     <button
@@ -152,75 +161,82 @@ const ShortCard: React.FC<ShortCardProps> = ({
                                             setConnectState('sending');
                                             setTimeout(() => setConnectState('sent'), 1000);
                                         }}
-                                        className={`text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider ml-1 transition-colors ${
-                                            connectState === 'sent' ? 'bg-green-600 text-white' :
-                                            connectState === 'sending' ? 'bg-indigo-400 text-white' : 'bg-indigo-600/80 hover:bg-indigo-600 text-white'
+                                        className={`text-[9px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider transition-all shadow-md ${
+                                            connectState === 'sent' ? 'bg-green-500/90 text-white' :
+                                            connectState === 'sending' ? 'bg-indigo-400 text-white' : 'bg-indigo-500/80 hover:bg-indigo-500 text-white'
                                         }`}
                                     >
                                         {connectState === 'sent' ? 'Sent!' : connectState === 'sending' ? 'Sending...' : 'Connect'}
                                     </button>
                                 )}
                             </div>
-                            <h2 className="text-xl font-bold mb-1 tracking-tight">{item.title}</h2>
-                            <button
-                                type="button"
-                                onClick={() => setIsDescriptionExpanded(prev => !prev)}
-                                className={`text-left text-sm text-white/90 mb-1 ${isDescriptionExpanded ? '' : 'line-clamp-2'}`}
+                            <h2 className="text-lg font-bold mb-1 tracking-tight drop-shadow-md truncate">{item.title}</h2>
+                            
+                            {/* Scrollable description container */}
+                            <div 
+                                className={`text-left text-sm text-white/95 mb-1 transition-all duration-300 drop-shadow-sm ${isDescriptionExpanded ? 'max-h-32 overflow-y-auto pr-2 custom-scrollbar' : 'line-clamp-2'}`}
+                                onClick={(e) => e.stopPropagation()}
                             >
                                 {item.description}
-                            </button>
+                            </div>
                             {(item.description || '').length > 90 && (
                                 <button
                                     type="button"
-                                    onClick={() => setIsDescriptionExpanded(prev => !prev)}
-                                    className="text-xs font-semibold text-indigo-200 hover:text-white mb-2"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setIsDescriptionExpanded(prev => !prev);
+                                    }}
+                                    className="text-[10px] font-bold text-indigo-200 hover:text-white mb-2 bg-indigo-500/20 hover:bg-indigo-500/40 px-2 py-0.5 rounded backdrop-blur-md transition-all mt-1 flex items-center gap-1"
                                 >
-                                    {isDescriptionExpanded ? 'Show less' : 'Show more'}
+                                    {isDescriptionExpanded ? 'Read less' : 'Read more'}
+                                    <span className={`transform transition-transform ${isDescriptionExpanded ? 'rotate-180' : ''}`}>↓</span>
                                 </button>
                             )}
+
                             {isJob && (
-                                <div className="flex items-center gap-2">
-                                    <span className="font-extrabold text-green-400 text-lg">{item.pay}</span>
-                                    <span className="bg-white/20 text-[10px] px-2 py-0.5 rounded backdrop-blur-sm">Job Market Short</span>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <span className="font-black text-green-400 text-base">{item.pay}</span>
+                                    <span className="bg-white/10 text-[9px] px-2 py-0.5 rounded-full border border-white/10 backdrop-blur-sm uppercase tracking-wider font-bold">Job Post</span>
                                 </div>
                             )}
+
                             {/* Stats */}
-                            <div className="flex items-center gap-5 mt-4 text-xs font-semibold text-white/80">
-                                <div className="flex items-center gap-1.5">
-                                    <EyeIcon className="w-4 h-4" />
+                            <div className="flex items-center gap-4 mt-3 text-[11px] font-bold text-white/90">
+                                <div className="flex items-center gap-1 bg-black/20 px-2 py-1 rounded-full backdrop-blur-sm">
+                                    <EyeIcon className="w-3.5 h-3.5" />
                                     <span>{(item.views || 0) > 999 ? ((item.views || 0) / 1000).toFixed(1) + 'K' : (item.views || 0)}</span>
                                 </div>
-                                <div className="flex items-center gap-1.5">
-                                    <HeartIcon className="w-4 h-4" />
+                                <div className="flex items-center gap-1 bg-black/20 px-2 py-1 rounded-full backdrop-blur-sm">
+                                    <HeartIcon className="w-3.5 h-3.5 text-red-400" />
                                     <span>{item.likes || 0}</span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <PaperAirplaneIcon className="w-4 h-4" />
-                                    <span>{item.comments || 0}</span>
                                 </div>
                             </div>
                         </div>
-
                     </div>
 
-                    {/* Bottom-right direct actions: Like, Share, Save */}
-                    <div className="absolute right-4 bottom-6 z-30 flex flex-col items-center gap-2">
-                        <button
-                            onClick={() => onLike(item.id)}
-                            className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg ${
-                                likedJobs.has(item.id)
-                                    ? 'bg-red-500 scale-110'
-                                    : 'bg-white/15 backdrop-blur-md hover:bg-white/25'
-                            }`}
-                            aria-label="Like"
-                        >
-                            {showHeartAnimation === item.id && (
-                                <span className="absolute w-11 h-11 rounded-full bg-red-400/60 animate-ping" />
-                            )}
-                            <HeartIcon className={`w-6 h-6 ${likedJobs.has(item.id) ? 'fill-white text-white' : 'text-white'}`} />
-                        </button>
+                    {/* Bottom-right direct actions: Like, Share, Save, Apply — with counts */}
+                    <div className="absolute right-4 bottom-6 z-30 flex flex-col items-center gap-3">
+                        {/* Like button + count */}
+                        <div className="flex flex-col items-center">
+                            <button
+                                onClick={() => onLike(item.id)}
+                                className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg ${
+                                    likedJobs.has(item.id)
+                                        ? 'bg-red-500 scale-110'
+                                        : 'bg-white/15 backdrop-blur-md hover:bg-white/25'
+                                }`}
+                                aria-label="Like"
+                            >
+                                {showHeartAnimation === item.id && (
+                                    <span className="absolute w-11 h-11 rounded-full bg-red-400/60 animate-ping" />
+                                )}
+                                <HeartIcon className={`w-6 h-6 ${likedJobs.has(item.id) ? 'fill-white text-white' : 'text-white'}`} />
+                            </button>
+                            <span className="text-[10px] font-bold text-white/80 mt-0.5">{formatCount(item.likes || 0)}</span>
+                        </div>
 
-                        <div className="relative">
+                        {/* Share button + count */}
+                        <div className="flex flex-col items-center relative">
                             <button
                                 onClick={() => onToggleShareMenu(showShareMenu === item.id ? null : item.id)}
                                 className="w-11 h-11 rounded-full bg-white/15 backdrop-blur-md hover:bg-white/25 flex items-center justify-center shadow-lg"
@@ -228,8 +244,9 @@ const ShortCard: React.FC<ShortCardProps> = ({
                             >
                                 <ShareIcon className="w-6 h-6 text-white" />
                             </button>
+                            <span className="text-[10px] font-bold text-white/80 mt-0.5">{formatCount(item.shares || 0)}</span>
                             {showShareMenu === item.id && (
-                                <div className="absolute left-14 -top-3 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-2 space-y-1 min-w-[140px] z-50 border border-white/20">
+                                <div className="absolute right-14 top-0 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-2 space-y-1 min-w-[140px] z-50 border border-white/20">
                                     <button onClick={() => onShare(item, 'whatsapp')} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-800 dark:text-white text-xs font-bold">📱 WhatsApp</button>
                                     <button onClick={() => onShare(item, 'twitter')} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-800 dark:text-white text-xs font-bold">🐦 X / Twitter</button>
                                     <button onClick={() => onShare(item, 'copy')} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-800 dark:text-white text-xs font-bold">📋 Copy Link</button>
@@ -237,31 +254,45 @@ const ShortCard: React.FC<ShortCardProps> = ({
                             )}
                         </div>
 
-                        {isJob && (
-                            <button
-                                onClick={() => onToggleSave(item)}
-                                className={`w-11 h-11 rounded-full flex items-center justify-center shadow-lg transition-colors ${
-                                    isSaved ? 'bg-emerald-500' : 'bg-white/15 backdrop-blur-md hover:bg-white/25'
-                                }`}
-                                aria-label={isSaved ? 'Unsave job' : 'Save job'}
-                            >
-                                <BookmarkIcon className="w-6 h-6 text-white" />
-                            </button>
+                        {/* Save button + count (students only) */}
+                        {isJob && !user?.isRecruiter && (
+                            <div className="flex flex-col items-center">
+                                <button
+                                    onClick={() => onToggleSave(item)}
+                                    className={`w-11 h-11 rounded-full flex items-center justify-center shadow-lg transition-colors ${
+                                        isSaved ? 'bg-emerald-500' : 'bg-white/15 backdrop-blur-md hover:bg-white/25'
+                                    }`}
+                                    aria-label={isSaved ? 'Unsave job' : 'Save job'}
+                                >
+                                    <BookmarkIcon className="w-6 h-6 text-white" />
+                                </button>
+                                <span className="text-[10px] font-bold text-white/80 mt-0.5">{formatCount(item.saves || 0)}</span>
+                            </div>
                         )}
 
-                        <button
-                            className="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white flex items-center justify-center shadow-lg transition-all duration-300 transform hover:scale-105"
-                            onClick={() => {
-                                if (isJob) {
-                                    if (item.jobId) onNavigateToJobDetail?.(item.jobId);
-                                    else onApplyNow(item);
-                                }
-                                else if (item.author?.id) onViewProfile(item.author.id);
-                            }}
-                            aria-label="Apply or view details"
-                        >
-                            <PaperAirplaneIcon className="w-6 h-6 rotate-45" />
-                        </button>
+                        {/* Apply / View button + applications count */}
+                        {(!user?.isRecruiter || !isJob) && (
+                            <div className="flex flex-col items-center">
+                                <button
+                                    className="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white flex items-center justify-center shadow-lg transition-all duration-300 transform hover:scale-105"
+                                    onClick={() => {
+                                        if (isJob) {
+                                            // Track apply click
+                                            if (item.id && !item.id.startsWith('job_')) {
+                                                shortsAPI.engage(item.id, { action: 'apply_click' }).catch(() => {});
+                                            }
+                                            if (item.jobId) onNavigateToJobDetail?.(item.jobId);
+                                            else onApplyNow(item);
+                                        }
+                                        else if (item.author?.id) onViewProfile(item.author.id);
+                                    }}
+                                    aria-label="Apply or view details"
+                                >
+                                    <PaperAirplaneIcon className="w-6 h-6 rotate-45" />
+                                </button>
+                                {isJob && <span className="text-[10px] font-bold text-white/80 mt-0.5">{formatCount(item.applications || 0)}</span>}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -314,7 +345,14 @@ const ShortsPage: React.FC<ShortsPageProps> = ({ onApplyNow, onNavigateToJobDeta
             try {
                 setIsLoading(true);
                 const feed = await shortsAPI.getFeed();
-                setShorts(Array.isArray(feed) ? feed : []);
+                const feedArr = Array.isArray(feed) ? feed : [];
+                setShorts(feedArr);
+                // Initialize liked/saved state from server
+                const initialLiked = new Set<string>();
+                feedArr.forEach((item: any) => {
+                    if (item.isLiked) initialLiked.add(item.id);
+                });
+                setLikedJobs(initialLiked);
             } catch (error) {
                 console.error('Failed to load shorts feed:', error);
                 setShorts([]);
@@ -325,7 +363,7 @@ const ShortsPage: React.FC<ShortsPageProps> = ({ onApplyNow, onNavigateToJobDeta
         loadFeed();
     }, []);
 
-    // Auto-play on scroll intersection
+    // Auto-play on scroll intersection + track view engagement
     useEffect(() => {
         if (loopedShorts.length === 0) return;
         const observer = new IntersectionObserver(
@@ -338,6 +376,10 @@ const ShortsPage: React.FC<ShortsPageProps> = ({ onApplyNow, onNavigateToJobDeta
                         if (id && !viewedRefs.current.has(id)) {
                             viewedRefs.current.add(id);
                             setShorts(prev => prev.map(s => s.id === id ? { ...s, views: (s.views || 0) + 1 } : s));
+                            // Track view engagement on backend
+                            if (id && !id.startsWith('job_')) {
+                                shortsAPI.engage(id, { action: 'view' }).catch(() => {});
+                            }
                         }
                     } else {
                         video.pause();
@@ -373,10 +415,22 @@ const ShortsPage: React.FC<ShortsPageProps> = ({ onApplyNow, onNavigateToJobDeta
         const topThreshold = segmentHeight - pageHeight / 2;
         const bottomThreshold = segmentHeight * 2 + pageHeight / 2;
 
-        if (container.scrollTop < topThreshold) {
-            container.scrollTop += segmentHeight;
-        } else if (container.scrollTop > bottomThreshold) {
-            container.scrollTop -= segmentHeight;
+        if (container.scrollTop < topThreshold || container.scrollTop > bottomThreshold) {
+            // Momentarily disable snap to avoid jitter during the jump
+            container.style.scrollSnapType = 'none';
+            container.style.scrollBehavior = 'auto'; // Instant jump
+
+            if (container.scrollTop < topThreshold) {
+                container.scrollTop += segmentHeight;
+            } else {
+                container.scrollTop -= segmentHeight;
+            }
+
+            // Restore snap after the jump
+            requestAnimationFrame(() => {
+                container.style.scrollSnapType = 'y mandatory';
+                container.style.scrollBehavior = 'smooth';
+            });
         }
     };
 
@@ -408,12 +462,20 @@ const ShortsPage: React.FC<ShortsPageProps> = ({ onApplyNow, onNavigateToJobDeta
             if (next.has(id)) { 
                 next.delete(id); 
                 setShorts(prevShorts => prevShorts.map(s => s.id === id ? { ...s, likes: Math.max(0, (s.likes || 0) - 1) } : s));
+                // Track unlike on backend
+                if (id && !id.startsWith('job_')) {
+                    shortsAPI.engage(id, { action: 'unlike' }).catch(() => {});
+                }
             }
             else {
                 next.add(id);
                 setShorts(prevShorts => prevShorts.map(s => s.id === id ? { ...s, likes: (s.likes || 0) + 1 } : s));
                 setShowHeartAnimation(id);
                 setTimeout(() => setShowHeartAnimation(null), 1000);
+                // Track like on backend
+                if (id && !id.startsWith('job_')) {
+                    shortsAPI.engage(id, { action: 'like' }).catch(() => {});
+                }
             }
             return next;
         });
@@ -426,6 +488,11 @@ const ShortsPage: React.FC<ShortsPageProps> = ({ onApplyNow, onNavigateToJobDeta
         else if (platform === 'twitter') window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank');
         else if (platform === 'copy') { navigator.clipboard.writeText(url); alert('Link copied!'); }
         setShowShareMenu(null);
+        // Track share on backend + update count
+        setShorts(prev => prev.map(s => s.id === item.id ? { ...s, shares: (s.shares || 0) + 1 } : s));
+        if (item.id && !item.id.startsWith('job_')) {
+            shortsAPI.engage(item.id, { action: 'share' }).catch(() => {});
+        }
     };
 
     const handleToggleSave = (item: any) => {
@@ -434,7 +501,18 @@ const ShortsPage: React.FC<ShortsPageProps> = ({ onApplyNow, onNavigateToJobDeta
 
         if (isJobSaved(jobId)) {
             unsaveJob(jobId);
+            // Track unsave
+            setShorts(prev => prev.map(s => s.id === item.id ? { ...s, saves: Math.max(0, (s.saves || 0) - 1) } : s));
+            if (item.id && !item.id.startsWith('job_')) {
+                shortsAPI.engage(item.id, { action: 'unsave' }).catch(() => {});
+            }
             return;
+        }
+
+        // Track save
+        setShorts(prev => prev.map(s => s.id === item.id ? { ...s, saves: (s.saves || 0) + 1 } : s));
+        if (item.id && !item.id.startsWith('job_')) {
+            shortsAPI.engage(item.id, { action: 'save' }).catch(() => {});
         }
 
         const normalizedType: Job['type'] = item.type === 'On-site' || item.type === 'Hybrid' || item.type === 'Remote'
@@ -595,6 +673,7 @@ const ShortsPage: React.FC<ShortsPageProps> = ({ onApplyNow, onNavigateToJobDeta
                     onNavigateToJobDetail={onNavigateToJobDetail}
                     onNavigate={onNavigate}
                     onViewProfile={handleViewProfile}
+                    user={user}
                 />
             ))}
         </div>

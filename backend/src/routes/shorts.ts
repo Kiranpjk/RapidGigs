@@ -14,6 +14,7 @@ import express from 'express';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import { ShortVideo } from '../models/ShortVideo';
+import { ShortEngagement } from '../models/ShortEngagement';
 import { Notification } from '../models/Notification';
 import { Job } from '../models/Job';
 import { User } from '../models/User';
@@ -63,13 +64,16 @@ setInterval(() => {
 const generateJobId = () =>
   `vj_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
-// ── Generate video using parallel Meta AI + VEO AI (via videoStitcher) ───────
+// ── Generate video using 3-part parallel VeoAiFree (via videoStitcher) ───────
 async function generateVideoUrl(
   script: any,
   jobId: string,
   mongoJobId?: string,
-  provider: string = 'veoaifree'
-): Promise<{ videoUrl: string; provider: string } | null> {
+  provider: string = 'auto',
+  aspectRatio: '9:16' | '16:9' | '1:1' = '9:16',
+  companyLogoUrl?: string,
+  companyName?: string
+): Promise<{ videoUrl: string; provider: string; captions?: any[] } | null> {
   try {
     const { generateStitchedVideo } = await import('../services/videoStitcher');
     const { Job } = await import('../models/Job');
@@ -78,6 +82,9 @@ async function generateVideoUrl(
       script,
       provider: provider as any,
       jobId,
+      aspectRatio,
+      companyLogoUrl,
+      companyName,
       onProgress: async (step, progress) => {
         console.log(`[VideoGen ${jobId}] ${step} (${Math.round(progress * 100)}%)`);
         
@@ -104,6 +111,7 @@ async function generateVideoUrl(
     return {
       videoUrl: result.videoUrl,
       provider: result.providers.join(' → '),
+      captions: result.captions,
     };
   } catch (e: any) {
     console.error('❌ Video generation failed:', e.message);
@@ -117,7 +125,7 @@ async function generateVideoUrl(
 // Kicks off async generation, returns jobId immediately
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/generate', authenticate, async (req: AuthRequest, res) => {
-  const { prompt, title, description, provider = 'auto' } = req.body;
+  const { prompt, title, description, provider = 'auto', aspectRatio = '9:16' } = req.body;
 
   if (!prompt) {
     return res.status(400).json({ error: 'prompt (job description) is required' });
@@ -137,6 +145,7 @@ router.post('/generate', authenticate, async (req: AuthRequest, res) => {
         description: description || prompt,
         user_id: req.user!.userId,
         callback_url: callbackUrl,
+        aspect_ratio: aspectRatio,
       }, { timeout: 10_000 });
 
       jobStore.set(jobId, {
@@ -182,7 +191,7 @@ router.post('/generate', authenticate, async (req: AuthRequest, res) => {
       const videoScript = await buildVideoPrompt(prompt);
 
     // Step 2: Generate video (no Mongo job backing this preview flow)
-    const result = await generateVideoUrl(videoScript, jobId, undefined, provider);
+    const result = await generateVideoUrl(videoScript, jobId, undefined, provider, aspectRatio);
 
       if (!result) {
         jobStore.set(jobId, {
@@ -259,6 +268,7 @@ router.post('/generate', authenticate, async (req: AuthRequest, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/from-job/:jobId', authenticate, async (req: AuthRequest, res) => {
   try {
+    const { aspectRatio = '9:16' } = req.body;
     const jobDoc = await Job.findById(req.params.jobId);
     if (!jobDoc) {
       return res.status(404).json({ error: 'Job not found' });
@@ -268,6 +278,10 @@ router.post('/from-job/:jobId', authenticate, async (req: AuthRequest, res) => {
     if (jobDoc.postedBy.toString() !== req.user!.userId) {
       return res.status(403).json({ error: 'Only the job poster can generate a video' });
     }
+
+    // Fetch recruiter's company logo
+    const recruiter = await User.findById(req.user!.userId);
+    const companyLogoUrl = recruiter?.companyLogoUrl || undefined;
 
     // Build a rich context string from ALL job fields
     const richDescription = [
@@ -293,7 +307,7 @@ router.post('/from-job/:jobId', authenticate, async (req: AuthRequest, res) => {
 
     // Respond immediately — video generates in the background
     res.status(202).json({
-      message: 'Video generation started from job details',
+      message: 'Video generation started from job details (3-part parallel)',
       jobId: videoJobId,
       mongoJobId: jobDoc._id.toString(),
       pollUrl: `/api/shorts/status/${videoJobId}`,
@@ -306,8 +320,11 @@ router.post('/from-job/:jobId', authenticate, async (req: AuthRequest, res) => {
         const videoScript = await buildVideoPrompt(richDescription);
         console.log(`[from-job] Enhanced script for "${jobDoc.title}" generated successfully.`);
 
-        // Step 2: Generate video (passing mongoJobId for status tracking)
-        const result = await generateVideoUrl(videoScript, videoJobId, jobDoc._id.toString());
+        // Step 2: Generate 3-part video in parallel (passing mongoJobId for status tracking)
+        const result = await generateVideoUrl(
+          videoScript, videoJobId, jobDoc._id.toString(), 'auto', aspectRatio,
+          companyLogoUrl, jobDoc.company
+        );
 
         if (!result) {
           jobStore.set(videoJobId, {
@@ -323,7 +340,7 @@ router.post('/from-job/:jobId', authenticate, async (req: AuthRequest, res) => {
           return;
         }
 
-        // Step 3: Save as ShortVideo in DB
+        // Step 3: Save as ShortVideo in DB with captions
         let finalVideoUrl = result.videoUrl;
 
         const newShort = new ShortVideo({
@@ -334,6 +351,12 @@ router.post('/from-job/:jobId', authenticate, async (req: AuthRequest, res) => {
           videoUrl: finalVideoUrl,
           likes: 0,
           views: 0,
+          shares: 0,
+          saves: 0,
+          applications: 0,
+          impressions: 0,
+          captions: result.captions || [],
+          companyLogoUrl: companyLogoUrl || '',
         });
         await newShort.save();
 
@@ -413,7 +436,7 @@ router.get('/status/:jobId', authenticate, async (req: AuthRequest, res) => {
 // physically stitching multiple clips.
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/generate-long', authenticate, async (req: AuthRequest, res) => {
-  const { prompt, description } = req.body;
+  const { prompt, description, aspectRatio = '9:16' } = req.body;
 
   if (!prompt && !description) {
     return res.status(400).json({ error: 'prompt or description is required' });
@@ -444,6 +467,7 @@ router.post('/generate-long', authenticate, async (req: AuthRequest, res) => {
       const { generateStitchedVideo } = await import('../services/videoStitcher');
       const result = await generateStitchedVideo({
         script: videoScript,
+        aspectRatio: aspectRatio as any,
         onProgress: (step, progress) => {
           console.log(`[StitchedVideo ${jobId}] ${step} (${Math.round(progress * 100)}%)`);
           const jobEntry = jobStore.get(jobId);
@@ -564,7 +588,7 @@ router.post('/callback', async (req, res) => {
 
 /** POST /api/shorts/text-to-video */
 router.post('/text-to-video', authenticate, async (req: AuthRequest, res) => {
-  const { prompt, provider = 'auto' } = req.body;
+  const { prompt, provider = 'auto', aspectRatio = '9:16' } = req.body;
   if (!prompt) return res.status(400).json({ error: 'prompt is required' });
 
   const jobId = generateJobId();
@@ -582,7 +606,7 @@ router.post('/text-to-video', authenticate, async (req: AuthRequest, res) => {
   // Background
   (async () => {
     try {
-      const result = await generateVideoUrl({ segments: [{ visualPrompt: prompt, overlayText: '' }] }, jobId, undefined, provider);
+      const result = await generateVideoUrl({ segments: [{ visualPrompt: prompt, overlayText: '' }] }, jobId, undefined, provider, aspectRatio);
       if (result) {
         const job = jobStore.get(jobId);
         if (job) {
@@ -603,7 +627,7 @@ router.post('/text-to-video', authenticate, async (req: AuthRequest, res) => {
 
 /** POST /api/shorts/image-to-video */
 router.post('/image-to-video', authenticate, async (req: AuthRequest, res) => {
-  const { prompt, imageUrl, provider = 'auto' } = req.body;
+  const { prompt, imageUrl, provider = 'auto', aspectRatio = '9:16' } = req.body;
   if (!prompt || !imageUrl) return res.status(400).json({ error: 'prompt and imageUrl are required' });
 
   const jobId = generateJobId();
@@ -623,10 +647,11 @@ router.post('/image-to-video', authenticate, async (req: AuthRequest, res) => {
     try {
       const { generateStitchedVideo } = await import('../services/videoStitcher');
       const result = await generateStitchedVideo({
-        script: { segments: [{ visualPrompt: prompt, overlayText: '' }] },
+        script: { segments: [{ visualPrompt: prompt, overlayText: '', caption: '' }] },
         coverImageUrl: imageUrl,
         jobId,
-        provider: provider as any
+        provider: provider as any,
+        aspectRatio: aspectRatio as any
       });
       
       const job = jobStore.get(jobId);
@@ -652,16 +677,14 @@ router.get(['/health', '/providers'], authenticate, (req, res) => {
     status: 'ok',
     providers: {
       magichour: providers['magic-hour'] ? 'ok' : 'no_key',
-      fal: providers['fal.ai'] ? 'ok' : 'no_key',
-      zsky: 'ok',
-      meta: providers['meta-ai'] ? 'ok' : 'no_cookies'
+      veoaifree: providers['veoaifree'] ? 'ok' : 'error',
     }
   });
 });
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Shorts feed (unchanged from original)
+// Shorts feed — Instagram Reels-style algorithm
 // ─────────────────────────────────────────────────────────────────────────────
 
 router.get('/feed', authenticate, async (req: AuthRequest, res) => {
@@ -671,19 +694,31 @@ router.get('/feed', authenticate, async (req: AuthRequest, res) => {
     const isRecruiter = user?.role === 'recruiter' || user?.role === 'admin' || user?.isRecruiter;
     let feedItems: any[] = [];
 
+    // Get user's past engagement for personalization
+    const userEngagements = await ShortEngagement.find({ userId: req.user!.userId })
+      .sort({ createdAt: -1 })
+      .limit(200)
+      .lean();
+
+    // Build set of liked/saved shorts for personalization signal
+    const likedShortIds = new Set(
+      userEngagements.filter(e => e.action === 'like').map(e => e.shortId.toString())
+    );
+    const savedShortIds = new Set(
+      userEngagements.filter(e => e.action === 'save').map(e => e.shortId.toString())
+    );
+
     if (isStudent) {
-      // Students see BOTH student intro videos AND job marketing videos (from recruiters)
       const allVideos = await ShortVideo.find()
         .populate({ path: 'userId', select: 'name avatarUrl role' })
         .populate({ path: 'jobId', select: 'title company pay description' })
         .sort({ createdAt: -1 })
-        .limit(30);
+        .limit(50);
 
       feedItems = allVideos.map(v => {
-        const user = v.userId as any;
+        const author = v.userId as any;
         const job = v.jobId as any;
         
-        // If it has a jobId, it's a job marketing video
         if (job) {
           return {
             type: 'job',
@@ -695,21 +730,23 @@ router.get('/feed', authenticate, async (req: AuthRequest, res) => {
             videoUrl: v.videoUrl,
             likes: v.likes || 0,
             views: v.views || 0,
+            shares: v.shares || 0,
+            saves: v.saves || 0,
+            applications: v.applications || 0,
             pay: job.pay,
             createdAt: v.createdAt,
-            authorId: user?._id?.toString(),
+            authorId: author?._id?.toString(),
+            isLiked: likedShortIds.has(v._id.toString()),
+            isSaved: savedShortIds.has(v._id.toString()),
             author: {
-              id: user?._id?.toString(),
-              name: job.company || user?.name,
-              avatar: user?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company || 'C')}`,
+              id: author?._id?.toString(),
+              name: job.company || author?.name,
+              avatar: author?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company || 'C')}`,
             }
           };
         }
 
-        // Otherwise include intros/previews from any uploader role.
-        // This ensures videos uploaded to /api/videos (or AI-generated without jobId)
-        // are still visible in the student feed.
-        const uploaderIsRecruiter = user?.role === 'recruiter' || user?.role === 'admin' || user?.isRecruiter;
+        const uploaderIsRecruiter = author?.role === 'recruiter' || author?.role === 'admin' || author?.isRecruiter;
         return {
           type: uploaderIsRecruiter ? 'recruiter_intro' : 'student_intro',
           id: v._id.toString(),
@@ -718,27 +755,29 @@ router.get('/feed', authenticate, async (req: AuthRequest, res) => {
           videoUrl: v.videoUrl,
           likes: v.likes || 0,
           views: v.views || 0,
+          shares: v.shares || 0,
+          saves: v.saves || 0,
+          applications: v.applications || 0,
           createdAt: v.createdAt,
-          authorId: user?._id?.toString(),
+          authorId: author?._id?.toString(),
+          isLiked: likedShortIds.has(v._id.toString()),
+          isSaved: savedShortIds.has(v._id.toString()),
           author: {
-            id: user?._id?.toString(),
-            name: user?.name,
-            avatar: user?.avatarUrl,
+            id: author?._id?.toString(),
+            name: author?.name,
+            avatar: author?.avatarUrl,
           }
         };
       }).filter(Boolean);
 
-      // Also include recruiter job videos that exist on Job.shortVideoUrl
-      // even if a ShortVideo document is missing for older posts.
+      // Also include recruiter job videos from Job.shortVideoUrl
       const jobsWithShorts = await Job.find({ shortVideoUrl: { $exists: true, $ne: '' } })
         .populate('postedBy', 'name avatarUrl')
         .sort({ createdAt: -1 })
         .limit(30);
 
       const existingJobIds = new Set(
-        feedItems
-          .filter(item => item?.type === 'job' && item?.jobId)
-          .map(item => item.jobId)
+        feedItems.filter(item => item?.type === 'job' && item?.jobId).map(item => item.jobId)
       );
 
       const fallbackJobItems = jobsWithShorts
@@ -753,8 +792,13 @@ router.get('/feed', authenticate, async (req: AuthRequest, res) => {
           videoUrl: job.shortVideoUrl,
           likes: job.likes || 0,
           views: (job.likes || 0) * 3 + 25,
+          shares: job.shares || 0,
+          saves: 0,
+          applications: 0,
           pay: job.pay,
           createdAt: job.createdAt,
+          isLiked: false,
+          isSaved: false,
           authorId: job.postedBy ? ((job.postedBy as any)._id?.toString() || job.postedBy.toString()) : null,
           author: {
             id: job.postedBy ? ((job.postedBy as any)._id?.toString() || job.postedBy.toString()) : null,
@@ -765,36 +809,38 @@ router.get('/feed', authenticate, async (req: AuthRequest, res) => {
 
       feedItems = [...feedItems, ...fallbackJobItems];
     } else if (isRecruiter) {
-      // 1. Fetch the recruiter's own generated videos (shorts they created for their jobs)
       const myShortVideos = await ShortVideo.find({ userId: req.user!.userId })
         .populate({ path: 'userId', select: 'name avatarUrl title role' })
         .sort({ createdAt: -1 })
         .limit(20);
 
-      // 2. Fetch their own jobs (no video filter — job details shown without video)
       const myJobs = await Job.find({ postedBy: req.user!.userId })
         .populate('postedBy', 'name avatarUrl')
         .sort({ updatedAt: -1 })
         .limit(10);
 
-      const formattedCandidates = myShortVideos
-        .map(v => ({
-          type: 'candidate_intro',
-          id: v._id.toString(),
-          title: v.title,
-          description: v.description || '',
-          videoUrl: v.videoUrl,
-          likes: v.likes || 0,
-          views: v.views || 0,
-          createdAt: v.createdAt,
-          authorId: (v.userId as any)._id?.toString(),
-          author: {
-            id: (v.userId as any)._id?.toString(),
-            name: (v.userId as any).name,
-            avatar: (v.userId as any).avatarUrl,
-            title: (v.userId as any).title || '',
-          }
-        }));
+      const formattedCandidates = myShortVideos.map(v => ({
+        type: 'candidate_intro',
+        id: v._id.toString(),
+        title: v.title,
+        description: v.description || '',
+        videoUrl: v.videoUrl,
+        likes: v.likes || 0,
+        views: v.views || 0,
+        shares: v.shares || 0,
+        saves: v.saves || 0,
+        applications: v.applications || 0,
+        createdAt: v.createdAt,
+        isLiked: likedShortIds.has(v._id.toString()),
+        isSaved: savedShortIds.has(v._id.toString()),
+        authorId: (v.userId as any)._id?.toString(),
+        author: {
+          id: (v.userId as any)._id?.toString(),
+          name: (v.userId as any).name,
+          avatar: (v.userId as any).avatarUrl,
+          title: (v.userId as any).title || '',
+        }
+      }));
 
       const formattedJobs = myJobs.map(job => ({
         type: 'job',
@@ -804,12 +850,15 @@ router.get('/feed', authenticate, async (req: AuthRequest, res) => {
         company: job.company,
         description: job.description,
         videoUrl: job.shortVideoUrl,
-        likes: job.likes || 10,
+        likes: job.likes || 0,
         views: (job.likes || 0) * 5 + 50,
-        comments: job.comments || 0,
         shares: job.shares || 0,
+        saves: 0,
+        applications: 0,
         pay: job.pay,
         createdAt: job.createdAt,
+        isLiked: false,
+        isSaved: false,
         postedById: job.postedBy ? (job.postedBy as any)._id?.toString() || job.postedBy.toString() : null,
         author: {
           id: job.postedBy ? (job.postedBy as any)._id?.toString() || job.postedBy.toString() : null,
@@ -821,19 +870,130 @@ router.get('/feed', authenticate, async (req: AuthRequest, res) => {
       feedItems = [...formattedCandidates, ...formattedJobs];
     }
 
+    // ── Instagram-style algorithm scoring ───────────────────────────────
     const now = new Date();
     feedItems = feedItems
       .map(item => {
         const hoursOld = Math.max(0.5, (now.getTime() - new Date(item.createdAt).getTime()) / 3_600_000);
-        const score = ((item.likes || 0) * 2 + (item.views || 0)) / Math.pow(hoursOld + 2, 1.2);
+        
+        // Weighted engagement score
+        const engagementScore =
+          (item.likes || 0) * 3 +
+          (item.shares || 0) * 5 +
+          (item.saves || 0) * 4 +
+          (item.applications || 0) * 10 +
+          (item.views || 0) * 0.5;
+
+        // Time decay (newer content scores higher)
+        const timeDecay = Math.pow(hoursOld + 2, 1.5);
+
+        const score = engagementScore / timeDecay;
         return { ...item, score };
       })
       .sort((a, b) => b.score - a.score);
+
+    // Increment impressions for top items
+    const topIds = feedItems.slice(0, 10)
+      .map(item => item.id)
+      .filter(id => id && !id.startsWith('job_') && mongoose.Types.ObjectId.isValid(id));
+    if (topIds.length > 0) {
+      ShortVideo.updateMany(
+        { _id: { $in: topIds } },
+        { $inc: { impressions: 1 } }
+      ).catch(() => {});
+    }
 
     res.json(feedItems);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/shorts/:id/engage — Track engagement action
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/:id/engage', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const { action, watchTimeMs, completionRate } = req.body;
+    const shortId = req.params.id;
+    const userId = req.user!.userId;
+
+    if (!['view', 'like', 'unlike', 'share', 'save', 'unsave', 'apply_click'].includes(action)) {
+      return res.status(400).json({ error: 'Invalid action' });
+    }
+
+    // Validate shortId
+    if (!mongoose.Types.ObjectId.isValid(shortId)) {
+      return res.status(400).json({ error: 'Invalid short ID' });
+    }
+
+    // Save engagement record
+    const engagement = new ShortEngagement({
+      userId,
+      shortId,
+      action,
+      watchTimeMs: watchTimeMs || 0,
+      completionRate: completionRate || 0,
+    });
+    await engagement.save();
+
+    // Update aggregate counts on ShortVideo
+    const updateOps: any = {};
+    switch (action) {
+      case 'like':
+        updateOps.$inc = { likes: 1 };
+        break;
+      case 'unlike':
+        updateOps.$inc = { likes: -1 };
+        break;
+      case 'share':
+        updateOps.$inc = { shares: 1 };
+        break;
+      case 'save':
+        updateOps.$inc = { saves: 1 };
+        break;
+      case 'unsave':
+        updateOps.$inc = { saves: -1 };
+        break;
+      case 'view':
+        updateOps.$inc = { views: 1 };
+        break;
+      case 'apply_click':
+        updateOps.$inc = { applications: 1 };
+        break;
+    }
+
+    if (Object.keys(updateOps).length > 0) {
+      await ShortVideo.findByIdAndUpdate(shortId, updateOps);
+    }
+
+    res.json({ success: true, action });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/shorts/upload-logo — Upload company logo (recruiter only)
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/upload-logo', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const { logoUrl } = req.body;
+    if (!logoUrl) {
+      return res.status(400).json({ error: 'logoUrl is required' });
+    }
+
+    await User.findByIdAndUpdate(req.user!.userId, {
+      companyLogoUrl: logoUrl,
+    });
+
+    res.json({ success: true, logoUrl });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
 export default router;

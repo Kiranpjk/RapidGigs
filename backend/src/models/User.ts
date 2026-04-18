@@ -13,6 +13,7 @@ export interface IUser extends Document {
   role: string; // 'student', 'recruiter', 'admin', 'moderator'
   permissions: string[];
   isActive: boolean;
+  companyLogoUrl?: string; // Recruiter company logo for video overlay
   googleId?: string; // Google OAuth ID
   createdAt: Date;
   updatedAt: Date;
@@ -65,6 +66,9 @@ const UserSchema: Schema = new Schema(
     isActive: {
       type: Boolean,
       default: true,
+    },
+    companyLogoUrl: {
+      type: String,
     },
     googleId: {
       type: String,

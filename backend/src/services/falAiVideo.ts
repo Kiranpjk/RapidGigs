@@ -143,7 +143,8 @@ async function pollForResult(
 export async function generateVideoFalAi(
   prompt: string,
   imageUrl?: string,
-  onProgress?: (step: string, progress: number) => void
+  onProgress?: (step: string, progress: number) => void,
+  aspectRatio: '9:16' | '16:9' | '1:1' = '9:16'
 ): Promise<FalVideoResult | null> {
   const apiKey = getApiKey();
   if (!apiKey) return null;
@@ -158,12 +159,13 @@ export async function generateVideoFalAi(
         image_url: imageUrl,
         guidance_scale: 6,
         num_inference_steps: 30,
-        aspect_ratio: '16:9',
+        aspect_ratio: aspectRatio,
       }
     : {
         prompt,
         guidance_scale: 6,
         num_inference_steps: 30,
+        aspect_ratio: aspectRatio,
         resolution: '540p',
         num_frames: 97,
       };

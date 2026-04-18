@@ -16,7 +16,8 @@ async function testVideoGen() {
     segments: [
       {
         visualPrompt: "Cinematic professional workspace scene in a modern tech company, golden hour lighting, ultra-realistic.",
-        overlayText: "Frontend Developer Role\n$120,000 - $150,000"
+        overlayText: "Frontend Developer Role\n$120,000 - $150,000",
+        caption: "🚀 Hiring Frontend Dev\n@ Test Company"
       }
     ]
   };

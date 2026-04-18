@@ -9,6 +9,7 @@ import {
     SearchIcon,
 } from '../icons/Icons';
 import { useJobs } from '../../context/JobContext';
+import { useAuth } from '../../context/AuthContext';
 import { jobsAPI } from '../../services/api';
 import JobDetailModal from '../common/JobDetailModal';
 
@@ -29,6 +30,7 @@ interface JobsPageProps {
 }
 
 const JobsPage: React.FC<JobsPageProps> = ({ onApplyNow }) => {
+    const { user } = useAuth();
     const { saveJob, unsaveJob, isJobSaved } = useJobs();
     const [jobs, setJobs] = useState<Job[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -152,26 +154,38 @@ const JobsPage: React.FC<JobsPageProps> = ({ onApplyNow }) => {
                     <ClockIcon className="w-3 h-3" /> {job.postedAgo}
                 </span>
                 <div className="flex gap-2">
-                    <button
-                        onClick={(e) => { e.stopPropagation(); isJobSaved(job.id) ? unsaveJob(job.id) : saveJob(job); }}
-                        className={`p-2 rounded-xl text-sm transition-all duration-200 cursor-pointer ${isJobSaved(job.id)
-                                ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-500'
-                                : 'bg-gray-50 dark:bg-slate-700 text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-600'
-                            }`}
-                        title={isJobSaved(job.id) ? 'Unsave' : 'Save'}
-                    >
-                        <BookmarkIcon className="w-4 h-4" />
-                    </button>
-                    <button
-                        className={`py-2 px-4 rounded-xl text-xs font-medium transition-all duration-200 cursor-pointer ${job.status === 'Full'
-                                ? 'bg-gray-100 dark:bg-slate-700 text-gray-400 cursor-not-allowed'
-                                : 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100 active:scale-[0.98]'
-                            }`}
-                        onClick={(e) => { e.stopPropagation(); if (job.status !== 'Full') onApplyNow(job); }}
-                        disabled={job.status === 'Full'}
-                    >
-                        {job.status === 'Full' ? 'Full' : 'Apply Now'}
-                    </button>
+                    {!user?.isRecruiter && (
+                        <>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); isJobSaved(job.id) ? unsaveJob(job.id) : saveJob(job); }}
+                                className={`p-2 rounded-xl text-sm transition-all duration-200 cursor-pointer ${isJobSaved(job.id)
+                                        ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-500'
+                                        : 'bg-gray-50 dark:bg-slate-700 text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-600'
+                                    }`}
+                                title={isJobSaved(job.id) ? 'Unsave' : 'Save'}
+                            >
+                                <BookmarkIcon className="w-4 h-4" />
+                            </button>
+                            <button
+                                className={`py-2 px-4 rounded-xl text-xs font-medium transition-all duration-200 cursor-pointer ${job.status === 'Full'
+                                        ? 'bg-gray-100 dark:bg-slate-700 text-gray-400 cursor-not-allowed'
+                                        : 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100 active:scale-[0.98]'
+                                    }`}
+                                onClick={(e) => { e.stopPropagation(); if (job.status !== 'Full') onApplyNow(job); }}
+                                disabled={job.status === 'Full'}
+                            >
+                                {job.status === 'Full' ? 'Full' : 'Apply Now'}
+                            </button>
+                        </>
+                    )}
+                    {user?.isRecruiter && (
+                        <button
+                            className="py-2 px-4 rounded-xl text-xs font-medium bg-gray-50 dark:bg-slate-700 text-gray-400 dark:text-gray-500 cursor-default"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            Candidate View
+                        </button>
+                    )}
                 </div>
             </div>
         </div>

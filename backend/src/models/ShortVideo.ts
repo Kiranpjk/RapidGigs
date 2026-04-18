@@ -1,5 +1,11 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
+export interface IShortVideoCaption {
+  text: string;
+  startTime: number; // seconds
+  endTime: number;   // seconds
+}
+
 export interface IShortVideo extends Document {
   userId: mongoose.Types.ObjectId;
   jobId?: mongoose.Types.ObjectId;
@@ -10,6 +16,12 @@ export interface IShortVideo extends Document {
   categoryId?: mongoose.Types.ObjectId;
   views: number;
   likes: number;
+  shares: number;
+  saves: number;
+  applications: number;
+  impressions: number;
+  captions?: IShortVideoCaption[];
+  companyLogoUrl?: string;
   duration?: string;
   createdAt: Date;
 }
@@ -51,6 +63,30 @@ const ShortVideoSchema: Schema = new Schema(
     likes: {
       type: Number,
       default: 0,
+    },
+    shares: {
+      type: Number,
+      default: 0,
+    },
+    saves: {
+      type: Number,
+      default: 0,
+    },
+    applications: {
+      type: Number,
+      default: 0,
+    },
+    impressions: {
+      type: Number,
+      default: 0,
+    },
+    captions: [{
+      text: String,
+      startTime: Number,
+      endTime: Number,
+    }],
+    companyLogoUrl: {
+      type: String,
     },
     duration: {
       type: String,

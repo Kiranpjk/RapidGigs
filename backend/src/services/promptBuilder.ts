@@ -3,50 +3,55 @@ import axios from 'axios';
 export interface VideoSegment {
   visualPrompt: string;
   overlayText: string;
+  caption: string; // Instagram-style caption for this segment
 }
 
 export interface VideoScript {
   segments: VideoSegment[];
+  companyName?: string;
 }
 
-const PROMPT_SYSTEM = `You are an expert AI video director and copywriter summarizing job descriptions for TikTok/Reels style vertical videos.
+const PROMPT_SYSTEM = `You are an expert AI video director and copywriter for short-form vertical recruiting videos.
 
-You MUST convert the provided job description into a structured 3-part video script.
-Output ONLY valid JSON matching this exact schema:
+You MUST convert the provided job description into a THREE-PART video concept (3 segments, each ~8 seconds).
+Each segment must flow naturally into the next, like a continuous cinematic story.
+
+Return JSON using this EXACT schema:
 {
+  "companyName": "The company name from the job description",
   "segments": [
     {
-      "visualPrompt": "Natural, realistic prompt for AI video generator (day-to-day work). Shot like iPhone footage, documentary feel.",
-      "overlayText": "Short, punchy text to burn onto the video"
+      "visualPrompt": "Detailed prompt for Part 1: INTRO (~8s). Show company brand, office environment, the role title. Cinematic establishing shot.",
+      "overlayText": "Short overlay text",
+      "caption": "🚀 Hiring: [Role Title]\\n@ [Company], [Location]"
     },
-    ...
+    {
+      "visualPrompt": "Detailed prompt for Part 2: DETAILS (~8s). Show the day-to-day work, tech stack in action, team collaboration. Mid-shot interviews, screens, whiteboards.",
+      "overlayText": "Short overlay text",
+      "caption": "[Key Tech] • [Responsibilities]\\n[Team Culture]"
+    },
+    {
+      "visualPrompt": "Detailed prompt for Part 3: CTA (~8s). Show salary/growth opportunity, closing call-to-action shot. Inspiring final moments.",
+      "overlayText": "Short overlay text",
+      "caption": "💰 [Pay]\\nApply Now on RapidGig!"
+    }
   ]
 }
 
-Global style rules (VERY IMPORTANT):
-- Default look must be natural and realistic, like handheld/steady iPhone footage in a real workplace.
-- Prefer authentic human expressions, practical lighting, normal office/home/worksite environments.
-- Avoid artificial CGI, fantasy, surreal, overly glossy ad-style visuals unless the job explicitly requires that style.
-- Keep camera language simple: natural motion, mild depth of field, believable textures and skin tones.
-- If the role is in a creative field that requires stylization (e.g. VFX, game art, motion design), then moderate stylization is allowed.
+CRITICAL RULES:
+1. Each visualPrompt must be 80-150 words describing ultra-realistic, cinematic video content.
+2. Visual prompts must FLOW — Part 1 sets the scene, Part 2 dives deeper, Part 3 wraps up with CTA.
+3. Think of it like a documentary trailer: establish → explore → inspire action.
+4. Photorealistic, hyper-detailed, 8K, natural workplace visuals.
+5. Vertical 9:16 framing intended for professional short-video feeds.
+6. Authentic camera work: smooth cinematic motion, practical lighting, high-fidelity textures.
+7. Each caption should be 2 lines max, punchy, Instagram-style with emojis.
+8. The overlayText is a very short (3-5 words) overlay for the video.
 
-Instructions for the 3 segments: 
-Segment 1 (0-10s): 
-- visualPrompt: Natural establishing shot of the workplace/professional showing the real environment. Smartphone-quality realism, authentic lighting.
-- overlayText: The Job Title, Company Name, Location, and Salary (if available). Clean and punchy. Include line breaks (\\n).
-
-Segment 2 (10-20s): 
-- visualPrompt: Close-up realistic shot of day-to-day tasks being performed naturally (no dramatic cinematic effects).
-- overlayText: 2 short bullet points summarizing the main day-to-day responsibilities. Start with "Day-to-day:" and use \\n.
-
-Segment 3 (20-30s): 
-- visualPrompt: Wide realistic shot of teamwork, impact, or satisfaction in the role; natural interactions and expressions.
-- overlayText: Key requirements (e.g. Years of Exp) and/or top perks. Start with "Requirements/Perks:" and use \\n.
-
-CRITICAL: Output absolutely NOTHING except the raw JSON object. Do not wrap it in markdown block quotes (e.g. \`\`\`json). Just the raw {}.`;
+CRITICAL: Output absolutely NOTHING except the raw JSON object. Do not wrap it in markdown block quotes. Just the raw {}.`;
 
 function buildPromptUserMsg(jobDescription: string): string {
-  return `Convert this job description into the 3-part JSON video script:\n\n${jobDescription}`;
+  return `Convert this job description into a 3-part cinematic video script JSON:\n\n${jobDescription}`;
 }
 
 async function openRouterChatCompletion(model: string, system: string, user: string): Promise<string | null> {
@@ -169,6 +174,11 @@ function parseVideoScript(jsonString: string): VideoScript | null {
   try {
     const parsed = JSON.parse(cleanJson);
     if (parsed.segments && Array.isArray(parsed.segments)) {
+      // Ensure each segment has caption field
+      parsed.segments = parsed.segments.map((s: any, i: number) => ({
+        ...s,
+        caption: s.caption || s.overlayText || getDefaultCaption(i),
+      }));
       return parsed as VideoScript;
     }
     console.warn('[parseVideoScript] Parsed OK but no segments array found');
@@ -178,14 +188,16 @@ function parseVideoScript(jsonString: string): VideoScript | null {
   }
 
   // 5. Fallback: escape control characters ONLY inside JSON string values
-  //    (don't touch structural whitespace like newlines between keys)
   try {
-    // Remove only truly illegal control chars (not \n, \r, \t which are valid JSON whitespace)
     let escaped = cleanJson.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, (c) => {
       return `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`;
     });
     const parsed = JSON.parse(escaped);
     if (parsed.segments && Array.isArray(parsed.segments)) {
+      parsed.segments = parsed.segments.map((s: any, i: number) => ({
+        ...s,
+        caption: s.caption || s.overlayText || getDefaultCaption(i),
+      }));
       return parsed as VideoScript;
     }
     return null;
@@ -195,12 +207,15 @@ function parseVideoScript(jsonString: string): VideoScript | null {
 
   // 6. Last resort: try to fix unescaped newlines inside string values
   try {
-    // Replace literal newlines inside quoted strings with \\n
     let fixed = cleanJson.replace(/"([^"]*?)"/g, (match) => {
       return match.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
     });
     const parsed = JSON.parse(fixed);
     if (parsed.segments && Array.isArray(parsed.segments)) {
+      parsed.segments = parsed.segments.map((s: any, i: number) => ({
+        ...s,
+        caption: s.caption || s.overlayText || getDefaultCaption(i),
+      }));
       return parsed as VideoScript;
     }
     return null;
@@ -210,26 +225,69 @@ function parseVideoScript(jsonString: string): VideoScript | null {
   }
 }
 
+function getDefaultCaption(index: number): string {
+  const defaults = [
+    '🚀 We\'re Hiring!\nJoin Our Team',
+    '💻 Build Amazing Things\nWith Great People',
+    '💰 Great Pay & Growth\nApply Now on RapidGig!',
+  ];
+  return defaults[index] || defaults[0];
+}
+
 function buildDefaultScript(jobDescription: string): VideoScript {
+  // Extract company name from description if possible
+  const companyMatch = jobDescription.match(/Company:\s*(.+)/i);
+  const titleMatch = jobDescription.match(/Role:\s*(.+)/i);
+  const payMatch = jobDescription.match(/(?:Salary|Pay):\s*(.+)/i);
+  
+  const company = companyMatch?.[1]?.trim() || 'Our Company';
+  const title = titleMatch?.[1]?.trim() || 'this exciting role';
+  const pay = payMatch?.[1]?.trim() || 'Competitive Pay';
+
   return {
+    companyName: company,
     segments: [
-      { visualPrompt: "Natural smartphone-style establishing shot of a real modern workplace, authentic lighting and people.", overlayText: "Job Opportunity" },
-      { visualPrompt: "Realistic close-up of a professional doing normal day-to-day work tasks, documentary style.", overlayText: "Join an exciting team" },
-      { visualPrompt: "Realistic wide shot of a team collaborating and celebrating outcomes in a real office setting.", overlayText: "Apply now" }
+      {
+        visualPrompt:
+          `Ultra-realistic 8K vertical video (9:16). Cinematic establishing shot of a modern tech office building exterior, ` +
+          `then smoothly transitioning inside to reveal a sleek open-plan workspace. Natural morning light streams through floor-to-ceiling windows. ` +
+          `The camera glides past standing desks, multiple monitors showing code and dashboards. Company branding visible on walls. ` +
+          `Professional team members greet each other. Documentary style, authentic workplace feel.`,
+        overlayText: `Now Hiring`,
+        caption: `🚀 Hiring: ${title}\n@ ${company}`,
+      },
+      {
+        visualPrompt:
+          `Ultra-realistic 8K vertical video (9:16). Continuation of the office scene — camera follows a developer sitting at their dual-monitor setup, ` +
+          `writing code with syntax-highlighted IDE visible. Cut to a collaborative whiteboard session where team members discuss architecture diagrams. ` +
+          `Close-up of hands sketching on tablet, pointing at Figma designs. Candid footage of pair programming, slack messages on screens. ` +
+          `Natural indoor lighting, shallow depth of field, authentic tech workplace energy.`,
+        overlayText: `Day in the Life`,
+        caption: `💻 Build Amazing Things\nWith A World-Class Team`,
+      },
+      {
+        visualPrompt:
+          `Ultra-realistic 8K vertical video (9:16). Inspiring closing sequence — team celebration moment, high-fives after sprint demo. ` +
+          `Zoom out to show the full team gathered in a modern meeting room with screens showing growth charts. ` +
+          `Final shot: confident professional looking directly at camera with warm smile, inviting gesture. ` +
+          `Text-friendly composition with clean lower-third area. Golden hour warm lighting, cinematic color grade, aspirational energy.`,
+        overlayText: `Apply Now`,
+        caption: `💰 ${pay}\nApply Now on RapidGig!`,
+      }
     ]
   };
 }
 
 export async function buildVideoPrompt(jobDescription: string): Promise<VideoScript> {
-  console.log('Generating structured Video Script...');
+  console.log('Generating structured 3-part Video Script...');
 
   // Step 1: Cerebras
   let rawJson = await cerebrasChatCompletion(PROMPT_SYSTEM, buildPromptUserMsg(jobDescription));
   
   if (rawJson) {
     const script = parseVideoScript(rawJson);
-    if (script) {
-      console.log(`✅ Cerebras Script generated successfully`);
+    if (script && script.segments.length >= 3) {
+      console.log(`✅ Cerebras Script generated successfully (${script.segments.length} segments)`);
       return script;
     }
   }
@@ -240,8 +298,8 @@ export async function buildVideoPrompt(jobDescription: string): Promise<VideoScr
   
   if (rawJson) {
     const script = parseVideoScript(rawJson);
-    if (script) {
-      console.log(`✅ OpenRouter Script generated successfully`);
+    if (script && script.segments.length >= 3) {
+      console.log(`✅ OpenRouter Script generated successfully (${script.segments.length} segments)`);
       return script;
     }
   }
@@ -252,13 +310,13 @@ export async function buildVideoPrompt(jobDescription: string): Promise<VideoScr
   
   if (rawJson) {
     const script = parseVideoScript(rawJson);
-    if (script) {
-      console.log(`✅ Ollama Script generated successfully`);
+    if (script && script.segments.length >= 3) {
+      console.log(`✅ Ollama Script generated successfully (${script.segments.length} segments)`);
       return script;
     }
   }
 
-  console.warn("⚠️ All LLM providers failed to return valid JSON. Falling back to default script.");
+  console.warn("⚠️ All LLM providers failed to return valid JSON. Falling back to default 3-part script.");
   return buildDefaultScript(jobDescription);
 }
 
@@ -269,4 +327,3 @@ export async function enhanceAsVideoPrompt(text: string): Promise<string> {
   const script = await buildVideoPrompt(text);
   return script.segments[0].visualPrompt;
 }
-

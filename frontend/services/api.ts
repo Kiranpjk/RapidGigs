@@ -335,7 +335,7 @@ export const categoriesAPI = {
 export const shortsAPI = {
   getFeed: async () => fetchWithAuth(`${API_BASE_URL}/shorts/feed`),
 
-  generateAI: async (data: { prompt: string; title?: string; description?: string }) =>
+  generateAI: async (data: { prompt: string; title?: string; description?: string; aspectRatio?: string }) =>
     fetchWithAuth(`${API_BASE_URL}/shorts/generate`, {
       method: 'POST',
       body: JSON.stringify(data),
@@ -347,6 +347,7 @@ export const shortsAPI = {
     description?: string;
     segments?: number;
     segmentDuration?: number;
+    aspectRatio?: string;
   }) =>
     fetchWithAuth(`${API_BASE_URL}/shorts/generate-long`, {
       method: 'POST',
@@ -356,9 +357,28 @@ export const shortsAPI = {
   getJobStatus: async (jobId: string) =>
     fetchWithAuth(`${API_BASE_URL}/shorts/status/${jobId}`),
 
-  generateFromJob: async (jobId: string) =>
+  generateFromJob: async (jobId: string, aspectRatio: string = '9:16') =>
     fetchWithAuth(`${API_BASE_URL}/shorts/from-job/${jobId}`, {
       method: 'POST',
+      body: JSON.stringify({ aspectRatio }),
+    }),
+
+  /** Track engagement action (like, share, save, view, apply_click) */
+  engage: async (shortId: string, data: {
+    action: 'view' | 'like' | 'unlike' | 'share' | 'save' | 'unsave' | 'apply_click';
+    watchTimeMs?: number;
+    completionRate?: number;
+  }) =>
+    fetchWithAuth(`${API_BASE_URL}/shorts/${shortId}/engage`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  /** Upload company logo URL (recruiter only) */
+  uploadLogo: async (logoUrl: string) =>
+    fetchWithAuth(`${API_BASE_URL}/shorts/upload-logo`, {
+      method: 'POST',
+      body: JSON.stringify({ logoUrl }),
     }),
 };
 

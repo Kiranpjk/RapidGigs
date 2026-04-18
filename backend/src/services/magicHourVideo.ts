@@ -5,7 +5,8 @@ import path from 'path';
 export async function generateVideoMagicHour(
   prompt: string,
   coverImageUrl?: string,
-  onProgress?: (step: string, progress: number) => void
+  onProgress?: (step: string, progress: number) => void,
+  aspectRatio: '9:16' | '16:9' | '1:1' = '9:16'
 ): Promise<{ videoUrl: string; creditsUsed?: number } | null> {
   // Support up to 3 API keys with fallback
   const apiKeys = [
@@ -31,8 +32,8 @@ export async function generateVideoMagicHour(
     const endSeconds = Math.min(10, Math.max(2, normalizedEndSeconds));
 
     const preferredResolution = process.env.MAGIC_HOUR_RESOLUTION || '480p';
-    const orientation = process.env.MAGIC_HOUR_ORIENTATION || 'portrait';
-    const preferredAspectRatio = process.env.MAGIC_HOUR_ASPECT_RATIO; // optional
+    const orientation = aspectRatio === '16:9' ? 'landscape' : aspectRatio === '1:1' ? 'square' : 'portrait';
+    const preferredAspectRatio = aspectRatio; 
     const preferredModel = process.env.MAGIC_HOUR_MODEL; // optional
     const audioRaw = process.env.MAGIC_HOUR_AUDIO;
     const audio = audioRaw ? audioRaw.toLowerCase() === 'true' : undefined;
