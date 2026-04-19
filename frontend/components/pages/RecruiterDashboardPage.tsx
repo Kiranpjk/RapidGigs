@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Page } from '../../types';
-import { jobsAPI, videosAPI } from '../../services/api';
+import { jobsAPI, videosAPI, applicationsAPI, fetchWithAuth } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { DateTime } from 'luxon';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler } from 'chart.js';
@@ -18,15 +18,38 @@ const RecruiterDashboardPage: React.FC<RecruiterDashboardPageProps> = ({ navigat
     const [myVideos, setMyVideos] = useState<any[]>([]);
     const [loadingJobs, setLoadingJobs] = useState(true);
     const [loadingVideos, setLoadingVideos] = useState(true);
+    const [appDates, setAppDates] = useState<string[]>([]);
 
     const BASE_URL = import.meta.env.VITE_API_BASE?.replace('/api', '') || 'http://localhost:3001';
     const getMediaUrl = (url?: string) => url ? (url.startsWith('http') ? url : `${BASE_URL}${url}`) : '';
 
     useEffect(() => {
+        // Single fetch for jobs + application dates for chart
         jobsAPI.getMyJobs()
-            .then(data => setMyJobs(Array.isArray(data) ? data : []))
-            .catch(() => setMyJobs([]))
-            .finally(() => setLoadingJobs(false));
+            .then(async (data) => {
+                const arr = Array.isArray(data) ? data : [];
+                setMyJobs(arr);
+                setLoadingJobs(false);
+
+                // For each job, fetch its applications to get real dates for the chart
+                const allDates: string[] = [];
+                const API_BASE = (import.meta.env.VITE_API_BASE as string) || 'http://localhost:3001/api';
+                await Promise.all(arr.map(async (job: any) => {
+                    try {
+                        const jobId = job._id || job.id;
+                        const apps = await fetchWithAuth(`${API_BASE}/applications/job/${jobId}`);
+                        if (Array.isArray(apps)) {
+                            apps.forEach((a: any) => {
+                                if (a.createdAt || a.dateApplied) {
+                                    allDates.push(a.createdAt || a.dateApplied);
+                                }
+                            });
+                        }
+                    } catch {}
+                }));
+                setAppDates(allDates);
+            })
+            .catch(() => { setMyJobs([]); setLoadingJobs(false); });
 
         videosAPI.getMyVideos()
             .then(data => setMyVideos(Array.isArray(data) ? data : []))
@@ -50,23 +73,45 @@ const RecruiterDashboardPage: React.FC<RecruiterDashboardPageProps> = ({ navigat
 
     const totalApplications = myJobs.reduce((sum, j) => sum + (j.applicationCount || 0), 0);
 
-    // Mock Chart Data for Applications
-    const chartData = {
-        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
-        datasets: [
-            {
-                fill: true,
-                label: 'Applications Received',
-                data: [12, 19, 15, 25, 22, 30, Math.max(30, totalApplications)],
-                borderColor: 'rgb(99, 102, 241)',
-                backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                tension: 0.4,
-            },
-        ],
-    };
+    // Build REAL chart data from actual application dates
+    const chartData = React.useMemo(() => {
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth();
+
+        // Show last 7 months
+        const labels: string[] = [];
+        const counts: number[] = [];
+        for (let i = 6; i >= 0; i--) {
+            const m = (currentMonth - i + 12) % 12;
+            const y = currentMonth - i < 0 ? currentYear - 1 : currentYear;
+            labels.push(months[m]);
+            const count = appDates.filter(d => {
+                const dt = new Date(d);
+                return dt.getMonth() === m && dt.getFullYear() === y;
+            }).length;
+            counts.push(count);
+        }
+
+        return {
+            labels,
+            datasets: [
+                {
+                    fill: true,
+                    label: 'Applications Received',
+                    data: counts,
+                    borderColor: 'rgb(99, 102, 241)',
+                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                    tension: 0.4,
+                },
+            ],
+        };
+    }, [appDates]);
 
     const chartOptions = {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: { legend: { display: false }, title: { display: false } },
         scales: { y: { beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } }
     };
@@ -200,6 +245,28 @@ const RecruiterDashboardPage: React.FC<RecruiterDashboardPageProps> = ({ navigat
                                         <p className="text-sm text-gray-500 dark:text-slate-400 truncate">{job.location}</p>
                                     </div>
 
+                                    {/* Video Preview / Placeholder */}
+                                    {(job.companyVideoUrl || job.shortVideoUrl) ? (
+                                        <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-slate-900 mb-5 group/video shadow-inner">
+                                            <video
+                                                src={getMediaUrl(job.companyVideoUrl || job.shortVideoUrl)}
+                                                className="w-full h-full object-cover opacity-80 group-hover/video:opacity-100 transition-opacity duration-300"
+                                                muted
+                                                loop
+                                                playsInline
+                                                onMouseEnter={(e) => { e.currentTarget.play().catch(() => {}); }}
+                                                onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
+                                            />
+                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-100 group-hover/video:opacity-0 transition-opacity duration-300">
+                                                <div className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center text-white text-xs">▶</div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="w-full aspect-video rounded-2xl bg-gray-50 dark:bg-slate-700/30 border border-dashed border-gray-200 dark:border-slate-700 mb-5 flex flex-col items-center justify-center text-gray-400 dark:text-slate-500">
+                                            <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">No Video preview</span>
+                                        </div>
+                                    )}
+
                                     <div className="flex items-center gap-2 mb-6">
                                         <span className="text-[11px] font-bold bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 px-3 py-1 rounded-lg">{job.type || 'Remote'}</span>
                                         <span className="text-[11px] font-bold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3 py-1 rounded-lg">{job.pay}</span>
@@ -266,8 +333,8 @@ const RecruiterDashboardPage: React.FC<RecruiterDashboardPageProps> = ({ navigat
                                     loop
                                     muted
                                     playsInline
-                                    onMouseOver={e => (e.target as HTMLVideoElement).play()}
-                                    onMouseOut={e => (e.target as HTMLVideoElement).pause()}
+                                    onMouseEnter={e => (e.currentTarget as HTMLVideoElement).play().catch(() => {})}
+                                    onMouseLeave={e => { (e.currentTarget as HTMLVideoElement).pause(); (e.currentTarget as HTMLVideoElement).currentTime = 0; }}
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-6 flex flex-col justify-end translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
                                     <h3 className="text-white font-bold text-sm truncate mb-1">{video.title}</h3>

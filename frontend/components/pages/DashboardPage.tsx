@@ -13,6 +13,7 @@ import {
 } from '../icons/Icons';
 import { CATEGORIES } from '../../data/mockData';
 import { useAuth } from '../../context/AuthContext';
+import { useJobs } from '../../context/JobContext';
 import { jobsAPI } from '../../services/api';
 import JobDetailModal from '../common/JobDetailModal';
 
@@ -61,6 +62,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
     const [selectedJobForDetail, setSelectedJobForDetail] = useState<Job | null>(null);
 
     const { user } = useAuth();
+    const { hasApplied } = useJobs();
     const isRecruiter = user?.role === 'recruiter';
 
     // Debounce search input (300ms)
@@ -151,21 +153,36 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
             </div>
             </div>{/* End clickable area */}
 
-            {/* Video links */}
-            {(job.companyVideoUrl || job.freelancerVideoUrl) && (
+            {/* Hover Video Preview (Tinder effect) OR Placeholder */}
+            {(job.companyVideoUrl || job.shortVideoUrl) ? (
+                <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-slate-900 mb-4 group/video cursor-pointer flex-shrink-0 shadow-sm" onClick={(e) => { e.stopPropagation(); setSelectedJobForDetail(job); }}>
+                    <video
+                        src={job.companyVideoUrl || job.shortVideoUrl}
+                        className="w-full h-full object-cover opacity-80 group-hover/video:opacity-100 transition-opacity duration-300"
+                        muted
+                        loop
+                        playsInline
+                        onMouseEnter={(e) => { e.currentTarget.play().catch(() => {}); }}
+                        onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-100 group-hover/video:opacity-0 transition-opacity duration-300">
+                        <PlayCircleIcon className="w-12 h-12 text-white/60 drop-shadow-lg" />
+                    </div>
+                </div>
+            ) : (
+                <div className="w-full aspect-video rounded-xl bg-gray-50 dark:bg-slate-800/50 border border-dashed border-gray-200 dark:border-slate-700 mb-4 flex flex-col items-center justify-center flex-shrink-0 text-gray-400 dark:text-slate-500">
+                    <VideoCameraIcon className="w-8 h-8 mb-2 opacity-40" />
+                    <span className="text-[11px] font-medium tracking-wide opacity-70 uppercase">No video preview</span>
+                </div>
+            )}
+
+            {/* Freelancer video link (if exists separately) */}
+            {job.freelancerVideoUrl && (
                 <div className="flex gap-3 mb-4">
-                    {job.companyVideoUrl && (
-                        <a href={job.companyVideoUrl} target="_blank" rel="noopener noreferrer"
-                            className="flex items-center gap-1.5 text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline font-medium">
-                            <PlayCircleIcon className="w-3.5 h-3.5" /> Project Brief
-                        </a>
-                    )}
-                    {job.freelancerVideoUrl && (
-                        <a href={job.freelancerVideoUrl} target="_blank" rel="noopener noreferrer"
-                            className="flex items-center gap-1.5 text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline font-medium">
-                            <PlayCircleIcon className="w-3.5 h-3.5" /> Freelancer Guide
-                        </a>
-                    )}
+                    <a href={job.freelancerVideoUrl} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline font-medium">
+                        <PlayCircleIcon className="w-3.5 h-3.5" /> Freelancer Guide
+                    </a>
                 </div>
             )}
 
@@ -188,16 +205,20 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
             )}
 
             {/* Apply Button */}
-            <button
-                className={`w-full mt-auto py-2.5 px-4 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer ${job.status === 'Full'
-                        ? 'bg-gray-100 dark:bg-slate-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                        : 'bg-gray-900 dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-100 text-white dark:text-gray-900 active:scale-[0.98] shadow-sm hover:shadow-md'
-                    }`}
-                onClick={() => { if (job.status !== 'Full') onApplyNow(job); }}
-                disabled={job.status === 'Full'}
-            >
-                {job.status === 'Full' ? 'Positions Filled' : 'Apply Now'}
-            </button>
+            {!isRecruiter && (
+                <button
+                    className={`w-full mt-auto py-2.5 px-4 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer ${
+                            hasApplied(job.id) ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-200 dark:border-emerald-800/50 cursor-default cursor-not-allowed' :
+                            job.status === 'Full'
+                            ? 'bg-gray-100 dark:bg-slate-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                            : 'bg-gray-900 dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-100 text-white dark:text-gray-900 active:scale-[0.98] shadow-sm hover:shadow-md'
+                        }`}
+                    onClick={(e) => { e.stopPropagation(); if (job.status !== 'Full' && !hasApplied(job.id)) onApplyNow(job); }}
+                    disabled={job.status === 'Full' || hasApplied(job.id)}
+                >
+                    {hasApplied(job.id) ? 'Applied' : job.status === 'Full' ? 'Positions Filled' : 'Apply Now'}
+                </button>
+            )}
         </div>
     );
 

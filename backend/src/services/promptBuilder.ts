@@ -9,6 +9,8 @@ export interface VideoSegment {
 export interface VideoScript {
   segments: VideoSegment[];
   companyName?: string;
+  jobTitle?: string;
+  location?: string;
 }
 
 const PROMPT_SYSTEM = `You are an expert AI video director and copywriter for short-form vertical recruiting videos.
@@ -18,37 +20,49 @@ Each segment must flow naturally into the next, like a continuous cinematic stor
 
 Return JSON using this EXACT schema:
 {
-  "companyName": "The company name from the job description",
+  "companyName": "The EXACT company name from the job description",
+  "jobTitle": "The EXACT role or job title",
+  "location": "The EXACT location (or Remote)",
   "segments": [
     {
-      "visualPrompt": "Detailed prompt for Part 1: INTRO (~8s). Show company brand, office environment, the role title. Cinematic establishing shot.",
-      "overlayText": "Short overlay text",
-      "caption": "🚀 Hiring: [Role Title]\\n@ [Company], [Location]"
+      "visualPrompt": "Detailed cinematic prompt for Part 1: INTRO (~8s).",
+      "overlayText": "3-5 word hook",
+      "caption": "Segment 1 caption"
     },
     {
-      "visualPrompt": "Detailed prompt for Part 2: DETAILS (~8s). Show the day-to-day work, tech stack in action, team collaboration. Mid-shot interviews, screens, whiteboards.",
-      "overlayText": "Short overlay text",
-      "caption": "[Key Tech] • [Responsibilities]\\n[Team Culture]"
+      "visualPrompt": "Detailed cinematic prompt for Part 2: DETAILS (~8s).",
+      "overlayText": "3-5 word hook",
+      "caption": "Segment 2 caption"
     },
     {
-      "visualPrompt": "Detailed prompt for Part 3: CTA (~8s). Show salary/growth opportunity, closing call-to-action shot. Inspiring final moments.",
-      "overlayText": "Short overlay text",
-      "caption": "💰 [Pay]\\nApply Now on RapidGig!"
+      "visualPrompt": "Detailed cinematic prompt for Part 3: CTA (~8s).",
+      "overlayText": "3-5 word hook",
+      "caption": "Segment 3 caption"
     }
   ]
 }
 
-CRITICAL RULES:
-1. Each visualPrompt must be 80-150 words describing ultra-realistic, cinematic video content.
-2. Visual prompts must FLOW — Part 1 sets the scene, Part 2 dives deeper, Part 3 wraps up with CTA.
-3. Think of it like a documentary trailer: establish → explore → inspire action.
-4. Photorealistic, hyper-detailed, 8K, natural workplace visuals.
-5. Vertical 9:16 framing intended for professional short-video feeds.
-6. Authentic camera work: smooth cinematic motion, practical lighting, high-fidelity textures.
-7. Each caption should be 2 lines max, punchy, Instagram-style with emojis.
-8. The overlayText is a very short (3-5 words) overlay for the video.
+VISUAL PROMPT RULES:
+1. Each visualPrompt must be 80-150 words of ultra-realistic, cinematic video description.
+2. Prompts must FLOW: Part 1 sets the scene, Part 2 dives deeper, Part 3 wraps up with CTA.
+3. Documentary trailer style: establish, explore, inspire action.
+4. Photorealistic, hyper-detailed, 8K, natural workplace visuals, vertical 9:16 framing.
+5. Authentic camera work: smooth cinematic motion, practical lighting.
+6. NEVER include text/titles/words in the visual prompt. The video must be PURELY visual.
 
-CRITICAL: Output absolutely NOTHING except the raw JSON object. Do not wrap it in markdown block quotes. Just the raw {}.`;
+CAPTION AND OVERLAY TEXT RULES (CRITICAL):
+1. Use ONLY information from the job description. NEVER invent or add details not provided.
+2. Use the EXACT company name, role title, location, and salary from the description.
+3. Each caption MUST be exactly 2 lines, separated by \\\\n.
+4. Each line MUST be under 40 characters for mobile readability.
+5. Start each caption with one relevant emoji.
+6. NO generic filler like "Amazing opportunity" or "Great team". Use SPECIFIC job details only.
+7. NO buzzwords unless they appear in the original description.
+8. overlayText must be exactly 3-5 words, punchy and specific.
+9. Segment 3 caption line 2 MUST end with "Apply now on RapidGig!"
+
+CRITICAL: Output ONLY the raw JSON object. No markdown, no explanation. Just the raw {}.`;
+
 
 function buildPromptUserMsg(jobDescription: string): string {
   return `Convert this job description into a 3-part cinematic video script JSON:\n\n${jobDescription}`;
@@ -239,13 +253,17 @@ function buildDefaultScript(jobDescription: string): VideoScript {
   const companyMatch = jobDescription.match(/Company:\s*(.+)/i);
   const titleMatch = jobDescription.match(/Role:\s*(.+)/i);
   const payMatch = jobDescription.match(/(?:Salary|Pay):\s*(.+)/i);
+  const locationMatch = jobDescription.match(/Location:\s*(.+)/i);
   
   const company = companyMatch?.[1]?.trim() || 'Our Company';
   const title = titleMatch?.[1]?.trim() || 'this exciting role';
   const pay = payMatch?.[1]?.trim() || 'Competitive Pay';
+  const location = locationMatch?.[1]?.trim() || 'Remote';
 
   return {
     companyName: company,
+    jobTitle: title,
+    location: location,
     segments: [
       {
         visualPrompt:

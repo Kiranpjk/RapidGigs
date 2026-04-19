@@ -13,8 +13,9 @@ interface JobContextType {
   savedJobs: Job[];
   applications: Application[];
   saveJob: (job: Job) => void;
-  unsaveJob: (jobId: string) => void; // ✅ was: number
-  isJobSaved: (jobId: string) => boolean; // ✅ was: number
+  unsaveJob: (jobId: string) => void;
+  isJobSaved: (jobId: string) => boolean;
+  hasApplied: (jobId: string) => boolean;
   submitApplication: (
     job: Job,
     resumeFile: File,
@@ -65,6 +66,19 @@ export const JobProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     loadFromStorage<Application>('applications')
   );
 
+  React.useEffect(() => {
+    // Attempt to sync applications from the backend
+    applicationsAPI.getMyApplications()
+      .then(apps => {
+        if (Array.isArray(apps)) {
+          setApplications(apps);
+        }
+      })
+      .catch(() => {
+        // Ignore, likely not logged in or token expired
+      });
+  }, []);
+
   // ✅ FIXED: Serialize before saving to strip any ReactNode values
   React.useEffect(() => {
     try {
@@ -97,6 +111,13 @@ export const JobProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // ✅ FIXED: accepts string
   const isJobSaved = (jobId: string): boolean => {
     return savedJobs.some(j => String(j.id) === String(jobId));
+  };
+
+  const hasApplied = (jobId: string): boolean => {
+    return applications.some(app => 
+      String(app.job?.id) === String(jobId) || 
+      String((app.jobId as any)?.id || app.jobId) === String(jobId)
+    );
   };
 
   const submitApplication = async (
@@ -143,7 +164,7 @@ export const JobProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   return (
     <JobContext.Provider
-      value={{ savedJobs, applications, saveJob, unsaveJob, isJobSaved, submitApplication }}
+      value={{ savedJobs, applications, saveJob, unsaveJob, isJobSaved, hasApplied, submitApplication }}
     >
       {children}
     </JobContext.Provider>

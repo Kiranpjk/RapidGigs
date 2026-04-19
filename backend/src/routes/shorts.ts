@@ -18,7 +18,7 @@ import { ShortEngagement } from '../models/ShortEngagement';
 import { Notification } from '../models/Notification';
 import { Job } from '../models/Job';
 import { User } from '../models/User';
-import { authenticate, AuthRequest } from '../middleware/auth';
+import { authenticate, optionalAuthenticate, AuthRequest } from '../middleware/auth';
 import mongoose from 'mongoose';
 import { buildVideoPrompt } from '../services/promptBuilder';
 import { getVideoProviderStatus } from '../services/videoEngine';
@@ -687,28 +687,38 @@ router.get(['/health', '/providers'], authenticate, (req, res) => {
 // Shorts feed — Instagram Reels-style algorithm
 // ─────────────────────────────────────────────────────────────────────────────
 
-router.get('/feed', authenticate, async (req: AuthRequest, res) => {
+router.get('/feed', optionalAuthenticate, async (req: AuthRequest, res) => {
   try {
-    const user = await User.findById(req.user!.userId);
-    const isStudent = user?.role === 'student' || user?.isStudent;
-    const isRecruiter = user?.role === 'recruiter' || user?.role === 'admin' || user?.isRecruiter;
+    let user = null;
+    let isRecruiter = false;
+    let isStudent = true; // Logged-out users default to the student view
+    
+    let likedShortIds = new Set<string>();
+    let savedShortIds = new Set<string>();
+
+    if (req.user) {
+      user = await User.findById(req.user.userId);
+      isStudent = user?.role === 'student' || user?.isStudent || false;
+      isRecruiter = user?.role === 'recruiter' || user?.role === 'admin' || user?.isRecruiter || false;
+      
+      // Get user's past engagement for personalization
+      const userEngagements = await ShortEngagement.find({ userId: req.user.userId })
+        .sort({ createdAt: -1 })
+        .limit(200)
+        .lean();
+
+      // Build set of liked/saved shorts for personalization signal
+      likedShortIds = new Set(
+        userEngagements.filter(e => e.action === 'like').map(e => e.shortId.toString())
+      );
+      savedShortIds = new Set(
+        userEngagements.filter(e => e.action === 'save').map(e => e.shortId.toString())
+      );
+    }
+
     let feedItems: any[] = [];
 
-    // Get user's past engagement for personalization
-    const userEngagements = await ShortEngagement.find({ userId: req.user!.userId })
-      .sort({ createdAt: -1 })
-      .limit(200)
-      .lean();
-
-    // Build set of liked/saved shorts for personalization signal
-    const likedShortIds = new Set(
-      userEngagements.filter(e => e.action === 'like').map(e => e.shortId.toString())
-    );
-    const savedShortIds = new Set(
-      userEngagements.filter(e => e.action === 'save').map(e => e.shortId.toString())
-    );
-
-    if (isStudent) {
+    if (!isRecruiter) { // All non-recruiters get student feed
       const allVideos = await ShortVideo.find()
         .populate({ path: 'userId', select: 'name avatarUrl role' })
         .populate({ path: 'jobId', select: 'title company pay description' })

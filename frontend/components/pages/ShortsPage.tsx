@@ -67,9 +67,15 @@ const ShortCard: React.FC<ShortCardProps> = ({
     onViewProfile,
     user,
 }) => {
+    const { hasApplied } = useJobs();
     const containerRef = useRef<HTMLDivElement>(null);
     const [connectState, setConnectState] = useState<'idle' | 'sending' | 'sent'>('idle');
     const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+    
+    const isJob = item.type === 'job';
+    // Use item.jobId if it exists, else item.id
+    const jobId = String(item.jobId || item.id);
+    const userHasApplied = isJob ? hasApplied(jobId) : false;
 
     // ✅ Hook called at component top-level — this is now legal
     const swipeState = useSwipeGesture(containerRef as React.RefObject<HTMLElement>, {
@@ -89,7 +95,7 @@ const ShortCard: React.FC<ShortCardProps> = ({
             : `${window.location.protocol}//${window.location.hostname}:3001${item.videoUrl}`
         : '';
 
-    const isJob = item.type === 'job';
+
 
     return (
         <div
@@ -274,8 +280,11 @@ const ShortCard: React.FC<ShortCardProps> = ({
                         {(!user?.isRecruiter || !isJob) && (
                             <div className="flex flex-col items-center">
                                 <button
-                                    className="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white flex items-center justify-center shadow-lg transition-all duration-300 transform hover:scale-105"
+                                    className={`w-11 h-11 rounded-full text-white flex items-center justify-center shadow-lg transition-all duration-300 transform ${
+                                        userHasApplied ? 'bg-emerald-500 scale-100 opacity-90' : 'bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 hover:scale-105 cursor-pointer'
+                                    }`}
                                     onClick={() => {
+                                        if (userHasApplied) return;
                                         if (isJob) {
                                             // Track apply click
                                             if (item.id && !item.id.startsWith('job_')) {
@@ -286,11 +295,16 @@ const ShortCard: React.FC<ShortCardProps> = ({
                                         }
                                         else if (item.author?.id) onViewProfile(item.author.id);
                                     }}
+                                    disabled={userHasApplied}
                                     aria-label="Apply or view details"
                                 >
-                                    <PaperAirplaneIcon className="w-6 h-6 rotate-45" />
+                                    {userHasApplied ? (
+                                        <span className="text-xl font-bold">✓</span>
+                                    ) : (
+                                        <PaperAirplaneIcon className="w-6 h-6 rotate-45" />
+                                    )}
                                 </button>
-                                {isJob && <span className="text-[10px] font-bold text-white/80 mt-0.5">{formatCount(item.applications || 0)}</span>}
+                                {isJob && <span className="text-[10px] font-bold text-white/80 mt-0.5">{userHasApplied ? 'Applied' : formatCount(item.applications || 0)}</span>}
                             </div>
                         )}
                     </div>
@@ -457,6 +471,10 @@ const ShortsPage: React.FC<ShortsPageProps> = ({ onApplyNow, onNavigateToJobDeta
     }, [showHint]);
 
     const handleLike = (id: string) => {
+        if (!user) {
+            if (onNavigate) onNavigate('login');
+            return;
+        }
         setLikedJobs(prev => {
             const next = new Set(prev);
             if (next.has(id)) { 
@@ -496,6 +514,11 @@ const ShortsPage: React.FC<ShortsPageProps> = ({ onApplyNow, onNavigateToJobDeta
     };
 
     const handleToggleSave = (item: any) => {
+        if (!user) {
+            if (onNavigate) onNavigate('login');
+            return;
+        }
+
         const jobId = String(item.jobId || item.id);
         if (!jobId) return;
 

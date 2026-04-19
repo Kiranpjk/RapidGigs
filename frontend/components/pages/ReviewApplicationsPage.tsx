@@ -5,42 +5,105 @@ import Swal from 'sweetalert2';
 
 const API_BASE = (import.meta.env.VITE_API_BASE as string) || 'http://localhost:3001/api';
 
-// Component to preview PDF inline via authenticated resume proxy
+function getEmbedUrl(url: string) {
+    if (!url) return '';
+    try {
+        const u = new URL(url);
+        if (u.hostname.includes('youtube.com') || u.hostname.includes('youtu.be')) {
+            let videoId = '';
+            if (u.hostname.includes('youtu.be')) {
+                videoId = u.pathname.substring(1).split(/[?#]/)[0];
+            } else if (u.pathname.includes('/shorts/')) {
+                videoId = u.pathname.split('/shorts/')[1].split(/[?#]/)[0];
+            } else if (u.pathname.includes('/live/')) {
+                videoId = u.pathname.split('/live/')[1].split(/[?#]/)[0];
+            } else {
+                videoId = u.searchParams.get('v') || '';
+            }
+            if (videoId) return `https://www.youtube.com/embed/${videoId}`;
+        }
+    } catch (e) {}
+    return url;
+}
+
 const PdfPreview: React.FC<{ applicationId: string }> = ({ applicationId }) => {
     const [blobUrl, setBlobUrl] = useState<string | null>(null);
-    const [canPreviewBlob, setCanPreviewBlob] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
         let localBlobUrl: string | null = null;
+        
         const endpoint = applicationsAPI.getResumeEndpoint(applicationId, 'inline');
+        
+        // Fetch the file securely
         fetchBlobWithAuth(endpoint)
-            .then(blob => {
+            .then(rawBlob => {
                 if (!cancelled) {
-                    const type = (blob.type || '').toLowerCase();
-                    const previewable =
-                        type.includes('pdf') ||
-                        type === 'application/octet-stream' ||
-                        type === '';
-                    setCanPreviewBlob(previewable);
-                    localBlobUrl = URL.createObjectURL(blob);
+                    // CRITICAL: Explicitly cast the blob to application/pdf to prevent auto-downloading in browsers
+                    const pdfBlob = new Blob([rawBlob], { type: 'application/pdf' });
+                    localBlobUrl = URL.createObjectURL(pdfBlob);
                     setBlobUrl(localBlobUrl);
                     setLoading(false);
                 }
             })
             .catch(() => {
-                if (!cancelled) setLoading(false);
+                if (!cancelled) {
+                    setLoadError(true);
+                    setLoading(false);
+                }
             });
+
         return () => {
             cancelled = true;
             if (localBlobUrl) URL.revokeObjectURL(localBlobUrl);
         };
     }, [applicationId]);
 
-    if (loading) return <div className="flex items-center justify-center h-96 text-slate-400 text-sm">Loading preview...</div>;
-    if (blobUrl && canPreviewBlob) return <iframe src={blobUrl} className="w-full h-96" title="Resume Preview" />;
-    return <div className="text-center text-sm text-red-500 py-8">Preview unavailable — try downloading the file.</div>;
+    if (loading) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[600px] h-full text-slate-400">
+                <div className="animate-spin w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full mb-4"></div>
+                <p className="font-bold uppercase tracking-widest text-xs">Loading Secure Preview...</p>
+            </div>
+        );
+    }
+
+    if (loadError || !blobUrl) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[600px] h-full text-center p-10 bg-gray-50 dark:bg-slate-900 text-gray-400">
+                <span className="text-6xl mb-6">⚠️</span>
+                <p className="font-bold text-sm mb-2">Preview Unavailable</p>
+                <p className="text-xs mb-6 max-w-xs">Could not load the secure resume preview. It might be corrupt or an unsupported format.</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="w-full h-full min-h-[700px] relative bg-slate-100 dark:bg-slate-900">
+            {/* The object tag natively instructs the browser to embed the PDF viewer */}
+            <object 
+                data={blobUrl} 
+                type="application/pdf" 
+                className="absolute inset-0 w-full h-full rounded-2xl"
+            >
+                {/* Fallback if the browser doesn't support inline PDFs (like mobile Safari) */}
+                <div className="h-full flex flex-col items-center justify-center p-10 text-center">
+                    <span className="text-6xl mb-6">📄</span>
+                    <p className="font-bold text-xl mb-3 text-gray-800 dark:text-gray-200">PDF Viewer Not Supported</p>
+                    <p className="text-sm text-gray-500 mb-6 max-w-md">Your browser does not support inline PDF viewing. You can securely download the file below.</p>
+                    <a 
+                        href={blobUrl} 
+                        download="candidate_resume.pdf" 
+                        className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-all shadow-lg"
+                    >
+                        Download PDF Resume
+                    </a>
+                </div>
+            </object>
+        </div>
+    );
 };
 
 const ReviewApplicationsPage: React.FC = () => {
@@ -55,6 +118,7 @@ const ReviewApplicationsPage: React.FC = () => {
     const [editingForm, setEditingForm] = useState<any>(null);
     const [categories, setCategories] = useState<any[]>([]);
     const [isSavingJob, setIsSavingJob] = useState(false);
+    const [activePreviewUrls, setActivePreviewUrls] = useState<Record<string, string>>({});
 
     useEffect(() => {
         jobsAPI.getMyJobs()
@@ -497,9 +561,75 @@ const ReviewApplicationsPage: React.FC = () => {
                                                             {/* Links Section */}
                                                             <div>
                                                                 <h3 className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em] mb-4">🔗 Project Links & Notes</h3>
-                                                                <div className="bg-gray-50 dark:bg-slate-800/50 p-6 rounded-3xl border border-gray-100 dark:border-slate-800 text-gray-700 dark:text-slate-300 text-sm leading-[1.8] font-medium">
+                                                                <div className="bg-gray-50 dark:bg-slate-800/50 p-6 rounded-3xl border border-gray-100 dark:border-slate-800 text-gray-700 dark:text-slate-300 text-sm leading-[1.8] font-medium whitespace-pre-wrap mb-8">
                                                                     {app.coverLetter || 'No additional project links or notes provided by the candidate.'}
                                                                 </div>
+                                                                
+                                                                {/* Live Website Preview (Extracted from links) */}
+                                                                {(() => {
+                                                                    if (!app.coverLetter) return null;
+                                                                    // Extract all http/https links
+                                                                    const allUrls = Array.from(app.coverLetter.matchAll(/https?:\/\/[^\s,]+/g)).map(m => m[0]);
+                                                                    if (allUrls.length === 0) return null;
+                                                                    
+                                                                    const appId = app._id || app.id;
+                                                                    const currentUrl = activePreviewUrls[appId] || allUrls[0];
+
+                                                                    return (
+                                                                        <div className="mt-8 border-t border-gray-100 dark:border-slate-800 pt-8">
+                                                                            <div className="flex items-center justify-between mb-4">
+                                                                                <h3 className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em]">🌐 Live Project Preview</h3>
+                                                                                <a href={currentUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-widest underline">
+                                                                                    Open in new tab
+                                                                                </a>
+                                                                            </div>
+
+                                                                            {/* Tab Bar for Multiple Links */}
+                                                                            {allUrls.length > 1 && (
+                                                                                <div className="flex flex-wrap gap-2 mb-4">
+                                                                                    {allUrls.map((url, idx) => {
+                                                                                        const isActive = currentUrl === url;
+                                                                                        let label = 'Project';
+                                                                                        try {
+                                                                                            const hostname = new URL(url).hostname.replace('www.', '');
+                                                                                            label = hostname.split('.')[0];
+                                                                                        } catch {}
+                                                                                        
+                                                                                        return (
+                                                                                            <button
+                                                                                                key={idx}
+                                                                                                onClick={() => setActivePreviewUrls(prev => ({...prev, [appId]: url}))}
+                                                                                                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isActive 
+                                                                                                    ? 'bg-emerald-500 text-white shadow-lg' 
+                                                                                                    : 'bg-gray-100 dark:bg-slate-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-slate-700'}`}
+                                                                                            >
+                                                                                                {idx + 1}. {label}
+                                                                                            </button>
+                                                                                        );
+                                                                                    })}
+                                                                                </div>
+                                                                            )}
+
+                                                                            <div className="w-full h-[550px] border-[8px] border-gray-100 dark:border-slate-800 rounded-3xl overflow-hidden shadow-inner relative bg-white">
+                                                                                <div className="absolute top-0 left-0 right-0 h-6 bg-gray-100 dark:bg-slate-800 flex items-center px-4 gap-1.5 opacity-50">
+                                                                                    <div className="w-2 h-2 rounded-full bg-red-400"></div>
+                                                                                    <div className="w-2 h-2 rounded-full bg-yellow-400"></div>
+                                                                                    <div className="w-2 h-2 rounded-full bg-green-400"></div>
+                                                                                    <span className="text-[8px] font-bold text-gray-500 ml-4 truncate opacity-50">{currentUrl}</span>
+                                                                                </div>
+                                                                                <iframe 
+                                                                                    src={getEmbedUrl(currentUrl)} 
+                                                                                    className="w-full h-full pt-6"
+                                                                                    title="Live Preview"
+                                                                                    key={currentUrl} // Key forces reload when switching tabs
+                                                                                    sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-presentation"
+                                                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                                                                    allowFullScreen
+                                                                                />
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })()}
                                                             </div>
 
                                                             {/* Resume Section with Preview */}
@@ -518,21 +648,7 @@ const ReviewApplicationsPage: React.FC = () => {
                                                                 </div>
                                                                 <div className="flex-1 bg-gray-100 dark:bg-slate-950 rounded-3xl overflow-hidden border-8 border-gray-50 dark:border-slate-800 min-h-[600px] shadow-inner relative">
                                                                     {app.resumeUrl ? (
-                                                                        isPdf(app.resumeUrl) ? (
-                                                                            <PdfPreview applicationId={id} />
-                                                                        ) : (
-                                                                            <div className="h-full flex flex-col items-center justify-center p-10 text-center text-gray-900 dark:text-white bg-white dark:bg-slate-900">
-                                                                                <span className="text-6xl mb-6">📄</span>
-                                                                                <p className="font-bold text-xl mb-6 text-gray-500">Document available but preview unavailable</p>
-                                                                                <button
-                                                                                    type="button"
-                                                                                    onClick={() => handleResumeDownload(id, app.applicant?.name)}
-                                                                                    className="px-10 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-105 transition-all cursor-pointer"
-                                                                                >
-                                                                                    Download Document
-                                                                                </button>
-                                                                            </div>
-                                                                        )
+                                                                        <PdfPreview applicationId={id} />
                                                                     ) : (
                                                                         <div className="h-full flex flex-col items-center justify-center text-gray-300 bg-gray-50 dark:bg-slate-900/50">
                                                                             <span className="text-6xl mb-6 opacity-20">📂</span>

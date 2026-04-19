@@ -83,13 +83,6 @@ async function tryVeoAiFree(
       input.jobId ? `job_${input.jobId}_veoaifree` : undefined
     );
 
-    // Clean up temp file after upload
-    try {
-      if (result.localPath.includes('uploads/tmp')) {
-        require('fs').unlinkSync(result.localPath);
-      }
-    } catch (e) { /* ignore cleanup errors */ }
-
     return {
       videoUrl: cloudUrl,
       rawUrl: result.localPath,

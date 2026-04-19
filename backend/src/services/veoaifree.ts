@@ -15,9 +15,12 @@
  *   7. Download the generated .mp4
  */
 
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import * as fs from 'fs';
 import * as path from 'path';
+
+puppeteer.use(StealthPlugin());
 
 const VEOAIFREE_URL = 'https://veoaifree.com';
 const TOOL_PAGE_URL = 'https://veoaifree.com/veo-video-generator/';
@@ -133,15 +136,21 @@ export async function generateVideoVeoAiFree(
         const url = resp.url();
         const ct = (resp.headers()['content-type'] || '').toLowerCase();
 
-        if (/\.(mp4|webm|m3u8)(\?|$)/i.test(url) || ct.includes('video/')) {
+        if (/\.(mp4|webm|m3u8)(\?|$)/i.test(url) || ct.includes('video/') || ct.includes('media/')) {
           networkVideoUrls.set(url, Date.now());
           return;
         }
 
-        if (ct.includes('application/json')) {
+        if (ct.includes('application/json') || ct.includes('text/plain')) {
           const body = await resp.text();
           const matches = body.match(/https?:\/\/[^\s"'\\]+\.(mp4|webm|m3u8)(\?[^\s"'\\]*)?/gi);
-          if (matches) matches.forEach((m: string) => networkVideoUrls.set(m, Date.now()));
+          if (matches) {
+            matches.forEach((m: string) => {
+               if (!m.includes('demo') && !m.includes('sample')) {
+                 networkVideoUrls.set(m, Date.now());
+               }
+            });
+          }
         }
       } catch {
         // Ignore response parsing issues.
@@ -322,7 +331,7 @@ export async function generateVideoVeoAiFree(
 
     let videoUrl: string | null = null;
     let attempts = 0;
-    const maxAttempts = 72; // 72 * 5s = 6 minutes max wait
+    const maxAttempts = 120; // 120 * 5s = 10 minutes max wait (Veo sometimes takes a while)
 
     while (attempts < maxAttempts) {
       await new Promise(r => setTimeout(r, 5000));

@@ -196,14 +196,15 @@ const useGoogleButton = (
       // Stop checking once we have what we need
       if (checkInterval) clearInterval(checkInterval);
 
-      // ALWAYS call initialize to ensure the callback is correctly registered
-      // for this specific form instance (Login or SignUp), or just use the global
-      // ref we established. Since initialize is safe to call multiple times,
-      // it's better to ensure it's done before renderButton.
-      g.accounts.id.initialize({
-        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-        callback: (response: any) => currentGoogleCallbackRef.current?.(response),
-      });
+      // Only call initialize() once per page lifecycle — the callback is routed
+      // through currentGoogleCallbackRef so it always reaches the active form.
+      if (!googleInitialized) {
+        g.accounts.id.initialize({
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+          callback: (response: any) => currentGoogleCallbackRef.current?.(response),
+        });
+        googleInitialized = true;
+      }
 
       g.accounts.id.renderButton(el, {
         theme: 'outline',

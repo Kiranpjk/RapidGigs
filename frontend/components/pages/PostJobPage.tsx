@@ -25,7 +25,6 @@ interface FormState {
   description: string;
   requirements: string;
   shortVideoUrl: string;
-  aspectRatio: '9:16' | '16:9' | '1:1';
 }
 
 interface DraftState {
@@ -47,7 +46,6 @@ const EMPTY_FORM: FormState = {
   description: '',
   requirements: '',
   shortVideoUrl: '',
-  aspectRatio: '9:16',
 };
 
 /** Load draft from localStorage (or return defaults) */
@@ -105,8 +103,8 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
   const [magicText, setMagicText] = useState('');
+  const [showMagicFill, setShowMagicFill] = useState(false);
   const [inlineFactIndex, setInlineFactIndex] = useState(0);
-  const [companyLogoUrl, setCompanyLogoUrl] = useState('');
 
   // ── Persist draft to localStorage on every change ───────────────────────
   useEffect(() => {
@@ -181,13 +179,8 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
       setPostedJobId(savedJobId);
 
       // If "generate video" toggle is ON and no video yet, trigger background gen
-      // BUT only if we aren't already generating one manually
-      if (generateVideoOnPost && !form.shortVideoUrl && savedJobId && !isGeneratingVideo) {
-        triggerBackgroundVideoGen(savedJobId, form.title, form.company, form.aspectRatio);
-      } else if (isGeneratingVideo && savedJobId) {
-        // If we are already generating one manually, we'll let that process finish
-        // and it will update the job record once it completes (handled by backend or polling)
-        console.log('Manual video generation already in progress, skipping auto-trigger.');
+      if (generateVideoOnPost && !form.shortVideoUrl && savedJobId) {
+        triggerBackgroundVideoGen(savedJobId, form.title, form.company);
       }
 
       Swal.fire({
@@ -209,9 +202,9 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
   };
 
   // ── Trigger background video gen from saved job ──────────────────────────
-  const triggerBackgroundVideoGen = async (jobId: string, title: string, company: string, aspectRatio: string) => {
+  const triggerBackgroundVideoGen = async (jobId: string, title: string, company: string) => {
     try {
-      const response = await shortsAPI.generateFromJob(jobId, aspectRatio);
+      const response = await shortsAPI.generateFromJob(jobId);
       if (response.jobId) {
         // Background job: progress on Post Job page + chip next to notifications elsewhere
         startJob(response.jobId, `${title} @ ${company}`, { fromPostJob: true });
@@ -241,7 +234,6 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
         prompt,
         title: fallbackTitle,
         description: form.description,
-        aspectRatio: form.aspectRatio,
       });
 
       if (response.jobId) {
@@ -261,11 +253,19 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
         err.message?.includes('not running');
 
       if (isServiceDown) {
-        setError('Video service is currently unavailable. You can still post the job and generate a video later.');
+        const sampleVideos = [
+          'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+          'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+          'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
+        ];
+        setForm(prev => ({
+          ...prev,
+          shortVideoUrl: sampleVideos[Math.floor(Math.random() * sampleVideos.length)],
+        }));
+        setVideoSource('sample');
       } else {
         setError(`Video generation failed: ${err.message}`);
       }
-      Swal.fire({ title: 'Video Gen Failed', text: 'You can still post the job and try video again later.', icon: 'warning' });
     } finally {
       setIsGeneratingVideo(false);
     }
@@ -292,9 +292,9 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
         description: parsed.description || '',
         requirements: Array.isArray(parsed.requirements) ? parsed.requirements.join('\n') : '',
         shortVideoUrl: '',
-        aspectRatio: '9:16',
       });
       
+      setShowMagicFill(false);
       setMagicText('');
       
       Swal.fire({
@@ -397,17 +397,10 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
                   Your job stands out in the Shorts feed. Preview below.
                 </p>
               </div>
-              <div 
-                className={`relative bg-black mx-auto my-6 rounded-[2.5rem] overflow-hidden shadow-2xl border-[6px] border-white dark:border-slate-800 transition-all duration-700`}
-                style={{
-                  aspectRatio: form.aspectRatio === '9:16' ? '9/16' : form.aspectRatio === '16:9' ? '16/9' : '1/1',
-                  maxWidth: form.aspectRatio === '16:9' ? '100%' : '260px',
-                  boxShadow: '0 25px 50px -12px rgba(99, 102, 241, 0.25)'
-                }}
-              >
+              <div className="relative aspect-[9/16] bg-black max-w-[180px] mx-auto my-6 rounded-2xl overflow-hidden shadow-2xl border-4 border-white dark:border-slate-800">
                 <video
                   src={form.shortVideoUrl.startsWith('http') ? form.shortVideoUrl : `${import.meta.env.VITE_API_BASE?.replace('/api', '') || 'http://localhost:3001'}${form.shortVideoUrl}`}
-                  className="w-full h-full object-contain bg-slate-900"
+                  className="w-full h-full object-cover"
                   loop muted autoPlay playsInline controls
                 />
               </div>
@@ -445,25 +438,20 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
   const hasFormData = form.title || form.company || form.description || form.location || form.pay;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 animate-slide-up">
-      <div className="mb-10 flex flex-col md:flex-row justify-between items-start gap-6">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10 animate-slide-up">
+      <div className="mb-10 flex justify-between items-start">
         <div>
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight">New Job Posting</h1>
-            <span className="bg-indigo-600/10 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border border-indigo-200 dark:border-indigo-800/30">
-              Recruiter Workspace
-            </span>
-          </div>
-          <p className="text-lg text-gray-500 dark:text-slate-400">Reach top student talent on RapidGig with AI-powered job marketing.</p>
+          <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight">New Job Posting</h1>
+          <p className="text-lg text-gray-500 dark:text-slate-400 mt-2">Reach top student talent on RapidGig.</p>
         </div>
         {hasFormData && (
           <button
             type="button"
             onClick={() => resetForm(true)}
-            className="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-red-500 transition-colors px-5 py-3 rounded-2xl bg-gray-50 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-950/20 border border-gray-100 dark:border-slate-700 cursor-pointer"
+            className="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-red-500 transition-colors px-4 py-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/20 cursor-pointer"
           >
             <TrashIcon className="w-3.5 h-3.5" />
-            Reset Workspace
+            Clear Draft
           </button>
         )}
       </div>
@@ -517,36 +505,60 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
         </div>
       )}
 
-      {/* ── AI Quick Paste (Permanent Box) ────────────────────────── */}
-      <div className="mb-10 group">
-        <div className="bg-white dark:bg-slate-800 border border-indigo-100 dark:border-indigo-800/30 rounded-[2.5rem] p-8 shadow-sm transition-all hover:shadow-indigo-500/5 hover:border-indigo-200 dark:hover:border-indigo-800/50">
-          <div className="flex justify-between items-center mb-5">
-            <h3 className="text-sm font-black text-indigo-500 uppercase tracking-[0.2em] flex items-center gap-2">
-              <SparklesIcon className="w-4 h-4" />
-              AI Magic Fill (Quick Paste)
-            </h3>
-            <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest hidden sm:block">
-              Paste messy text → Auto-fill form
-            </span>
-          </div>
-          <div className="relative">
+      {/* ── AI Magic Fill Section ────────────────────────────────────────── */}
+      <div className="mb-8">
+        {!showMagicFill ? (
+          <button
+            onClick={() => setShowMagicFill(true)}
+            className="flex items-center gap-2 px-6 py-4 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/30 rounded-3xl text-indigo-600 dark:text-indigo-400 font-bold text-sm w-full transition-all hover:bg-indigo-100 dark:hover:bg-indigo-900/30 cursor-pointer shadow-sm"
+          >
+            <SparklesIcon className="w-5 h-5" />
+            <span>Have a messy job description? Paste it here and let AI fill the form for you!</span>
+          </button>
+        ) : (
+          <div className="bg-white dark:bg-slate-800 border border-indigo-100 dark:border-indigo-800/30 rounded-[2.5rem] p-8 shadow-xl animate-scale-in">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-sm font-black text-indigo-500 uppercase tracking-widest flex items-center gap-2">
+                <SparklesIcon className="w-4 h-4" />
+                AI Magic Fill
+              </h3>
+              <button onClick={() => setShowMagicFill(false)} className="text-gray-400 hover:text-gray-600">
+                <TrashIcon className="w-4 h-4" />
+              </button>
+            </div>
             <textarea
-              className={`${InputClass} rounded-[2rem] min-h-[120px] pr-32 mb-0 border-dashed border-gray-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700 focus:border-indigo-500 transition-colors`}
-              placeholder="Example: We are looking for a React dev at DesignCo, remote, paying $50/hr..."
+              className={`${InputClass} rounded-[2rem] min-h-[150px] mb-4`}
+              placeholder="Paste your messy job description, email, or requirements here..."
               value={magicText}
               onChange={(e) => setMagicText(e.target.value)}
             />
-            <div className="absolute bottom-4 right-4 flex gap-2">
+            <div className="flex gap-3">
               <button
                 onClick={handleMagicFill}
                 disabled={isParsing || !magicText.trim()}
-                className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-30 text-white text-[11px] font-black uppercase tracking-wider px-5 py-3 rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-indigo-600/20 active:scale-95 cursor-pointer"
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold py-3.5 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-200 dark:shadow-none cursor-pointer"
               >
-                {isParsing ? 'Parsing...' : 'Fill Form'}
+                {isParsing ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    AI is thinking...
+                  </>
+                ) : (
+                  <>
+                    <SparklesIcon className="w-4 h-4" />
+                    Auto-Fill Fields
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => setShowMagicFill(false)}
+                className="px-6 py-3.5 bg-gray-50 dark:bg-slate-700 text-gray-500 dark:text-slate-400 font-bold rounded-2xl cursor-pointer"
+              >
+                Cancel
               </button>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
 
@@ -581,44 +593,11 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
               <input id="company" name="company" type="text" required placeholder="e.g. DesignCo Inc." className={InputClass} value={form.company} onChange={handleChange} />
             </div>
           </div>
-
-          {/* Company Logo Upload */}
-          <div className="mt-4">
-            <label className={LabelClass}>Company Logo <span className="text-gray-400 font-normal">(appears on video)</span></label>
-            <div className="flex items-center gap-4">
-              <input
-                type="url"
-                placeholder="https://example.com/logo.png"
-                className={InputClass + ' flex-1'}
-                value={companyLogoUrl}
-                onChange={async (e) => {
-                  setCompanyLogoUrl(e.target.value);
-                  if (e.target.value) {
-                    try { await shortsAPI.uploadLogo(e.target.value); } catch {}
-                  }
-                }}
-              />
-              {companyLogoUrl && (
-                <img
-                  src={companyLogoUrl}
-                  alt="Logo preview"
-                  className="w-12 h-12 rounded-lg object-contain bg-white border border-gray-200 dark:border-slate-700 p-1"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                />
-              )}
-            </div>
-            <p className="text-[10px] text-gray-400 dark:text-slate-500 mt-1 px-1 font-medium">
-              Logo will appear top-left on your generated video. Leave blank to auto-detect from company name.
-            </p>
-          </div>
         </div>
 
         {/* ── Section: Work Details ─────────────────────────────────────── */}
-        <div className="bg-gray-50/50 dark:bg-slate-900/30 rounded-[2rem] p-8 border border-gray-100 dark:border-slate-800/50">
-          <h3 className="text-xs font-black text-indigo-500 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-            Work Details
-          </h3>
+        <div>
+          <h3 className="text-xs font-black text-indigo-500 uppercase tracking-[0.2em] mb-6">Work Details</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className={LabelClass} htmlFor="location">Location *</label>
@@ -666,116 +645,84 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
         </div>
 
         {/* ── Section: Description & Video ──────────────────────────────── */}
-        <div className="bg-gray-50/50 dark:bg-slate-900/30 rounded-[2rem] p-8 border border-gray-100 dark:border-slate-800/50">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xs font-black text-indigo-500 uppercase tracking-[0.2em] flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-              Description & AI Media
-            </h3>
+        <div>
+          <div className="flex justify-between items-end mb-6">
+            <h3 className="text-xs font-black text-indigo-500 uppercase tracking-[0.2em]">Description & Media</h3>
             {!form.shortVideoUrl ? (
               <button
                 type="button"
                 onClick={handleGenerateVideo}
                 disabled={isGeneratingVideo}
-                className="flex items-center gap-2 text-xs font-black bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-2xl shadow-lg shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 cursor-pointer"
+                className="flex items-center gap-2 text-xs font-black bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-5 py-2.5 rounded-2xl shadow-lg transition-all hover:scale-105 disabled:opacity-50 cursor-pointer"
               >
                 {isGeneratingVideo ? (
                   <>
-                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     Starting...
                   </>
                 ) : (
                   <>
-                    <SparklesIcon className="w-4 h-4" />
-                    Generate AI Video
+                    <SparklesIcon className="w-3.5 h-3.5" />
+                    Generate Video
                   </>
                 )}
               </button>
             ) : isVideoProcessing ? (
-              <div className="flex items-center gap-2 text-xs font-bold text-indigo-500 dark:text-indigo-400 animate-pulse bg-indigo-50 dark:bg-indigo-900/20 px-4 py-2 rounded-xl">
+              <div className="flex items-center gap-2 text-xs font-bold text-indigo-500 dark:text-indigo-400 animate-pulse">
                 <div className="w-3 h-3 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin" />
-                AI is creating...
+                Processing...
               </div>
             ) : (
-              <div className="flex items-center gap-3 text-xs font-bold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-4 py-2 rounded-xl border border-green-100 dark:border-green-800/30">
+              <div className="flex items-center gap-2 text-xs font-bold text-green-600 dark:text-green-400">
                 <CheckCircleIcon className="w-4 h-4" />
-                Professional Video Ready
+                {videoSource === 'ai' ? 'AI Video Ready' : 'Sample Added'}
               </div>
             )}
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-5 lg:grid-cols-6 gap-8 items-start">
-            <div className="md:col-span-3 lg:col-span-4 space-y-6">
-              <div>
-                <label className={LabelClass} htmlFor="description">Job Description *</label>
-                <textarea
-                  id="description" name="description" required rows={6}
-                  placeholder="Describe the role, responsibilities, and what makes it exciting..."
-                  className={`${InputClass} rounded-[2rem] px-6 py-5 leading-relaxed focus:ring-indigo-500/20`}
-                  value={form.description} onChange={handleChange}
-                />
-              </div>
-
-              <div>
-                <label className={LabelClass}>Video Aspect Ratio</label>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { label: '9:16', value: '9:16', icon: '📱' },
-                    { label: '16:9', value: '16:9', icon: '💻' },
-                    { label: '1:1', value: '1:1', icon: '🟦' },
-                  ].map((r) => (
-                    <button
-                      key={r.value}
-                      type="button"
-                      onClick={() => setForm(prev => ({ ...prev, aspectRatio: r.value as any }))}
-                      className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 transition-all cursor-pointer ${
-                        form.aspectRatio === r.value
-                          ? 'bg-indigo-600 border-indigo-600 text-white shadow-xl shadow-indigo-600/20'
-                          : 'bg-white dark:bg-slate-900 border-gray-100 dark:border-slate-800 text-gray-400 dark:text-slate-500 hover:border-indigo-200 dark:hover:border-indigo-900'
-                      }`}
-                    >
-                      <span className="text-lg">{r.icon}</span>
-                      <span className="text-[10px] font-black uppercase tracking-wider">{r.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+          {showVideoRunEditWarning && (
+            <div className="mb-4 rounded-2xl border border-indigo-100 dark:border-indigo-800/30 bg-indigo-50/70 dark:bg-indigo-950/20 px-4 py-3">
+              <p className="text-xs font-medium text-indigo-700 dark:text-indigo-300">
+                Editing the description now will not update the video currently being generated.
+              </p>
             </div>
-
-            <div className="md:col-span-2 space-y-4">
-              <label className={LabelClass}>AI Media Preview</label>
-              <div className={`relative group ${form.aspectRatio === '16:9' ? 'w-full' : 'max-w-[240px] mx-auto'}`}>
-                {form.shortVideoUrl ? (
-                  <div 
-                    className="relative bg-black rounded-[2rem] overflow-hidden shadow-2xl border-4 border-white dark:border-slate-800 transition-all duration-700 group-hover:shadow-indigo-500/10 group-hover:scale-[1.02]"
-                    style={{
-                      aspectRatio: form.aspectRatio === '9:16' ? '9/16' : form.aspectRatio === '16:9' ? '16/9' : '1/1',
-                      width: '100%'
-                    }}
-                  >
-                    <video src={form.shortVideoUrl} className="w-full h-full object-contain" loop muted autoPlay playsInline />
-                    <button
-                      type="button"
-                      onClick={() => { setForm(prev => ({ ...prev, shortVideoUrl: '' })); setVideoSource(null); }}
-                      className="absolute top-4 right-4 p-2.5 bg-white/20 backdrop-blur-md hover:bg-red-500 text-white rounded-xl transition-all opacity-0 group-hover:opacity-100"
-                    >
-                      <TrashIcon className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <div 
-                    className="aspect-[9/16] rounded-[2.5rem] border-2 border-dashed border-gray-100 dark:border-slate-800 flex flex-col items-center justify-center text-center p-8 bg-gray-100/30 dark:bg-slate-950/20 transition-all group-hover:border-indigo-300/50"
-                  >
-                    <div className="w-16 h-16 rounded-3xl bg-white dark:bg-slate-900 shadow-sm flex items-center justify-center mb-6 text-3xl group-hover:scale-110 transition-transform">🎬</div>
-                    <p className="text-[11px] font-black text-gray-400 dark:text-slate-600 uppercase tracking-[0.15em] leading-relaxed">
-                      Select ratio & click <span className="text-indigo-500">Generate</span> to preview
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
+          )}
+          <div>
+            <label className={LabelClass} htmlFor="description">Job Description *</label>
+            <textarea
+              id="description" name="description" required rows={5}
+              placeholder="Describe the role, responsibilities, and what makes it exciting..."
+              className={`${InputClass} rounded-[2rem] px-6 py-5 leading-relaxed`}
+              value={form.description} onChange={handleChange}
+            />
           </div>
+
+          {form.shortVideoUrl && (
+            <div className="mt-6 p-6 bg-gray-50 dark:bg-slate-900/50 rounded-3xl border border-gray-100 dark:border-slate-700">
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="text-xs font-black uppercase tracking-widest flex items-center gap-2 text-gray-900 dark:text-white">
+                  <VideoCameraIcon className="w-4 h-4 text-indigo-500" />
+                  {videoSource === 'ai' ? 'AI-Generated Video' : 'Sample Video'}
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => { setForm(prev => ({ ...prev, shortVideoUrl: '' })); setVideoSource(null); }}
+                  className="text-gray-300 hover:text-red-500 transition-colors cursor-pointer"
+                >
+                  <TrashIcon className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="relative aspect-video rounded-2xl overflow-hidden bg-black shadow-inner border-4 border-white dark:border-slate-800">
+                <video src={form.shortVideoUrl} className="w-full h-full object-cover" loop muted autoPlay playsInline />
+              </div>
+              {videoSource === 'sample' && (
+                <p className="mt-3 text-xs text-amber-500 font-bold">
+                  ⚠️ Sample video — AI service unavailable. Start Helios for real generation.
+                </p>
+              )}
+            </div>
+          )}
         </div>
+
         {/* ── Section: Requirements ─────────────────────────────────────── */}
         <div>
           <label className={LabelClass} htmlFor="requirements">Requirements <span className="font-normal normal-case tracking-normal text-gray-300">(one per line)</span></label>
@@ -821,7 +768,7 @@ const PostJobPage: React.FC<PostJobPageProps> = ({ navigate }) => {
             type="submit"
             disabled={isLoading}
             className={`px-12 py-4 text-white font-black uppercase tracking-widest text-xs rounded-2xl transition-all hover:scale-[1.05] active:scale-[0.95] shadow-2xl disabled:opacity-50 cursor-pointer ${
-              generateVideoOnPost && !form.shortVideoUrl && !isGeneratingVideo
+              generateVideoOnPost && !form.shortVideoUrl
                 ? 'bg-indigo-600 shadow-indigo-500/30'
                 : 'bg-gray-900 dark:bg-white dark:text-gray-900 shadow-gray-200 dark:shadow-none'
             }`}

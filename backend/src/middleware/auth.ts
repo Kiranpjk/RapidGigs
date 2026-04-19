@@ -33,3 +33,28 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
 };
+
+export const optionalAuthenticate = (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    let token: string | undefined;
+
+    if (req.cookies?.token) {
+      token = req.cookies.token;
+    }
+
+    if (!token) {
+      const authHeader = req.headers.authorization;
+      if (authHeader?.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+      }
+    }
+
+    if (token) {
+      const payload = verifyToken(token);
+      req.user = payload;
+    }
+  } catch (error) {
+    console.debug('Invalid token in optional auth, ignoring:', error);
+  }
+  next();
+};

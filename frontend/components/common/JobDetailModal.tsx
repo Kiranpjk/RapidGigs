@@ -30,14 +30,16 @@ const JobDetailModal: React.FC<JobDetailModalProps> = ({ job, isOpen, onClose, o
                     <XMarkIcon className="w-4 h-4" />
                 </button>
 
-                {/* Video Preview — the main value of the popup */}
+                {/* Video Preview */}
                 {(job.companyVideoUrl || job.shortVideoUrl) && (
-                    <div className="rounded-t-2xl overflow-hidden bg-gray-900">
+                    <div className="rounded-t-2xl overflow-hidden bg-gray-900 relative group/video">
                         <video
                             src={job.companyVideoUrl || job.shortVideoUrl}
                             controls
-                            className="w-full aspect-video object-cover"
+                            className="w-full aspect-video object-cover transition-opacity duration-300"
                             preload="metadata"
+                            onMouseEnter={(e) => { e.currentTarget.play().catch(() => {}); }}
+                            onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
                         />
                     </div>
                 )}

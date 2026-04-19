@@ -31,7 +31,7 @@ interface JobsPageProps {
 
 const JobsPage: React.FC<JobsPageProps> = ({ onApplyNow }) => {
     const { user } = useAuth();
-    const { saveJob, unsaveJob, isJobSaved } = useJobs();
+    const { saveJob, unsaveJob, isJobSaved, hasApplied } = useJobs();
     const [jobs, setJobs] = useState<Job[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -167,14 +167,16 @@ const JobsPage: React.FC<JobsPageProps> = ({ onApplyNow }) => {
                                 <BookmarkIcon className="w-4 h-4" />
                             </button>
                             <button
-                                className={`py-2 px-4 rounded-xl text-xs font-medium transition-all duration-200 cursor-pointer ${job.status === 'Full'
+                                className={`py-2 px-4 rounded-xl text-xs font-medium transition-all duration-200 cursor-pointer ${
+                                        hasApplied(job.id) ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-200 dark:border-emerald-800/50 cursor-default cursor-not-allowed' :
+                                        job.status === 'Full'
                                         ? 'bg-gray-100 dark:bg-slate-700 text-gray-400 cursor-not-allowed'
                                         : 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100 active:scale-[0.98]'
                                     }`}
-                                onClick={(e) => { e.stopPropagation(); if (job.status !== 'Full') onApplyNow(job); }}
-                                disabled={job.status === 'Full'}
+                                onClick={(e) => { e.stopPropagation(); if (job.status !== 'Full' && !hasApplied(job.id)) onApplyNow(job); }}
+                                disabled={job.status === 'Full' || hasApplied(job.id)}
                             >
-                                {job.status === 'Full' ? 'Full' : 'Apply Now'}
+                                {hasApplied(job.id) ? 'Applied' : job.status === 'Full' ? 'Full' : 'Apply Now'}
                             </button>
                         </>
                     )}
