@@ -33,18 +33,32 @@ const JobDetailModal: React.FC<JobDetailModalProps> = ({ job, isOpen, onClose, o
                     <XMarkIcon className="w-3.5 h-3.5" />
                 </button>
 
-                {/* Video */}
+                {/* Video / Preview */}
                 {videoUrl && (
-                    <div className="rounded-t-lg overflow-hidden bg-zinc-950">
-                        <video src={videoUrl} controls className="w-full aspect-video object-cover" preload="metadata" />
+                    <div className="rounded-t-lg overflow-hidden bg-black flex justify-center">
+                        <div className="w-full max-w-sm">
+                            <video 
+                                src={videoUrl} 
+                                controls 
+                                className="w-full max-h-[50vh] object-contain" 
+                                preload="metadata"
+                                autoPlay
+                            />
+                        </div>
                     </div>
                 )}
 
                 {/* Content */}
-                <div className="p-5 overflow-y-auto flex-1">
-                    <div className="mb-4">
-                        <h2 className="text-base font-semibold text-[var(--text-primary)] mb-1">{job.title}</h2>
-                        <p className="text-[13px] text-[var(--text-tertiary)]">{job.company}</p>
+                <div className="p-6 overflow-y-auto flex-1">
+                    <div className="mb-5">
+                        <h2 className="text-[17px] font-bold text-[var(--text-primary)] mb-1 tracking-tight leading-tight">
+                            {job.title}
+                        </h2>
+                        <div className="flex items-center gap-2">
+                             <p className="text-[13px] text-[var(--text-secondary)] font-medium">{job.company}</p>
+                             <span className="w-1 h-1 rounded-full bg-[var(--text-tertiary)] opacity-30" />
+                             <span className="text-[12px] text-[var(--accent)] font-semibold tracking-wide uppercase">Active Opportunity</span>
+                        </div>
                     </div>
 
                     <div className="flex flex-wrap gap-1.5 mb-5">

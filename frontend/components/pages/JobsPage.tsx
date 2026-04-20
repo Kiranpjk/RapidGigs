@@ -109,41 +109,68 @@ const JobsPage: React.FC<JobsPageProps> = ({ onApplyNow }) => {
                                 className="flex items-center gap-4 p-4 hover:bg-[var(--surface-hover)] transition-colors duration-75 cursor-pointer group"
                                 onClick={() => setSelectedJobForDetail(job)}
                             >
-                                {/* Video thumbnail */}
-                                <div className="w-20 h-14 rounded-md bg-zinc-950 overflow-hidden shrink-0 relative">
+                                {/* Thumbnail/Video Section */}
+                                <div className="w-28 h-18 rounded-lg bg-zinc-950 overflow-hidden shrink-0 relative shadow-sm border border-[var(--border)] group/thumb">
                                     {videoUrl ? (
-                                        <video
-                                            src={videoUrl}
-                                            className="w-full h-full object-cover"
-                                            muted playsInline
-                                            onMouseEnter={e => e.currentTarget.play().catch(() => {})}
-                                            onMouseLeave={e => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
-                                        />
+                                        <>
+                                            <video
+                                                src={videoUrl}
+                                                className="w-full h-full object-cover opacity-80 group-hover/thumb:opacity-100 transition-opacity duration-300"
+                                                muted playsInline
+                                                onMouseEnter={e => e.currentTarget.play().catch(() => {})}
+                                                onMouseLeave={e => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
+                                            />
+                                            {/* Play Overlay */}
+                                            <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover/thumb:bg-transparent transition-colors duration-300">
+                                                <div className="w-7 h-7 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 shadow-lg group-hover/thumb:scale-110 transition-transform duration-300">
+                                                    <div className="w-0 h-0 border-t-[5px] border-t-transparent border-l-[8px] border-l-white border-b-[5px] border-b-transparent ml-0.5" />
+                                                </div>
+                                            </div>
+                                            {/* 'Watch' Badge */}
+                                            <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-md text-[8px] font-bold text-white tracking-widest uppercase border border-white/10">
+                                                WATCH
+                                            </div>
+                                        </>
                                     ) : (
-                                        <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900 border border-zinc-800">
-                                            <BriefcaseIcon className="w-4 h-4 text-zinc-700 opacity-50" />
+                                        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-zinc-900 to-zinc-950">
+                                            <BriefcaseIcon className="w-5 h-5 text-zinc-700 opacity-40 group-hover:scale-110 transition-transform duration-300" />
                                         </div>
                                     )}
                                 </div>
 
-                                {/* Info */}
-                                <div className="flex-1 min-w-0">
-                                    <h3 className="text-[13px] font-medium text-[var(--text-primary)] truncate group-hover:text-[var(--accent)] transition-colors duration-100">{job.title}</h3>
-                                    <p className="text-[11px] text-[var(--text-tertiary)] truncate">{job.company} · {job.location}</p>
+                                {/* Info section with better spacing */}
+                                <div className="flex-1 min-w-0 py-0.5">
+                                    <div className="flex items-center gap-1.5 mb-0.5">
+                                        <h3 className="text-[14px] font-semibold text-[var(--text-primary)] truncate group-hover:text-[var(--accent)] transition-colors duration-200">
+                                            {job.title}
+                                        </h3>
+                                        {job.shortVideoUrl && (
+                                            <span className="shrink-0 w-2 h-2 rounded-full bg-[var(--accent)] animate-pulse" title="Video available" />
+                                        )}
+                                    </div>
+                                    <p className="text-[12px] text-[var(--text-tertiary)] flex items-center gap-1.5">
+                                        <span className="truncate font-medium">{job.company}</span>
+                                        <span className="opacity-40">·</span>
+                                        <span className="truncate">{job.location}</span>
+                                    </p>
                                 </div>
 
-                                {/* Meta */}
+                                {/* Meta - Styled with borders for Linear look */}
                                 <div className="hidden sm:flex items-center gap-2 shrink-0">
-                                    <span className="text-[10px] font-medium text-[var(--text-secondary)] bg-[var(--surface)] px-1.5 py-0.5 rounded">{job.type}</span>
+                                    <span className="text-[11px] font-medium text-[var(--text-secondary)] bg-[var(--surface)] border border-[var(--border)] px-2 py-0.5 rounded-full transition-colors group-hover:border-[var(--accent)]/30">
+                                        {job.type}
+                                    </span>
                                     <span 
-                                        className="text-[10px] font-medium text-[var(--success)] bg-[var(--success-subtle)] px-1.5 py-0.5 rounded truncate max-w-[120px]"
+                                        className="text-[11px] font-semibold text-[var(--success)] bg-[var(--success-subtle)] border border-[var(--success)]/20 px-2 py-0.5 rounded-full truncate max-w-[140px]"
                                         title={job.pay}
                                     >
                                         {job.pay}
                                     </span>
                                 </div>
 
-                                <span className="text-[10px] text-[var(--text-tertiary)] whitespace-nowrap shrink-0 hidden md:block">{job.postedAgo}</span>
+                                <span className="text-[11px] text-[var(--text-tertiary)] whitespace-nowrap shrink-0 hidden md:block opacity-60">
+                                    {job.postedAgo}
+                                </span>
 
                                 {/* Actions */}
                                 {!isRecruiter && (

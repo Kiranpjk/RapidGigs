@@ -665,8 +665,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                                 {myVideos.map((video) => (
                                                     <div key={video._id} className="bg-gray-50 dark:bg-slate-900/50 rounded-2xl overflow-hidden border border-gray-100 dark:border-slate-700 hover:shadow-lg transition-all">
-                                                        <div className="relative aspect-video bg-gray-100 dark:bg-slate-800">
-                                                            <video src={getMediaUrl(video.videoUrl)} controls className="w-full h-full object-cover" poster={video.thumbnailUrl ? getMediaUrl(video.thumbnailUrl) : undefined} />
+                                                        <div className="relative aspect-[9/16] bg-gray-100 dark:bg-slate-800">
+                                                            <video src={getMediaUrl(video.videoUrl)} controls className="w-full h-full object-cover rounded-t-2xl" poster={video.thumbnailUrl ? getMediaUrl(video.thumbnailUrl) : undefined} />
                                                         </div>
                                                         <div className="p-5">
                                                             <h3 className="font-bold text-gray-900 dark:text-white">{video.title}</h3>
@@ -703,8 +703,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                                 {myVideos.map((video) => (
                                                     <div key={video._id} className="bg-slate-50 dark:bg-slate-800/50 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700">
-                                                        <div className="relative aspect-video bg-slate-200 dark:bg-slate-700">
-                                                            <video src={getMediaUrl(video.videoUrl)} controls className="w-full h-full object-cover" poster={video.thumbnailUrl ? getMediaUrl(video.thumbnailUrl) : undefined} />
+                                                        <div className="relative aspect-[9/16] bg-slate-200 dark:bg-slate-700">
+                                                            <video src={getMediaUrl(video.videoUrl)} controls className="w-full h-full object-cover rounded-t-lg" poster={video.thumbnailUrl ? getMediaUrl(video.thumbnailUrl) : undefined} />
                                                         </div>
                                                         <div className="p-4">
                                                             <div className="flex justify-between items-start mb-1">

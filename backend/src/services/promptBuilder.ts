@@ -23,41 +23,44 @@ Every segment visual prompt MUST follow this exact Master Structure:
 
 GLOBAL RULES (APPLY TO EVERY SEGMENT):
 ALWAYS generate:
-- Real environments with physical imperfections (dust, wood grain, condensation).
-- Specific branded tools (VS Code, GitHub, Figma, terminal).
-- Natural lighting with a clear single light source direction.
-- Shallow depth of field (f/1.8) with realistic bokeh.
-- Micro-details that prove physical reality (reflections, textures, wear).
-- Cinematic 24fps with subtle organic camera movement (organic shake, slow dolly).
+- Visceral, physical reality: Visible dust particles in sunbeams, subtle lens flares, condensation on a glass, wood grain textures.
+- High-contrast lighting: A mix of warm natural light (golden hour) and cool electronic glow (neon blue terminal screens).
+- Macro details: Extreme close-ups of mechanical keyboard switches, high-res screen pixels, or the texture of a designer's desk.
+- Dynamic movement: Handheld organic camera shake (not static!), slow cinematic dolly push-ins, or rack focus.
+- Depth: f/1.4 - f/1.8 aperture for extreme background bokeh and "dreamy" cinematic feel.
+- Imperfection: Don't make it perfect. Add a slightly messy desk, a half-empty coffee mug, or moving shadows.
 
 NEVER generate:
-- Groups of people smiling at camera.
-- People shaking hands or high-fiving.
-- Stock photo style diverse team lunches.
-- Overly bright corporate meeting rooms.
-- People looking directly at camera.
-- Obviously AI-generated faces.
+- Generic stock photo people or corporate "diverse team" lunches.
+- Clean, empty, or sterile white offices.
+- Static, tripod-style boring shots.
+- People looking at the camera or smiling.
+- Flat, even lighting.
 
 STRUCTURE (MANDATORY 3 SEGMENTS):
 
-1. SEGMENT 1 — THE HOOK (0-3s): 
-   - CATEGORY: Hook the viewer with the specific CRAFT.
-   - For Backend/Eng: Extreme close-up of marker on glass whiteboard, drawing system diagrams, shallow DOF.
-   - For Frontend/Design: Extreme close-up of fingertips on high-res monitor, Figma prototype, reflections in glasses.
-   - For Data/AI: Close-up of scrolling terminal logs, screen glow on desk, macro lens detail.
-   - OVERLAY: [Company Name] | [Job Title]
+1. SEGMENT 1 — THE IDENTITY (0-8s): 
+   - CATEGORY: Who and Where.
+   - OVERLAY FORMAT:
+     Line 1: [Specific Role (e.g. Code Lead)]
+     Line 2: [Company Name]
+     Line 3: [Location]
 
-2. SEGMENT 2 — THE ROLE (3-7s):
-   - CATEGORY: Show the real environment and tools.
-   - For all Eng: Medium shot of dual ultrawide monitors, VS Code with specific syntax colors, RGB underglow, slow dolly movement.
-   - OVERLAY: [Top Skills]
+2. SEGMENT 2 — THE STACK (8-16s):
+   - CATEGORY: Technical tools.
+   - OVERLAY FORMAT:
+     Line 1: [Core Tech 1]
+     Line 2: [Core Tech 2]
+     Line 3: [Core Tech 3]
+     Line 4: [Core Tech 4 (if any)]
 
-3. SEGMENT 3 — THE OFFER (7-10s):
-   - CATEGORY: Success and the offer.
-   - For Remote: Minimal home office at golden hour, laptop with GitHub merged PR, steam rising from coffee.
-   - For On-site: Empty workstation at dusk, ergonomic chair with hoodie, bokeh city lights through floor-to-ceiling windows.
-   - NEGATIVE CONSTRAINT: Absolutely no text, letters, or characters from the AI itself. This is a pure cinematic background.
-   - OVERLAY: [Salary] | Apply Now
+3. SEGMENT 3 — THE REWARD (16-24s):
+   - CATEGORY: Compensation and benefits.
+   - OVERLAY FORMAT:
+     Line 1: Salary: [Amount]
+     Line 2: [Perk 1 (e.g. Free Coffee)]
+     Line 3: [Perk 2 (e.g. Free Meals)]
+     Line 4: [Perk 3 (if any)]
 
 Return JSON:
 {
@@ -66,17 +69,17 @@ Return JSON:
   "location": "The EXACT city/location",
   "segments": [
     {
-      "visualPrompt": "The ultra-realistic cinematography brief (following the Master Structure).",
-      "overlayText": "Short text\\nMax 2-3 words",
-      "caption": "Specific, high-intent social media caption"
+      "visualPrompt": "Ultra-realistic cinematography brief (Master Structure).",
+      "overlayText": "Line 1\\nLine 2\\nLine 3",
+      "caption": "Specific social media caption"
     }
   ]
 }
 
 CAPTION RULES:
-1. overlayText MUST be VERY SHORT (max 15 characters per line).
-2. Use \\n to split into 2 lines if needed.
-3. Example: "Full Stack Dev\\nAgile & Cloud" is perfect. "Experienced Software Engineer with Cloud Knowledge" is BAD.
+1. overlayText MUST use \\n to separate lines as specified above.
+2. Keep each line very short (max 12-15 characters).
+3. Use simple, high-intent words.
 
 CRITICAL: Output ONLY the raw JSON object. No markdown, no explanation.`;
 

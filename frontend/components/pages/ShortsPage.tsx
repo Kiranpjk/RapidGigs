@@ -69,15 +69,14 @@ const ShortCard: React.FC<ShortCardProps> = ({
 }) => {
     const { hasApplied } = useJobs();
     const containerRef = useRef<HTMLDivElement>(null);
-    const [connectState, setConnectState] = useState<'idle' | 'sending' | 'sent'>('idle');
-    const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+    const localVideoRef = useRef<HTMLVideoElement | null>(null);
+    const [showOverlay, setShowOverlay] = useState(false);
+    const [isPaused, setIsPaused] = useState(false);
     
     const isJob = item.type === 'job';
-    // Use item.jobId if it exists, else item.id
     const jobId = String(item.jobId || item.id);
     const userHasApplied = isJob ? hasApplied(jobId) : false;
 
-    // ✅ Hook called at component top-level — this is now legal
     const swipeState = useSwipeGesture(containerRef as React.RefObject<HTMLElement>, {
         onSwipeLeft: () => {
             if (isJob) {
@@ -95,129 +94,118 @@ const ShortCard: React.FC<ShortCardProps> = ({
             : `${window.location.protocol}//${window.location.hostname}:3001${item.videoUrl}`
         : '';
 
+    // Robust fallbacks for older jobs or missing data
+    const skills = (item.skills && item.skills.length > 0) ? item.skills : ['Engineering', 'Product', 'Innovation'];
+    const matchScore = item.matchScore || (user?.isRecruiter ? 92 : 88);
+    const displayPay = item.pay || (isJob ? '$80k - $140k' : null);
+    const displayCompany = item.company || item.author?.name || 'RapidGig Partner';
 
+    const handleVideoRef = (el: HTMLVideoElement | null) => {
+        localVideoRef.current = el;
+        videoRef(el);
+    };
+
+    const handleContainerClick = (e: React.MouseEvent) => {
+        // Only toggle overlay if clicking the card generally, not a button
+        if ((e.target as HTMLElement).closest('button')) return;
+
+        if (localVideoRef.current) {
+            if (localVideoRef.current.paused) {
+                localVideoRef.current.play().catch(() => {});
+            } else {
+                localVideoRef.current.pause();
+            }
+        }
+    };
+
+    const isVisible = showOverlay || isPaused;
 
     return (
         <div
             ref={containerRef}
             data-job-id={item.jobId || item.id}
-            className="h-full w-full flex-shrink-0 snap-start relative flex items-center justify-center"
+            onMouseEnter={() => setShowOverlay(true)}
+            onMouseLeave={() => setShowOverlay(false)}
+            onClick={handleContainerClick}
+            className="h-full w-full flex-shrink-0 snap-start relative flex items-center justify-center group cursor-pointer"
             style={{
                 transform: `translateX(${swipeState.swipeOffset}px)`,
                 transition: swipeState.isSwiping ? 'none' : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             }}
         >
-            <div className="relative h-full w-full flex items-center justify-center p-0">
-                {/* Full-width container that fills the vertical space */}
+            <div className="relative h-full w-full flex items-center justify-center p-0 overflow-hidden">
                 <div className="relative h-full w-full">
                     {videoSrc ? (
                         <video
-                            ref={videoRef}
+                            ref={handleVideoRef}
                             src={videoSrc}
                             loop
                             muted
                             playsInline
                             controls={false}
+                            onPlay={() => setIsPaused(false)}
+                            onPause={() => setIsPaused(true)}
                             className="w-full h-full object-contain bg-black"
                             onError={(e) => {
-                                // If video fails to load, hide it and show placeholder
                                 (e.target as HTMLVideoElement).style.display = 'none';
                             }}
+                            data-id={item.id}
                         />
                     ) : (
-                        <div className="w-full h-full rounded-2xl bg-zinc-900 flex items-center justify-center">
+                        <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
                             <span className="text-zinc-600 text-sm font-medium">No Video</span>
                         </div>
                     )}
 
-                    {/* Gradient overlay — removed rounding */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30" />
+                    {/* Permanent subtle gradient for readability */}
+                    <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none z-10" />
 
-            {/* Swipe Indicator */}
-            {swipeState.isSwiping && swipeState.swipeOffset < -20 && (
-                <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white/95 rounded-lg px-4 py-3 z-20">
-                    <div className="flex items-center gap-2">
-                        <PaperAirplaneIcon className="w-5 h-5 text-[var(--accent)] rotate-45" />
-                        <span className="text-zinc-900 text-sm font-medium">
-                            {isJob ? 'Swipe to Apply' : 'Swipe for Details'}
-                        </span>
-                    </div>
-                </div>
-            )}
-
-                    {/* Bottom Overlay - Adjusted for better spacing and layering */}
-                    <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 text-white w-full flex justify-between items-end drop-shadow-2xl z-20 pointer-events-none">
-                        {/* Left: Info area (re-enable pointer events for text and buttons) */}
-                        <div className="flex-1 min-w-0 pr-6 pointer-events-auto max-w-[calc(100%-80px)]">
-                            <div className="flex items-center gap-3 mb-3">
+                    {/* Hover/Tap Details Overlay */}
+                    <div 
+                        className={`absolute inset-x-0 bottom-0 pt-32 pb-8 px-6 flex flex-col justify-end transition-all duration-200 z-20 pointer-events-none ${
+                            isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+                        } bg-gradient-to-t from-black/90 via-black/50 to-transparent`}
+                    >
+                        <div className="pointer-events-auto flex flex-col items-start text-left">
+                            <div className="flex items-center gap-3 mb-2.5">
                                 <img
                                     src={item.author?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.author?.name || 'A')}`}
                                     alt={item.author?.name}
-                                    onClick={() => { if (item.author?.id) onViewProfile(item.author.id); }}
-                                    className="w-10 h-10 rounded-full border-2 border-white/40 object-cover cursor-pointer hover:scale-105 transition-transform shadow-lg"
+                                    onClick={(e) => { e.stopPropagation(); if (item.author?.id) onViewProfile(item.author.id); }}
+                                    className="w-9 h-9 rounded-lg border-2 border-white/20 object-cover cursor-pointer hover:border-white/40 transition-colors shadow-lg"
                                 />
                                 <div className="min-w-0">
-                                    <p onClick={() => { if (item.author?.id) onViewProfile(item.author.id); }} className="font-bold text-base leading-tight cursor-pointer hover:underline truncate">{item.author?.name}</p>
-                                    <p className="text-[10px] text-white/60 truncate">@{(item.author?.name || 'user').toLowerCase().replace(/\s+/g, '')}</p>
+                                    <h2 className="text-xl font-black leading-tight drop-shadow-lg text-white truncate max-w-[320px]">{item.title || 'Untitled Role'}</h2>
+                                    <p className="text-[12px] text-white/70 font-bold uppercase tracking-wider truncate">{displayCompany}</p>
                                 </div>
-                                {!isJob && (
-                                    <button
-                                        onClick={() => {
-                                            if (connectState !== 'idle') return;
-                                            setConnectState('sending');
-                                            setTimeout(() => setConnectState('sent'), 1000);
-                                        }}
-                                        className={`text-[9px] font-medium px-2.5 py-1 rounded-md uppercase tracking-wider transition-all ${
-                                            connectState === 'sent' ? 'bg-green-500 text-white' :
-                                            connectState === 'sending' ? 'bg-blue-500 text-white' : 'bg-white/20 hover:bg-white/30 text-white'
-                                        }`}
-                                    >
-                                        {connectState === 'sent' ? 'Sent!' : connectState === 'sending' ? 'Sending…' : 'Connect'}
-                                    </button>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2 mb-3">
+                                {isJob && displayPay && (
+                                    <span className="bg-emerald-500 text-white text-[10px] font-black px-2 py-1 rounded border border-emerald-400/20 shadow-md">
+                                        {displayPay}
+                                    </span>
                                 )}
+                                <span className="bg-white/10 backdrop-blur-md text-white text-[10px] font-black px-2 py-1 rounded border border-white/10 uppercase tracking-widest flex items-center gap-1.5 shadow-sm">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                    {matchScore}% Match
+                                </span>
                             </div>
-                            <h2 className="text-lg font-bold mb-1 tracking-tight drop-shadow-md truncate">{item.title}</h2>
-                            
-                            {/* Scrollable description container */}
-                            <div 
-                                className={`text-left text-sm text-white/95 mb-1 transition-all duration-300 drop-shadow-sm ${isDescriptionExpanded ? 'max-h-32 overflow-y-auto pr-2 custom-scrollbar' : 'line-clamp-2'}`}
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                {item.description}
-                            </div>
-                            {(item.description || '').length > 90 && (
-                                <button
-                                    type="button"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setIsDescriptionExpanded(prev => !prev);
-                                    }}
-                                    className="text-[10px] font-medium text-white/70 hover:text-white mb-2 bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded transition-all mt-1 flex items-center gap-1"
-                                >
-                                    {isDescriptionExpanded ? 'Less' : 'More'}
-                                    <span className={`transform transition-transform ${isDescriptionExpanded ? 'rotate-180' : ''}`}>↓</span>
-                                </button>
-                            )}
 
-                            {isJob && (
-                                <div className="flex items-center gap-2 mt-1">
-                                    <span className="font-black text-green-400 text-base">{item.pay}</span>
-                                    <span className="bg-white/10 text-[9px] px-2 py-0.5 rounded-full border border-white/10 backdrop-blur-sm uppercase tracking-wider font-bold">Job Post</span>
-                                </div>
-                            )}
-
-                            {/* Stats */}
-                            <div className="flex items-center gap-4 mt-3 text-[11px] font-bold text-white/90">
-                                <div className="flex items-center gap-1 bg-black/20 px-2 py-1 rounded-full backdrop-blur-sm">
-                                    <EyeIcon className="w-3.5 h-3.5" />
-                                    <span>{(item.views || 0) > 999 ? ((item.views || 0) / 1000).toFixed(1) + 'K' : (item.views || 0)}</span>
-                                </div>
-                                <div className="flex items-center gap-1 bg-black/20 px-2 py-1 rounded-full backdrop-blur-sm">
-                                    <HeartIcon className="w-3.5 h-3.5 text-red-400" />
-                                    <span>{item.likes || 0}</span>
-                                </div>
+                            <div className="flex flex-wrap gap-1.5 mb-4 max-w-[320px]">
+                                {skills.slice(0, 5).map((skill: string) => (
+                                    <span key={skill} className="text-[9px] font-black uppercase tracking-wider bg-black/40 border border-white/5 px-2 py-0.5 rounded text-white/70">
+                                        {skill}
+                                    </span>
+                                ))}
                             </div>
                         </div>
+                    </div>
+
+                    {/* Permanent Basic Info (Fades out when overlay shows) */}
+                    <div className={`absolute bottom-6 left-6 right-24 z-20 pointer-events-none transition-all duration-300 ${isVisible ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
+                        <h2 className="text-xl font-black text-white mb-0.5 drop-shadow-lg">{item.title || 'Untitled Role'}</h2>
+                        <p className="text-[11px] font-black text-white/60 uppercase tracking-[0.2em]">{displayCompany}</p>
                     </div>
 
                     {/* Bottom-right direct actions: Like, Share, Save, Apply — with counts */}
@@ -225,7 +213,7 @@ const ShortCard: React.FC<ShortCardProps> = ({
                         {/* Like button + count */}
                         <div className="flex flex-col items-center">
                             <button
-                                onClick={() => onLike(item.id)}
+                                onClick={(e) => { e.stopPropagation(); onLike(item.id); }}
                                 className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg ${
                                     likedJobs.has(item.id)
                                         ? 'bg-red-500 scale-110'
@@ -244,7 +232,7 @@ const ShortCard: React.FC<ShortCardProps> = ({
                         {/* Share button + count */}
                         <div className="flex flex-col items-center relative">
                             <button
-                                onClick={() => onToggleShareMenu(showShareMenu === item.id ? null : item.id)}
+                                onClick={(e) => { e.stopPropagation(); onToggleShareMenu(showShareMenu === item.id ? null : item.id); }}
                                 className="w-11 h-11 rounded-full bg-white/15 backdrop-blur-md hover:bg-white/25 flex items-center justify-center shadow-lg"
                                 aria-label="Share"
                             >
@@ -252,7 +240,7 @@ const ShortCard: React.FC<ShortCardProps> = ({
                             </button>
                             <span className="text-[10px] font-bold text-white/80 mt-0.5">{formatCount(item.shares || 0)}</span>
                             {showShareMenu === item.id && (
-                                <div className="absolute right-14 top-0 bg-[var(--bg)] border border-[var(--border)] rounded-lg p-1 space-y-0.5 min-w-[130px] z-50 animate-fade-in">
+                                <div className="absolute right-14 top-0 bg-[var(--bg)] border border-[var(--border)] rounded-lg p-1 space-y-0.5 min-w-[130px] z-50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
                                     <button onClick={() => onShare(item, 'whatsapp')} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[var(--surface-hover)] rounded-md text-[var(--text-primary)] text-[12px] font-medium">WhatsApp</button>
                                     <button onClick={() => onShare(item, 'twitter')} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[var(--surface-hover)] rounded-md text-[var(--text-primary)] text-[12px] font-medium">X / Twitter</button>
                                     <button onClick={() => onShare(item, 'copy')} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[var(--surface-hover)] rounded-md text-[var(--text-primary)] text-[12px] font-medium">Copy Link</button>
@@ -264,7 +252,7 @@ const ShortCard: React.FC<ShortCardProps> = ({
                         {isJob && !user?.isRecruiter && (
                             <div className="flex flex-col items-center">
                                 <button
-                                    onClick={() => onToggleSave(item)}
+                                    onClick={(e) => { e.stopPropagation(); onToggleSave(item); }}
                                     className={`w-11 h-11 rounded-full flex items-center justify-center shadow-lg transition-colors ${
                                         isSaved ? 'bg-emerald-500' : 'bg-white/15 backdrop-blur-md hover:bg-white/25'
                                     }`}
@@ -277,18 +265,18 @@ const ShortCard: React.FC<ShortCardProps> = ({
                         )}
 
                         {/* Apply / View button — clear labeled CTA */}
-                        {/* Apply / View button — clear labeled CTA */}
                         {isJob ? (
                             // Only show if NOT a recruiter viewing a job short
                             !user?.isRecruiter && (
                                 <div className="flex flex-col items-center">
                                     <button
-                                        className={`px-5 py-2.5 rounded-full text-[13px] font-bold tracking-wide flex items-center gap-2 shadow-lg transition-all duration-150 ${
+                                        className={`px-5 py-3 rounded-full text-[13px] font-black tracking-widest uppercase flex items-center gap-2 shadow-2xl transition-all duration-150 ${
                                             userHasApplied
                                                 ? 'bg-emerald-500 text-white opacity-90 cursor-default'
-                                                : 'bg-white text-zinc-900 hover:bg-zinc-100 active:scale-95 cursor-pointer'
+                                                : 'bg-white text-zinc-900 hover:bg-zinc-100 hover:scale-105 active:scale-95 cursor-pointer'
                                         }`}
-                                        onClick={() => {
+                                        onClick={(e) => {
+                                            e.stopPropagation();
                                             if (userHasApplied) return;
                                             if (item.id && !item.id.startsWith('job_')) {
                                                 shortsAPI.engage(item.id, { action: 'apply_click' }).catch(() => {});
@@ -297,7 +285,7 @@ const ShortCard: React.FC<ShortCardProps> = ({
                                         }}
                                         disabled={userHasApplied}
                                     >
-                                        {userHasApplied ? <><span className="text-base">✓</span> Applied</> : <>Apply Now</>}
+                                        {userHasApplied ? <><span className="text-sm">✓</span> Applied</> : <>Apply</>}
                                     </button>
                                 </div>
                             )
@@ -305,10 +293,10 @@ const ShortCard: React.FC<ShortCardProps> = ({
                             // Candidate short
                             <div className="flex flex-col items-center">
                                 <button
-                                    className="px-5 py-2.5 rounded-full bg-white text-zinc-900 hover:bg-zinc-100 text-[13px] font-bold tracking-wide flex items-center gap-2 shadow-lg transition-all active:scale-95"
-                                    onClick={() => item.author?.id && onViewProfile(item.author.id)}
+                                    className="px-5 py-3 rounded-full bg-white text-zinc-900 hover:bg-zinc-100 text-[13px] font-black tracking-widest uppercase flex items-center gap-2 shadow-2xl transition-all active:scale-95 hover:scale-105"
+                                    onClick={(e) => { e.stopPropagation(); item.author?.id && onViewProfile(item.author.id); }}
                                 >
-                                    {user?.isRecruiter ? 'View Profile' : 'Connect'}
+                                    {user?.isRecruiter ? 'Review' : 'Connect'}
                                 </button>
                             </div>
                         )}

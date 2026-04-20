@@ -59,35 +59,44 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
 
         return (
             <div className="border border-[var(--border)] rounded-lg overflow-hidden hover:border-[var(--border-strong)] transition-colors duration-100 group bg-[var(--bg)]">
-                {/* Video Section — PRIMARY */}
+                {/* Video Section — Adaptive for Vertical/Horizontal */}
                 <div
-                    className="aspect-video relative bg-zinc-950 cursor-pointer overflow-hidden"
+                    className="aspect-video relative bg-black cursor-pointer overflow-hidden group/media border-b border-[var(--border)]"
                     onClick={() => setSelectedJobForDetail(job)}
                 >
                     {videoUrl ? (
                         <>
                             <video
                                 src={videoUrl}
-                                className="w-full h-full object-cover"
+                                className="w-full h-full object-contain"
                                 muted loop playsInline
                                 onMouseEnter={e => e.currentTarget.play().catch(() => {})}
                                 onMouseLeave={e => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
                             />
-                            <div className="absolute inset-0 flex items-center justify-center opacity-100 group-hover:opacity-0 transition-opacity duration-150 pointer-events-none">
-                                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
+                            {/* Improved Play Button Overlay */}
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-transparent transition-all duration-300">
+                                <div className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-xl group-hover/media:scale-110 transition-transform">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="white" className="ml-0.5"><path d="M8 5v14l11-7z"/></svg>
                                 </div>
+                            </div>
+                            {/* Vertical Badge */}
+                            <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-[var(--accent)] text-[8px] font-bold text-white tracking-widest uppercase shadow-lg">
+                                SHORT
                             </div>
                         </>
                     ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900 border border-zinc-800">
-                            <BriefcaseIcon className="w-6 h-6 text-zinc-700 mb-2" />
-                            <span className="text-zinc-500 text-[11px] font-bold tracking-widest uppercase">{job.company || 'RapidGig'}</span>
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-zinc-900 to-[#121212]">
+                            <div className="w-12 h-12 rounded-full bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-500">
+                                <BriefcaseSolidIcon className="w-5 h-5 text-[var(--text-tertiary)] opacity-30" />
+                            </div>
+                            <span className="text-zinc-500 text-[10px] font-bold tracking-[0.2em] uppercase opacity-60 px-4 text-center truncate w-full">
+                                {job.company || 'RapidGig'}
+                            </span>
                         </div>
                     )}
                     {/* Status badge */}
                     {job.status === 'Full' && (
-                        <span className="absolute top-2 left-2 text-[9px] font-medium bg-red-500/90 text-white px-1.5 py-0.5 rounded">Full</span>
+                        <span className="absolute top-2 left-2 text-[9px] font-bold bg-red-500 text-white px-2 py-0.5 rounded shadow-lg uppercase tracking-wider">FULL</span>
                     )}
                 </div>
 

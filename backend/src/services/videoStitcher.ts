@@ -158,8 +158,11 @@ function getPreferredFontPath(): string | null {
     '/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf',
     '/usr/share/fonts/TTF/DejaVuSans-Bold.ttf',
     '/usr/share/fonts/noto/NotoSans-Bold.ttf',
-    '/usr/share/fonts/noto/NotoSansKannada-Bold.ttf', // Fallback from our find command
+    '/usr/share/fonts/noto/NotoSansKannada-Bold.ttf',
     '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+    '/usr/share/fonts/truetype/freefont/FreeSansBold.ttf',
+    '/usr/share/fonts/truetype/msttcorefonts/Arial_Bold.ttf',
+    '/usr/share/fonts/truetype/msttcorefonts/Arial.ttf'
   ];
   for (const fontPath of candidates) {
     if (fs.existsSync(fontPath)) return fontPath;
@@ -217,12 +220,14 @@ async function stitchThreeSegments(
   }
 
   const fontPath = getPreferredFontPath();
+  const totalDuration = durations.reduce((a, b) => a + b, 0) - (localPaths.length > 1 ? (localPaths.length - 1) * 1.0 : 0);
   const fontArg = fontPath ? `:fontfile='${escapeDrawtext(fontPath)}'` : '';
   
   const filterGraph = [];
-  const transDuration = 1.0; // 1 second crossfade
+  const transDuration = 1.0; 
 
-  // 1. Prepare each segment (scale, pad, and add dynamic captions)
+  // 1. Prepare each segment
+  let cumulativeTime = 0;
   for (let i = 0; i < localPaths.length; i++) {
     const isFinalSegment = i === localPaths.length - 1;
     const duration = durations[i];
@@ -235,72 +240,68 @@ async function stitchThreeSegments(
       overlayLines.forEach((text, lineIdx) => {
         const paddedText = `  ${text.trim()}  `;
         const escaped = escapeDrawtext(paddedText);
-        const baseSize = 48;
-        const fontSize = lineIdx === 0 ? baseSize + 6 : lineIdx === 2 ? baseSize - 10 : baseSize;
-        const yPos = 1450 + (lineIdx * (fontSize + 30));
+        const baseSize = 52; // Slightly larger
+        const fontSize = lineIdx === 0 ? baseSize + 8 : lineIdx === 2 ? baseSize - 10 : baseSize;
+        // Move captions slightly higher (1300 instead of 1450) to avoid status bar overlap
+        const yPos = 1300 + (lineIdx * (fontSize + 35));
         
-        // Hide regular caption in the last 2 seconds if it's the final segment
-        const enableText = isFinalSegment ? `:enable='lt(t,${(duration - 2.0).toFixed(2)})'` : '';
-        const fontfile = fontPath ? `:fontfile='${escapeDrawtext(fontPath)}'` : '';
-        
-        drawtextFilters.push(`drawtext=text='${escaped}'${fontfile}:x=(w-text_w)/2:y=${yPos}:fontsize=${fontSize}:fontcolor=white:box=1:boxcolor=black@0.4:boxborderw=12:shadowcolor=black@0.2:shadowx=2:shadowy=2${enableText}`);
+        // Use 'between' for captions to stay within segment time
+        const enableText = `:enable='between(t,0,${duration.toFixed(2)})'`;
+        drawtextFilters.push(`drawtext=text='${escaped}'${fontArg}:x=(w-text_w)/2:y=${yPos}:fontsize=${fontSize}:fontcolor=white:box=1:boxcolor=black@0.5:boxborderw=15:shadowcolor=black@0.3:shadowx=3:shadowy=3${enableText}`);
       });
     }
+
+    // Burn-in Captions for this specific segment (using cumulativeTime for the final stitch)
+    // However, for individual segments being pre-processed, 't' starts at 0.
+    // We only need the Segment captions here if we aren't using the End Card.
 
     // End Card handling for the final segment
     if (isFinalSegment) {
-      console.log(`[VideoStitcher] Building End Card - Company: "${script.companyName}", Title: "${script.jobTitle}"`);      // Extract salary, location and work type from script/segments (refining extraction)
-      const salaryBase = script.segments?.[i]?.overlayText?.split('|')[0] || 'Competitive Pay';
-      const locBase = script.location || script.segments?.[0]?.caption?.split('@')?.[1]?.split('.')?.[0] || 'Remote';
-      const workType = escapeDrawtext(script.workType || 'Remote');
-
-      // End Card text wrapping - tighter limits for vertical
+      console.log(`[VideoStitcher] Building End Card - Company: "${script.companyName}", Title: "${script.jobTitle}"`);
+      const salaryBase = script.segments?.[i]?.overlayText?.split('\n').find(l => l.toLowerCase().includes('salary')) 
+        || script.segments?.[i]?.overlayText?.split('\n')[0] 
+        || 'Competitive Pay';
+      const locBase = script.location || 'Remote';
+      
       const wrappedCompany = wrapText(script.companyName || 'This Company', 16);
-      const wrappedTitle = wrapText(script.jobTitle || 'Career Opportunity', 18);
+      const wrappedTitle = wrapText(script.jobTitle || 'Senior Role', 18);
       const wrappedLocation = wrapText(locBase, 20);
       const wrappedSalary = wrapText(salaryBase, 15);
       
-      const startTime = (duration - 2.0).toFixed(2);
-      const fontfile = fontPath ? `:fontfile='${escapeDrawtext(fontPath)}'` : '';
+      // CHANGE: End card now lasts for 4 seconds for "Complete Details"
+      const finalStartTime = Math.max(0, duration - 4.0).toFixed(2);
       
-      // Line 1: Company (White, Small, Bold)
       const companyLines = wrappedCompany.split('\n');
       companyLines.forEach((line, idx) => {
         const yCoord = 700 + (idx * 60);
-        drawtextFilters.push(`drawtext=text='${escapeDrawtext(line)}'${fontfile}:x=(w-text_w)/2:y=${yCoord}:fontsize=48:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=20:enable='gt(t,${startTime})'`);
+        drawtextFilters.push(`drawtext=text='${escapeDrawtext(line)}'${fontArg}:x=(w-text_w)/2:y=${yCoord}:fontsize=48:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=20:enable='gt(t,${finalStartTime})'`);
       });
 
-      // Line 2: Title / Role (Blue, Highlighted)
       const titleLines = wrappedTitle.split('\n');
       titleLines.forEach((line, idx) => {
         const yCoord = 880 + (idx * 65);
-        drawtextFilters.push(`drawtext=text='${escapeDrawtext(line)}'${fontfile}:x=(w-text_w)/2:y=${yCoord}:fontsize=52:fontcolor=0x6366f1:box=1:boxcolor=black@0.6:boxborderw=20:enable='gt(t,${startTime})'`);
+        drawtextFilters.push(`drawtext=text='${escapeDrawtext(line)}'${fontArg}:x=(w-text_w)/2:y=${yCoord}:fontsize=52:fontcolor=0x6366f1:box=1:boxcolor=black@0.6:boxborderw=20:enable='gt(t,${finalStartTime})'`);
       });
 
-      // Line 3: Location (Amber, Medium)
       const locationLines = wrappedLocation.split('\n');
       locationLines.forEach((line, idx) => {
         const yCoord = 1060 + (idx * 50);
-        drawtextFilters.push(`drawtext=text='${escapeDrawtext(line)}'${fontfile}:x=(w-text_w)/2:y=${yCoord}:fontsize=40:fontcolor=0xF59E0B:box=1:boxcolor=black@0.6:boxborderw=20:enable='gt(t,${startTime})'`);
+        drawtextFilters.push(`drawtext=text='${escapeDrawtext(line)}'${fontArg}:x=(w-text_w)/2:y=${yCoord}:fontsize=40:fontcolor=0xF59E0B:box=1:boxcolor=black@0.6:boxborderw=20:enable='gt(t,${finalStartTime})'`);
       });
 
-      // Line 4: Salary (White, Semi-bold)
       const salaryLines = wrappedSalary.split('\n');
       salaryLines.forEach((line, idx) => {
         const yCoord = 1220 + (idx * 55);
-        drawtextFilters.push(`drawtext=text='${escapeDrawtext(line)}'${fontfile}:x=(w-text_w)/2:y=${yCoord}:fontsize=42:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=20:enable='gt(t,${startTime})'`);
+        drawtextFilters.push(`drawtext=text='${escapeDrawtext(line)}'${fontArg}:x=(w-text_w)/2:y=${yCoord}:fontsize=42:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=20:enable='gt(t,${finalStartTime})'`);
       });
 
-      // Line 5: Call to Action (Blue Button)
-      drawtextFilters.push(`drawtext=text='APPLY NOW'${fontfile}:x=(w-text_w)/2:y=1420:fontsize=48:fontcolor=white:box=1:boxcolor=0x4F46E5@0.9:boxborderw=20:enable='gt(t,${startTime})'`);
-      
-      console.log(`[VideoStitcher] Generated End Card FFmpeg logic for Segment ${i}`);
+      drawtextFilters.push(`drawtext=text='COMPLETE DETAILS'${fontArg}:x=(w-text_w)/2:y=1400:fontsize=44:fontcolor=white:box=1:boxcolor=black@0.7:boxborderw=15:enable='gt(t,${finalStartTime})'`);
+      drawtextFilters.push(`drawtext=text='APPLY NOW'${fontArg}:x=(w-text_w)/2:y=1550:fontsize=52:fontcolor=white:box=1:boxcolor=0x4F46E5@0.9:boxborderw=25:enable='gt(t,${finalStartTime})'`);
     }
 
     const drawtextJoined = drawtextFilters.length > 0 ? ',' + drawtextFilters.join(',') : '';
-
-    // Scaling and padding to 1080x1920
-    filterGraph.push(`[${i}:v]scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,format=yuv420p${drawtextJoined}[pre_v${i}]`);
+    // CHANGE: Use force_original_aspect_ratio=increase + crop to ensure "FULL" feel (zoom-to-fill)
+    filterGraph.push(`[${i}:v]scale=1536:2732:force_original_aspect_ratio=increase,crop=1080:1920,format=yuv420p${drawtextJoined}[pre_v${i}]`);
     
     // Robust audio handling: Generate silence if input lacks audio
     const hasAudio = await checkHasAudio(localPaths[i]);
