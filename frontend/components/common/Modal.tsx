@@ -14,112 +14,52 @@ interface ModalProps {
 }
 
 const Modal: React.FC<ModalProps> = ({
-  isOpen,
-  onClose,
-  onConfirm,
-  title,
-  message,
-  type = 'info',
-  confirmText = 'Confirm',
-  cancelText = 'Cancel',
-  showCancel = true,
+  isOpen, onClose, onConfirm, title, message,
+  type = 'info', confirmText = 'Confirm', cancelText = 'Cancel', showCancel = true,
 }) => {
-  // Close on Escape key
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    
-    if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
-      document.body.style.overflow = 'hidden';
-    }
-    
-    return () => {
-      document.removeEventListener('keydown', handleEscape);
-      document.body.style.overflow = 'unset';
-    };
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    if (isOpen) { document.addEventListener('keydown', handler); document.body.style.overflow = 'hidden'; }
+    return () => { document.removeEventListener('keydown', handler); document.body.style.overflow = 'unset'; };
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
-  const getIcon = () => {
-    switch (type) {
-      case 'success':
-        return <CheckCircleIcon className="w-16 h-16 text-green-500" />;
-      case 'warning':
-        return <ExclamationTriangleIcon className="w-16 h-16 text-yellow-500" />;
-      case 'danger':
-        return <ExclamationTriangleIcon className="w-16 h-16 text-red-500" />;
-      default:
-        return <InformationCircleIcon className="w-16 h-16 text-blue-500" />;
-    }
-  };
+  const iconClass = 'w-8 h-8';
+  const icon = {
+    success: <CheckCircleIcon className={`${iconClass} text-[var(--success)]`} />,
+    warning: <ExclamationTriangleIcon className={`${iconClass} text-[var(--warning)]`} />,
+    danger: <ExclamationTriangleIcon className={`${iconClass} text-[var(--danger)]`} />,
+    info: <InformationCircleIcon className={`${iconClass} text-[var(--accent)]`} />,
+  }[type];
 
-  const getButtonColor = () => {
-    switch (type) {
-      case 'success':
-        return 'bg-green-600 hover:bg-green-500';
-      case 'warning':
-        return 'bg-yellow-600 hover:bg-yellow-500';
-      case 'danger':
-        return 'bg-red-600 hover:bg-red-500';
-      default:
-        return 'bg-indigo-600 hover:bg-indigo-500';
-    }
-  };
+  const btnColor = {
+    success: 'bg-[var(--success)] hover:opacity-90',
+    warning: 'bg-[var(--warning)] hover:opacity-90',
+    danger: 'bg-[var(--danger)] hover:opacity-90',
+    info: 'bg-[var(--accent)] hover:opacity-90',
+  }[type];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fadeIn">
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      ></div>
-      
-      {/* Modal */}
-      <div className="relative bg-white dark:bg-slate-800 rounded-2xl premium-shadow-xl max-w-md w-full p-6 animate-scaleIn border border-white/20 dark:border-slate-700/50">
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-premium"
-        >
-          <XMarkIcon className="w-6 h-6" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-[var(--bg)] border border-[var(--border)] rounded-lg max-w-sm w-full p-5 animate-scale-in">
+        <button onClick={onClose} className="absolute top-3 right-3 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">
+          <XMarkIcon className="w-4 h-4" />
         </button>
 
-        {/* Icon */}
-        <div className="flex justify-center mb-4 transition-premium transform hover:scale-110">
-          {getIcon()}
-        </div>
+        <div className="mb-3">{icon}</div>
+        <h3 className="text-base font-semibold text-[var(--text-primary)] mb-1">{title}</h3>
+        <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed mb-5">{message}</p>
 
-        {/* Title */}
-        <h3 className="text-2xl font-bold text-center text-slate-800 dark:text-white mb-2 text-balance text-premium-heading tracking-tight">
-          {title}
-        </h3>
-
-        {/* Message */}
-        <p className="text-center text-slate-600 dark:text-slate-300 mb-6 text-balance leading-relaxed">
-          {message}
-        </p>
-
-        {/* Buttons */}
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           {showCancel && (
-            <button
-              onClick={onClose}
-              className="flex-1 px-4 py-3 bg-slate-100 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl transition-premium hover-premium-shadow border border-slate-200 dark:border-slate-700"
-            >
+            <button onClick={onClose} className="flex-1 px-3 py-2.5 text-[13px] font-medium text-[var(--text-secondary)] border border-[var(--border)] rounded-md hover:bg-[var(--surface-hover)] transition-colors">
               {cancelText}
             </button>
           )}
           {onConfirm && (
-            <button
-              onClick={() => {
-                onConfirm();
-                onClose();
-              }}
-              className={`flex-1 px-4 py-3 ${getButtonColor()} text-white font-bold rounded-xl transition-premium hover-premium-shadow shadow-lg shadow-indigo-500/20`}
-            >
+            <button onClick={() => { onConfirm(); onClose(); }} className={`flex-1 px-3 py-2.5 text-[13px] font-medium text-white rounded-md transition-opacity ${btnColor}`}>
               {confirmText}
             </button>
           )}

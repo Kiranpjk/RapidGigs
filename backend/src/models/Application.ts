@@ -6,8 +6,23 @@ export interface IApplication extends Document {
   coverLetter?: string;
   resumeUrl?: string;
   videoUrl?: string;
-  status: 'pending' | 'reviewing' | 'shortlisted' | 'interviewing' | 'accepted' | 'rejected';
+  status: 'pending' | 'reviewing' | 'shortlisted' | 'interviewing' | 'hired' | 'rejected';
+  aiMatchResult?: {
+    matchScore: number;
+    subScores: { skillsMatch: number; projectRelevance: number; communication: number; resumeQuality: number };
+    matchReason?: string;
+    topStrength: string;
+    risk: string;
+    insights: string[];
+    signalAvailability: { hasVideo: boolean; hasResume: boolean; hasProjectLinks: boolean; projectLinksCount: number };
+    computedAt: string;
+  };
   dateApplied: Date;
+  recruiterFeedback?: {
+    wasAiWrong: boolean;
+    reasonCode: string;
+    submittedAt: Date;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -35,12 +50,20 @@ const ApplicationSchema: Schema = new Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'reviewing', 'shortlisted', 'interviewing', 'accepted', 'rejected'],
+      enum: ['pending', 'reviewing', 'shortlisted', 'interviewing', 'hired', 'rejected'],
       default: 'pending',
+    },
+    aiMatchResult: {
+      type: Schema.Types.Mixed,
+      default: null,
     },
     dateApplied: {
       type: Date,
       default: Date.now,
+    },
+    recruiterFeedback: {
+      type: Schema.Types.Mixed,
+      default: null,
     },
   },
   {

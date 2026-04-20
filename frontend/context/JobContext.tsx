@@ -114,10 +114,13 @@ export const JobProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const hasApplied = (jobId: string): boolean => {
-    return applications.some(app => 
-      String(app.job?.id) === String(jobId) || 
-      String((app.jobId as any)?.id || app.jobId) === String(jobId)
-    );
+    if (!jobId) return false;
+    const targetId = String(jobId);
+    return applications.some(app => {
+      const appJobId = app.jobId ? (typeof app.jobId === 'string' ? app.jobId : (app.jobId._id || app.jobId.id)) : 
+                      (app.job?.id || app.job?._id);
+      return String(appJobId) === targetId;
+    });
   };
 
   const submitApplication = async (

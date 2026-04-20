@@ -68,25 +68,61 @@ async function dismissVignetteAds(page: any): Promise<void> {
       'ins.adsbygoogle iframe',
       '#cbc-link',            // "close" link on some Google ads
       'div.ad-info-close',
+      'span:has-text("Close")',
+      'div:has-text("Close")',
+      '.fc-cta-consent',      // Consent popup button
+      'button.fc-button:has-text("Consent")',
+      '.fc-button-label:has-text("Consent")',
     ];
 
     for (const sel of adDismissSelectors) {
-      const el = await page.$(sel);
+      const el = await (sel.includes(':has-text') 
+        ? page.evaluateHandle((s: string) => {
+            const textBuffer = s.match(/:has-text\("(.*)"\)/);
+            const text = textBuffer ? textBuffer[1] : '';
+            const tag = s.split(':')[0] || '*';
+            const doc = (globalThis as any).document;
+            return Array.from(doc.querySelectorAll(tag)).find((e: any) => e.textContent?.includes(text));
+          }, sel)
+        : page.$(sel));
+        
       if (el) {
-        const box = await el.boundingBox();
-        if (box) {
-          await el.click();
-          console.log(`[VeoAiFree] Dismissed ad overlay via: ${sel}`);
+        // Try to click
+        try {
+          // @ts-ignore
+          await page.evaluate((e: any) => e.click(), el);
+          console.log(`[VeoAiFree] Dismissed popup/ad via: ${sel}`);
           await new Promise(r => setTimeout(r, 1000));
-          return;
-        }
+        } catch (e) {}
+      }
+    }
+
+    // Handle the "Action Required" social gates (Facebook/X)
+    const socialGateSelectors = [
+      'a.share-btn-facebook',
+      'a.share-btn-twitter',
+      'a.share-btn-x',
+      '.social-share-buttons a',
+      '.action-required',
+      '#social-gate button',
+    ];
+
+    for (const sel of socialGateSelectors) {
+      const btn = await page.$(sel);
+      if (btn) {
+        console.log(`[VeoAiFree] Found social gate: ${sel}. Simulating interaction...`);
+        // Just click and then immediate Escape or Page Reload as user suggested
+        await btn.click();
+        await new Promise(r => setTimeout(r, 2000));
+        await page.keyboard.press('Escape');
+         // If it opened a new tab, Puppeteer stays on the old one, so we just wait.
       }
     }
 
     // Fallback: press Escape to close overlays
     await page.keyboard.press('Escape');
     await new Promise(r => setTimeout(r, 500));
-  } catch {
+  } catch (err) {
     // Ignore ad-dismissal errors.
   }
 }
@@ -112,7 +148,7 @@ export async function generateVideoVeoAiFree(
     console.log(`[VeoAiFree] Starting web automation... prompt: "${prompt.substring(0, 80)}..."`);
     onProgress?.('VeoAiFree: Launching browser...', 0.05);
 
-    // Launch Puppeteer
+    // Launch Puppeteer with Incognito flags
     const headless = process.env.VEO_HEADLESS === 'false' ? false : true;
     browser = await puppeteer.launch({
       headless: headless as any,
@@ -121,10 +157,14 @@ export async function generateVideoVeoAiFree(
         '--disable-setuid-sandbox',
         '--disable-blink-features=AutomationControlled',
         '--window-size=1280,900',
+        '--incognito', // 🔥 Start in Incognito
       ],
     });
 
-    const page = await browser.newPage();
+    // Create a private browser context (even deeper incognito)
+    const context = await browser.createBrowserContext();
+    const page = await context.newPage();
+    
     await page.setViewport({ width: 1280, height: 900 });
     await page.setUserAgent(
       'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -307,11 +347,35 @@ export async function generateVideoVeoAiFree(
       // Fallback: any button with "Generate" text
       await page.evaluate(() => {
         const doc = (globalThis as any).document;
-        const buttons = Array.from(doc.querySelectorAll('button, [role="button"]'));
-        const genBtn = buttons.find((el: any) => /generate/i.test(el.textContent || ''));
+        const buttons = Array.from(doc.querySelectorAll('button, [role="button"], input[type="submit"]'));
+        const genBtn = buttons.find((el: any) => /generate|submit/i.test(el.textContent || (el as any).value || ''));
         if (genBtn) (genBtn as any).click();
       });
       console.log('[VeoAiFree] Used fallback tool page generate click');
+    }
+
+    // 🔥 Special engagement check: if we see an "Action Required" popup or social icons after clicking,
+    // we need to simulate the click and then try clicking 'Generate' again.
+    await new Promise(r => setTimeout(r, 2000));
+    await dismissVignetteAds(page);
+    
+    // Check if we are still on the tool page and the generation hasn't started (no loader visible)
+    const isStillWaiting = await page.evaluate(() => {
+        const doc = (globalThis as any).document;
+        const loader = doc.querySelector('.loader, .loading, .wait-msg, #wait-msg');
+        return !loader || loader.style.display === 'none';
+    });
+
+    if (isStillWaiting) {
+        console.log('[VeoAiFree] Detected potential stall or engagement gate. Retrying generate click...');
+        await dismissVignetteAds(page); // Proactively handle hidden gates
+        // Click generate one more time
+        await page.evaluate(() => {
+            const doc = (globalThis as any).document;
+            const btns = Array.from(doc.querySelectorAll('#generate_it, button.generate-btn, button'));
+            const genBtn = btns.find((b: any) => /generate/i.test(b.textContent || '')) as any;
+            if (genBtn) genBtn.click();
+        });
     }
 
     // Mark when generation started so we only trust fresh network URLs
@@ -331,7 +395,7 @@ export async function generateVideoVeoAiFree(
 
     let videoUrl: string | null = null;
     let attempts = 0;
-    const maxAttempts = 120; // 120 * 5s = 10 minutes max wait (Veo sometimes takes a while)
+    const maxAttempts = 80; // 80 * 5s = ~6.5 minutes max wait
 
     while (attempts < maxAttempts) {
       await new Promise(r => setTimeout(r, 5000));

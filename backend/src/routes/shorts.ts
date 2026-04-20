@@ -61,6 +61,22 @@ setInterval(() => {
   }
 }, 30 * 60 * 1000);
 
+export function ensureCaptionObjects(captions: any): any[] {
+  if (!captions) return [];
+  const sourceArray = Array.isArray(captions) ? captions : [captions];
+  
+  return sourceArray.map((c, i) => {
+    if (typeof c === 'string') {
+      return { text: c, startTime: i * 8, endTime: (i + 1) * 8 };
+    }
+    return {
+      text: String(c.text || c.caption || '').trim(),
+      startTime: Number(c.startTime) || i * 8,
+      endTime: Number(c.endTime) || (i + 1) * 8
+    };
+  }).filter(c => c.text !== '');
+}
+
 const generateJobId = () =>
   `vj_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
@@ -111,7 +127,7 @@ async function generateVideoUrl(
     return {
       videoUrl: result.videoUrl,
       provider: result.providers.join(' → '),
-      captions: result.captions,
+      captions: ensureCaptionObjects(result.captions),
     };
   } catch (e: any) {
     console.error('❌ Video generation failed:', e.message);
@@ -343,6 +359,8 @@ router.post('/from-job/:jobId', authenticate, async (req: AuthRequest, res) => {
         // Step 3: Save as ShortVideo in DB with captions
         let finalVideoUrl = result.videoUrl;
 
+        console.log(`[from-job] Saving ShortVideo for job ${jobDoc._id}. Captions type: ${typeof result.captions}, Value:`, JSON.stringify(result.captions, null, 2));
+
         const newShort = new ShortVideo({
           userId: req.user!.userId,
           jobId: jobDoc._id,
@@ -355,7 +373,7 @@ router.post('/from-job/:jobId', authenticate, async (req: AuthRequest, res) => {
           saves: 0,
           applications: 0,
           impressions: 0,
-          captions: result.captions || [],
+          captions: ensureCaptionObjects(result.captions),
           companyLogoUrl: companyLogoUrl || '',
         });
         await newShort.save();
@@ -819,17 +837,20 @@ router.get('/feed', optionalAuthenticate, async (req: AuthRequest, res) => {
 
       feedItems = [...feedItems, ...fallbackJobItems];
     } else if (isRecruiter) {
-      const myShortVideos = await ShortVideo.find({ userId: req.user!.userId })
-        .populate({ path: 'userId', select: 'name avatarUrl title role' })
+      // Recruiters should see student intro videos (candidates)
+      const studentVideos = await ShortVideo.find()
+        .populate({
+          path: 'userId',
+          match: { $or: [{ role: 'student' }, { isStudent: true }] },
+          select: 'name avatarUrl title role'
+        })
         .sort({ createdAt: -1 })
-        .limit(20);
+        .limit(50);
 
-      const myJobs = await Job.find({ postedBy: req.user!.userId })
-        .populate('postedBy', 'name avatarUrl')
-        .sort({ updatedAt: -1 })
-        .limit(10);
+      // Filter out videos where population failed (non-students)
+      const candidateVideos = studentVideos.filter(v => v.userId != null);
 
-      const formattedCandidates = myShortVideos.map(v => ({
+      feedItems = candidateVideos.map(v => ({
         type: 'candidate_intro',
         id: v._id.toString(),
         title: v.title,
@@ -847,37 +868,10 @@ router.get('/feed', optionalAuthenticate, async (req: AuthRequest, res) => {
         author: {
           id: (v.userId as any)._id?.toString(),
           name: (v.userId as any).name,
-          avatar: (v.userId as any).avatarUrl,
-          title: (v.userId as any).title || '',
+          avatar: (v.userId as any).avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent((v.userId as any).name || 'C')}`,
+          title: (v.userId as any).title || 'Candidate',
         }
       }));
-
-      const formattedJobs = myJobs.map(job => ({
-        type: 'job',
-        id: job._id.toString(),
-        jobId: job._id.toString(),
-        title: job.title,
-        company: job.company,
-        description: job.description,
-        videoUrl: job.shortVideoUrl,
-        likes: job.likes || 0,
-        views: (job.likes || 0) * 5 + 50,
-        shares: job.shares || 0,
-        saves: 0,
-        applications: 0,
-        pay: job.pay,
-        createdAt: job.createdAt,
-        isLiked: false,
-        isSaved: false,
-        postedById: job.postedBy ? (job.postedBy as any)._id?.toString() || job.postedBy.toString() : null,
-        author: {
-          id: job.postedBy ? (job.postedBy as any)._id?.toString() || job.postedBy.toString() : null,
-          name: job.company,
-          avatar: (job.postedBy as any)?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company)}`,
-        }
-      }));
-
-      feedItems = [...formattedCandidates, ...formattedJobs];
     }
 
     // ── Instagram-style algorithm scoring ───────────────────────────────

@@ -1,4 +1,5 @@
 import express from 'express';
+import { User } from '../models/User';
 import { body, validationResult } from 'express-validator';
 import { UserModel } from '../models/User';
 import { Application } from '../models/Application';
@@ -10,11 +11,59 @@ import mongoose from 'mongoose';
 
 const router = express.Router();
 
-// List students (for recruiters)
+// List students (for recruiters) — public listing, no email exposed
 router.get('/', authenticate, async (req: AuthRequest, res: express.Response) => {
   try {
-    const users = await UserModel.findByRole('student');
-    res.json(users);
+    const users = await User.find({ role: 'student' }).select('name email avatarUrl title role isStudent isRecruiter');
+    res.json(users.map(u => ({
+      id: u._id.toString(),
+      name: u.name,
+      email: u.email,
+      avatarUrl: u.avatarUrl,
+      title: u.title,
+      role: u.role,
+    })));
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get candidate contact info — only if recruiter has a hiring relationship
+router.get('/:id/contact', authenticate, async (req: AuthRequest, res: express.Response) => {
+  try {
+    const recruiterId = req.user!.userId;
+    const candidateId = req.params.id;
+
+    if (!mongoose.Types.ObjectId.isValid(candidateId)) {
+      return res.status(400).json({ error: 'Invalid candidate ID' });
+    }
+
+    // Find all jobs posted by this recruiter
+    const recruiterJobs = await Job.find({ postedBy: new mongoose.Types.ObjectId(recruiterId) }, '_id');
+    const jobIds = recruiterJobs.map(j => j._id);
+
+    // Check if this candidate has applied to any of those jobs
+    const applicationExists = await Application.findOne({
+      userId: new mongoose.Types.ObjectId(candidateId),
+      jobId: { $in: jobIds },
+    });
+
+    if (!applicationExists) {
+      return res.status(403).json({ error: 'Contact info is only available for candidates who have applied to your jobs.' });
+    }
+
+    const candidate = await User.findById(candidateId).select('name email avatarUrl title');
+    if (!candidate) {
+      return res.status(404).json({ error: 'Candidate not found' });
+    }
+
+    res.json({
+      id: candidate._id.toString(),
+      name: candidate.name,
+      email: candidate.email,
+      avatarUrl: candidate.avatarUrl,
+      title: candidate.title,
+    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -82,6 +131,14 @@ router.get('/:id', async (req: express.Request, res: express.Response) => {
     const jobsPosted = await Job.countDocuments({ postedBy: userId });
     const videosUploaded = await ShortVideo.countDocuments({ userId });
 
+    // For recruiters, count applications received across all their jobs
+    let applicationsReceived = 0;
+    if (user.isRecruiter) {
+      const myJobs = await Job.find({ postedBy: userId }, '_id');
+      const myJobIds = myJobs.map(j => j._id);
+      applicationsReceived = await Application.countDocuments({ jobId: { $in: myJobIds } });
+    }
+
     res.json({
       id: user._id.toString(),
       name: user.name,
@@ -95,6 +152,7 @@ router.get('/:id', async (req: express.Request, res: express.Response) => {
         applicationsSent,
         jobsPosted,
         videosUploaded,
+        applicationsReceived,
       },
     });
   } catch (error: any) {

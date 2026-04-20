@@ -23,7 +23,7 @@ const CircularProgress: React.FC<{ progress: number; size?: number; strokeWidth?
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (progress / 100) * circumference;
 
-  const color = status === 'completed' ? '#22c55e' : status === 'failed' ? '#ef4444' : '#6366f1';
+  const color = status === 'completed' ? '#22c55e' : status === 'failed' ? '#f59e0b' : '#6366f1';
 
   return (
     <svg width={size} height={size} className="rotate-[-90deg]">
@@ -60,7 +60,7 @@ const JobChip: React.FC<{ job: VideoGenJob; onClick: () => void }> = ({ job, onC
         <span className="absolute text-[9px] font-bold">{job.status === 'processing' ? `${job.progress}%` : icon}</span>
       </div>
       <span className="max-w-[120px] truncate">
-        {job.title === ' @ ' ? 'Custom Job Video' : job.status === 'completed' ? 'Done!' : job.status === 'failed' ? 'Failed' : 'Generating...'}
+        {job.title === ' @ ' ? 'Custom Job Video' : job.status === 'completed' ? 'Done!' : job.status === 'failed' ? 'Video generation failed — retry?' : 'Generating...'}
       </span>
       {/* Pulse ring for active */}
       {job.status === 'processing' && (
@@ -78,6 +78,7 @@ const VideoGenPanel: React.FC<{
   onClose: () => void;
   onNavigate?: (page: any) => void;
 }> = ({ jobs, onDismiss, onDismissAll, onClose, onNavigate }) => {
+  const { startJob } = useVideoGen();
   const [factIndex, setFactIndex] = useState(0);
   const hasProcessing = jobs.some(j => j.status === 'processing');
 
@@ -140,12 +141,12 @@ const VideoGenPanel: React.FC<{
                 <p className="text-white font-semibold text-sm truncate">{job.title}</p>
                 <p className={`text-xs mt-0.5 ${
                   job.status === 'completed' ? 'text-green-400' :
-                  job.status === 'failed' ? 'text-red-400' : 'text-slate-400'
+                  job.status === 'failed' ? 'text-amber-400' : 'text-slate-400'
                 }`}>
                   {job.status === 'completed'
                     ? `✓ Video ready via ${job.provider?.replace('replicate-', '') || 'AI'}`
                     : job.status === 'failed'
-                    ? `✗ ${job.error || 'Generation failed'}`
+                    ? `✗ Video failed — tap to retry?`
                     : 'Generating your short video in background...'}
                 </p>
 
@@ -168,6 +169,14 @@ const VideoGenPanel: React.FC<{
                     className="bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg transition-colors"
                   >
                     View ▶
+                  </button>
+                )}
+                {job.status === 'failed' && (
+                  <button
+                    onClick={() => { startJob(job.jobId, job.title); }}
+                    className="bg-amber-600 hover:bg-amber-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    Retry ↻
                   </button>
                 )}
                 <button

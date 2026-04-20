@@ -51,6 +51,7 @@ const JobSchema: Schema = new Schema(
     pay: {
       type: String,
       required: true,
+      maxlength: 100,
     },
     description: {
       type: String,

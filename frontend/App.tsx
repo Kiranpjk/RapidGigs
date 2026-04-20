@@ -113,11 +113,8 @@ const App: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto" />
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg)]">
+        <div className="w-5 h-5 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -145,13 +142,13 @@ const App: React.FC = () => {
       )}
 
       {showAuthModal && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 overflow-y-auto">
           <div className="relative w-full max-w-6xl mx-auto my-8">
             <button
               onClick={() => setShowAuthModal(false)}
-              className="absolute -top-4 -right-2 sm:-right-4 w-10 h-10 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors z-10 shadow-lg"
+              className="absolute -top-3 -right-3 w-8 h-8 bg-[var(--bg)] border border-[var(--border)] rounded-full flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors z-10 text-sm"
             >✕</button>
-            <div className="rounded-2xl overflow-hidden">
+            <div className="rounded-lg overflow-hidden border border-[var(--border)]">
               <AuthPage
                 initialPage={authModalPage}
                 navigate={(page) => { if (page === 'dashboard') handleAuthSuccess(); }}

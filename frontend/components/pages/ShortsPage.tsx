@@ -107,9 +107,9 @@ const ShortCard: React.FC<ShortCardProps> = ({
                 transition: swipeState.isSwiping ? 'none' : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             }}
         >
-            <div className="relative h-full w-full flex items-center justify-center px-0 sm:px-2 py-0">
-                {/* Use object-contain so the video keeps aspect ratio and fits viewport */}
-                <div className="relative h-full w-full max-w-[560px]">
+            <div className="relative h-full w-full flex items-center justify-center p-0">
+                {/* Full-width container that fills the vertical space */}
+                <div className="relative h-full w-full">
                     {videoSrc ? (
                         <video
                             ref={videoRef}
@@ -118,27 +118,27 @@ const ShortCard: React.FC<ShortCardProps> = ({
                             muted
                             playsInline
                             controls={false}
-                            className="w-full h-full object-contain rounded-none sm:rounded-2xl bg-black"
+                            className="w-full h-full object-contain bg-black"
                             onError={(e) => {
                                 // If video fails to load, hide it and show placeholder
                                 (e.target as HTMLVideoElement).style.display = 'none';
                             }}
                         />
                     ) : (
-                        <div className="w-full h-full rounded-2xl bg-gradient-to-br from-indigo-900 to-purple-900 flex items-center justify-center">
-                            <span className="text-white/30 text-8xl">🎬</span>
+                        <div className="w-full h-full rounded-2xl bg-zinc-900 flex items-center justify-center">
+                            <span className="text-zinc-600 text-sm font-medium">No Video</span>
                         </div>
                     )}
 
-                    {/* Gradient overlay */}
-                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-t from-black/80 via-transparent to-black/30" />
+                    {/* Gradient overlay — removed rounding */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30" />
 
             {/* Swipe Indicator */}
             {swipeState.isSwiping && swipeState.swipeOffset < -20 && (
-                <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-sm rounded-full p-4 shadow-lg z-20">
+                <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white/95 rounded-lg px-4 py-3 z-20">
                     <div className="flex items-center gap-2">
-                        <PaperAirplaneIcon className="w-6 h-6 text-indigo-600 rotate-45" />
-                        <span className="text-indigo-600 font-bold">
+                        <PaperAirplaneIcon className="w-5 h-5 text-[var(--accent)] rotate-45" />
+                        <span className="text-zinc-900 text-sm font-medium">
                             {isJob ? 'Swipe to Apply' : 'Swipe for Details'}
                         </span>
                     </div>
@@ -167,12 +167,12 @@ const ShortCard: React.FC<ShortCardProps> = ({
                                             setConnectState('sending');
                                             setTimeout(() => setConnectState('sent'), 1000);
                                         }}
-                                        className={`text-[9px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider transition-all shadow-md ${
-                                            connectState === 'sent' ? 'bg-green-500/90 text-white' :
-                                            connectState === 'sending' ? 'bg-indigo-400 text-white' : 'bg-indigo-500/80 hover:bg-indigo-500 text-white'
+                                        className={`text-[9px] font-medium px-2.5 py-1 rounded-md uppercase tracking-wider transition-all ${
+                                            connectState === 'sent' ? 'bg-green-500 text-white' :
+                                            connectState === 'sending' ? 'bg-blue-500 text-white' : 'bg-white/20 hover:bg-white/30 text-white'
                                         }`}
                                     >
-                                        {connectState === 'sent' ? 'Sent!' : connectState === 'sending' ? 'Sending...' : 'Connect'}
+                                        {connectState === 'sent' ? 'Sent!' : connectState === 'sending' ? 'Sending…' : 'Connect'}
                                     </button>
                                 )}
                             </div>
@@ -192,9 +192,9 @@ const ShortCard: React.FC<ShortCardProps> = ({
                                         e.stopPropagation();
                                         setIsDescriptionExpanded(prev => !prev);
                                     }}
-                                    className="text-[10px] font-bold text-indigo-200 hover:text-white mb-2 bg-indigo-500/20 hover:bg-indigo-500/40 px-2 py-0.5 rounded backdrop-blur-md transition-all mt-1 flex items-center gap-1"
+                                    className="text-[10px] font-medium text-white/70 hover:text-white mb-2 bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded transition-all mt-1 flex items-center gap-1"
                                 >
-                                    {isDescriptionExpanded ? 'Read less' : 'Read more'}
+                                    {isDescriptionExpanded ? 'Less' : 'More'}
                                     <span className={`transform transition-transform ${isDescriptionExpanded ? 'rotate-180' : ''}`}>↓</span>
                                 </button>
                             )}
@@ -252,10 +252,10 @@ const ShortCard: React.FC<ShortCardProps> = ({
                             </button>
                             <span className="text-[10px] font-bold text-white/80 mt-0.5">{formatCount(item.shares || 0)}</span>
                             {showShareMenu === item.id && (
-                                <div className="absolute right-14 top-0 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-2 space-y-1 min-w-[140px] z-50 border border-white/20">
-                                    <button onClick={() => onShare(item, 'whatsapp')} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-800 dark:text-white text-xs font-bold">📱 WhatsApp</button>
-                                    <button onClick={() => onShare(item, 'twitter')} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-800 dark:text-white text-xs font-bold">🐦 X / Twitter</button>
-                                    <button onClick={() => onShare(item, 'copy')} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-800 dark:text-white text-xs font-bold">📋 Copy Link</button>
+                                <div className="absolute right-14 top-0 bg-[var(--bg)] border border-[var(--border)] rounded-lg p-1 space-y-0.5 min-w-[130px] z-50 animate-fade-in">
+                                    <button onClick={() => onShare(item, 'whatsapp')} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[var(--surface-hover)] rounded-md text-[var(--text-primary)] text-[12px] font-medium">WhatsApp</button>
+                                    <button onClick={() => onShare(item, 'twitter')} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[var(--surface-hover)] rounded-md text-[var(--text-primary)] text-[12px] font-medium">X / Twitter</button>
+                                    <button onClick={() => onShare(item, 'copy')} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[var(--surface-hover)] rounded-md text-[var(--text-primary)] text-[12px] font-medium">Copy Link</button>
                                 </div>
                             )}
                         </div>
@@ -276,35 +276,40 @@ const ShortCard: React.FC<ShortCardProps> = ({
                             </div>
                         )}
 
-                        {/* Apply / View button + applications count */}
-                        {(!user?.isRecruiter || !isJob) && (
-                            <div className="flex flex-col items-center">
-                                <button
-                                    className={`w-11 h-11 rounded-full text-white flex items-center justify-center shadow-lg transition-all duration-300 transform ${
-                                        userHasApplied ? 'bg-emerald-500 scale-100 opacity-90' : 'bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 hover:scale-105 cursor-pointer'
-                                    }`}
-                                    onClick={() => {
-                                        if (userHasApplied) return;
-                                        if (isJob) {
-                                            // Track apply click
+                        {/* Apply / View button — clear labeled CTA */}
+                        {/* Apply / View button — clear labeled CTA */}
+                        {isJob ? (
+                            // Only show if NOT a recruiter viewing a job short
+                            !user?.isRecruiter && (
+                                <div className="flex flex-col items-center">
+                                    <button
+                                        className={`px-5 py-2.5 rounded-full text-[13px] font-bold tracking-wide flex items-center gap-2 shadow-lg transition-all duration-150 ${
+                                            userHasApplied
+                                                ? 'bg-emerald-500 text-white opacity-90 cursor-default'
+                                                : 'bg-white text-zinc-900 hover:bg-zinc-100 active:scale-95 cursor-pointer'
+                                        }`}
+                                        onClick={() => {
+                                            if (userHasApplied) return;
                                             if (item.id && !item.id.startsWith('job_')) {
                                                 shortsAPI.engage(item.id, { action: 'apply_click' }).catch(() => {});
                                             }
-                                            if (item.jobId) onNavigateToJobDetail?.(item.jobId);
-                                            else onApplyNow(item);
-                                        }
-                                        else if (item.author?.id) onViewProfile(item.author.id);
-                                    }}
-                                    disabled={userHasApplied}
-                                    aria-label="Apply or view details"
+                                            onApplyNow(item);
+                                        }}
+                                        disabled={userHasApplied}
+                                    >
+                                        {userHasApplied ? <><span className="text-base">✓</span> Applied</> : <>Apply Now</>}
+                                    </button>
+                                </div>
+                            )
+                        ) : (
+                            // Candidate short
+                            <div className="flex flex-col items-center">
+                                <button
+                                    className="px-5 py-2.5 rounded-full bg-white text-zinc-900 hover:bg-zinc-100 text-[13px] font-bold tracking-wide flex items-center gap-2 shadow-lg transition-all active:scale-95"
+                                    onClick={() => item.author?.id && onViewProfile(item.author.id)}
                                 >
-                                    {userHasApplied ? (
-                                        <span className="text-xl font-bold">✓</span>
-                                    ) : (
-                                        <PaperAirplaneIcon className="w-6 h-6 rotate-45" />
-                                    )}
+                                    {user?.isRecruiter ? 'View Profile' : 'Connect'}
                                 </button>
-                                {isJob && <span className="text-[10px] font-bold text-white/80 mt-0.5">{userHasApplied ? 'Applied' : formatCount(item.applications || 0)}</span>}
                             </div>
                         )}
                     </div>
@@ -564,27 +569,21 @@ const ShortsPage: React.FC<ShortsPageProps> = ({ onApplyNow, onNavigateToJobDeta
     // ── Render ──
     if (isLoading) {
         return (
-            <div className="h-[calc(100vh-64px)] w-full flex flex-col items-center justify-center bg-black text-white">
-                <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4" />
-                <p className="text-lg font-semibold animate-pulse">Personalizing your feed...</p>
+            <div className="h-[calc(100vh-49px)] w-full flex flex-col items-center justify-center bg-black text-white">
+                <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin mb-3" />
+                <p className="text-sm text-white/50">Loading feed…</p>
             </div>
         );
     }
 
     if (shorts.length === 0) {
         return (
-            <div className="h-[calc(100vh-64px)] w-full flex flex-col items-center justify-center bg-black text-white p-8 text-center">
-                <div className="text-6xl mb-4">📺</div>
-                <h2 className="text-2xl font-bold mb-2">No Shorts Yet</h2>
-                <p className="text-slate-400 max-w-sm">
+            <div className="h-[calc(100vh-49px)] w-full flex flex-col items-center justify-center bg-black text-white p-8 text-center">
+                <h2 className="text-base font-medium mb-2">No shorts yet</h2>
+                <p className="text-zinc-500 text-sm max-w-sm">
                     {user?.isRecruiter
                         ? 'Check back later to see candidate introductions.'
-                        : 'Follow some companies to see their job marketing shorts.'}
-                </p>
-                <p className="text-slate-500 text-sm mt-4">
-                    {user?.isRecruiter
-                        ? 'Upload a short job video to attract candidates!'
-                        : 'Upload an intro video so recruiters can discover you!'}
+                        : 'Upload an intro video so recruiters can discover you.'}
                 </p>
             </div>
         );
@@ -597,59 +596,56 @@ const ShortsPage: React.FC<ShortsPageProps> = ({ onApplyNow, onNavigateToJobDeta
         <div
             ref={scrollContainerRef}
             onScroll={handleLoopScroll}
-            className="relative h-[calc(100vh-64px)] w-full overflow-y-auto snap-y snap-mandatory scroll-smooth bg-black"
+            className="relative h-[calc(100vh-49px)] w-full overflow-y-auto snap-y snap-mandatory scroll-smooth bg-black"
         >
             {/* Profile Drawer */}
             {viewingProfile && (
                 <div className="fixed inset-0 z-[60] flex justify-end">
-                    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setViewingProfile(null)} />
-                    <div className="relative w-full max-w-md bg-white dark:bg-slate-900 mt-4 mb-4 mr-0 sm:mr-4 rounded-2xl max-h-[calc(100vh-2rem)] overflow-y-auto shadow-2xl animate-slide-in">
-                        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 h-28 relative rounded-t-2xl">
-                            <button
-                                onClick={() => setViewingProfile(null)}
-                                className="absolute top-4 right-4 w-8 h-8 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white transition-colors"
-                            >✕</button>
+                    <div className="fixed inset-0 bg-black/40" onClick={() => setViewingProfile(null)} />
+                    <div className="relative w-full max-w-sm bg-[var(--bg)] border-l border-[var(--border)] h-full overflow-y-auto animate-slide-left">
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
+                            <p className="text-[11px] font-medium text-[var(--text-tertiary)] uppercase tracking-wider">Profile</p>
+                            <button onClick={() => setViewingProfile(null)} className="p-1 rounded-md text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)]">✕</button>
                         </div>
-                        <div className="px-6 pt-4 pb-6">
-                            <div className="flex items-center gap-4 mb-4">
-                                <img src={avatarUrl(viewingProfile.name, viewingProfile.avatarUrl)} alt={viewingProfile.name} className="w-16 h-16 rounded-2xl ring-4 ring-white dark:ring-slate-900 object-cover shadow-lg" />
+                        <div className="p-4">
+                            <div className="flex items-center gap-3 mb-5">
+                                <img src={avatarUrl(viewingProfile.name, viewingProfile.avatarUrl)} alt={viewingProfile.name} className="w-12 h-12 rounded-full object-cover" />
                                 <div>
-                                    <h2 className="text-xl font-bold text-slate-800 dark:text-white">{viewingProfile.name}</h2>
-                                    <p className="text-sm text-slate-500 dark:text-slate-400">{viewingProfile.title || (viewingProfile.role === 'recruiter' ? 'Recruiter' : 'Student')}</p>
+                                    <h2 className="text-sm font-medium text-[var(--text-primary)]">{viewingProfile.name}</h2>
+                                    <p className="text-[11px] text-[var(--text-tertiary)]">{viewingProfile.title || (viewingProfile.role === 'recruiter' ? 'Recruiter' : 'Student')}</p>
                                 </div>
                             </div>
                             <div className="space-y-4">
-                                <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4">
-                                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3">Contact Info</p>
-                                    <div className="space-y-2">
-                                        <div className="flex items-center gap-2 text-sm">
-                                            <span className="text-slate-400">📧</span>
-                                            <span className="text-slate-700 dark:text-slate-300">{viewingProfile.email || 'Contact via message'}</span>
-                                        </div>
-                                    </div>
+                                <div className="border border-[var(--border)] rounded-lg p-3">
+                                    <p className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase tracking-wider mb-2">Contact</p>
+                                    <p className="text-[13px] text-[var(--text-secondary)]">
+                                        {viewingProfile.email ? (
+                                            /* Only show email if it's already a connection or truncated for privacy */
+                                            viewingProfile.email.includes('...') ? viewingProfile.email : 
+                                            `${viewingProfile.email.substring(0, 3)}...${viewingProfile.email.split('@')[1] || ''}`
+                                        ) : 'Contact via message'}
+                                    </p>
+                                    <p className="text-[11px] text-[var(--text-tertiary)] italic mt-1 font-medium">Full contact available after connection</p>
                                 </div>
                                 {loadingProfile ? (
-                                    <div className="text-center py-6 text-slate-400 text-sm">Loading stats...</div>
+                                    <div className="text-center py-4 text-[var(--text-tertiary)] text-[12px]">Loading…</div>
                                 ) : viewingStats && (
                                     <div className="grid grid-cols-2 gap-3">
-                                        <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-xl p-4 text-center">
-                                            <p className="text-3xl font-extrabold text-indigo-600 dark:text-indigo-400">{viewingStats.applicationsSent ?? 0}</p>
-                                            <p className="text-xs text-indigo-500 dark:text-indigo-300 mt-1">Applications</p>
+                                        <div className="border border-[var(--border)] rounded-lg p-3 text-center">
+                                            <p className="text-xl font-semibold text-[var(--text-primary)] tabular-nums">{viewingStats.applicationsSent ?? 0}</p>
+                                            <p className="text-[10px] text-[var(--text-tertiary)]">Applications</p>
                                         </div>
-                                        <div className="bg-pink-50 dark:bg-pink-900/20 rounded-xl p-4 text-center">
-                                            <p className="text-3xl font-extrabold text-pink-600 dark:text-pink-400">{viewingStats.videosUploaded ?? 0}</p>
-                                            <p className="text-xs text-pink-500 dark:text-pink-300 mt-1">Videos</p>
+                                        <div className="border border-[var(--border)] rounded-lg p-3 text-center">
+                                            <p className="text-xl font-semibold text-[var(--text-primary)] tabular-nums">{viewingStats.videosUploaded ?? 0}</p>
+                                            <p className="text-[10px] text-[var(--text-tertiary)]">Videos</p>
                                         </div>
                                     </div>
                                 )}
                                 <button
-                                    onClick={() => {
-                                        setViewingProfile(null);
-                                        if (onNavigate) onNavigate('messages');
-                                    }}
-                                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-colors shadow-lg shadow-indigo-500/20"
+                                    onClick={() => { setViewingProfile(null); if (onNavigate) onNavigate('messages'); }}
+                                    className="w-full py-2.5 bg-[var(--text-primary)] text-[var(--bg)] text-[13px] font-medium rounded-md hover:opacity-90 transition-opacity"
                                 >
-                                    💬 Message {viewingProfile.name?.split(' ')[0]}
+                                    Message {viewingProfile.name?.split(' ')[0]}
                                 </button>
                             </div>
                         </div>
@@ -660,19 +656,15 @@ const ShortsPage: React.FC<ShortsPageProps> = ({ onApplyNow, onNavigateToJobDeta
             {/* Swipe Hint */}
             {showHint && (
                 <div
-                    className="absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-2xl cursor-pointer"
+                    className="absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 bg-white rounded-lg px-5 py-4 cursor-pointer animate-fade-in"
                     onClick={() => { setShowHint(false); localStorage.setItem('shortsSwipeHintSeen', 'true'); }}
                 >
-                    <div className="flex flex-col items-center gap-3 max-w-xs">
-                        <div className="flex items-center gap-2">
-                            <span className="text-4xl">👈</span>
-                            <PaperAirplaneIcon className="w-8 h-8 text-indigo-600 rotate-45" />
-                        </div>
-                        <p className="text-center text-lg font-bold text-slate-800">
-                            {user?.isRecruiter ? 'Swipe left to view info!' : 'Swipe left to apply!'}
+                    <div className="flex flex-col items-center gap-2 max-w-[200px]">
+                        <PaperAirplaneIcon className="w-5 h-5 text-[var(--accent)] rotate-45" />
+                        <p className="text-center text-sm font-medium text-zinc-900">
+                            {user?.isRecruiter ? 'Swipe left for details' : 'Swipe left to apply'}
                         </p>
-                        <p className="text-center text-sm text-slate-600">Or press ← arrow key</p>
-                        <button className="text-xs text-slate-400 hover:text-slate-600 mt-2">Got it</button>
+                        <p className="text-center text-[11px] text-zinc-500">Or press ← key</p>
                     </div>
                 </div>
             )}

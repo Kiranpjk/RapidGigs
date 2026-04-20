@@ -243,10 +243,22 @@ export const applicationsAPI = {
       body: JSON.stringify(applicationData),
     }),
 
-  updateStatus: async (applicationId: string, status: string) =>
+  updateStatus: async (applicationId: string, status: string, aiMatchResult?: any) =>
     fetchWithAuth(`${API_BASE_URL}/applications/${applicationId}/status`, {
       method: 'PATCH',
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, ...(aiMatchResult ? { aiMatchResult } : {}) }),
+    }),
+
+  scheduleInterview: async (applicationId: string, interviewData: { timeSlots: string[], meetingType: string, meetingLink?: string }) =>
+    fetchWithAuth(`${API_BASE_URL}/applications/${applicationId}/interview`, {
+      method: 'POST',
+      body: JSON.stringify(interviewData),
+    }),
+
+  submitFeedback: async (applicationId: string, feedback: { wasAiWrong: boolean; reasonCode: string }) =>
+    fetchWithAuth(`${API_BASE_URL}/applications/${applicationId}/feedback`, {
+      method: 'PATCH',
+      body: JSON.stringify(feedback),
     }),
 
   reuploadResume: async (applicationId: string, file: File) => {
@@ -395,6 +407,26 @@ export const aiAPI = {
     fetchWithAuth(`${API_BASE_URL}/ai/generate-text`, {
       method: 'POST',
       body: JSON.stringify({ prompt }),
+    }),
+};
+
+// ─── AI Matching API ──────────────────────────────────────────────────────────
+
+export const matchingAPI = {
+  /** Compute AI match score for a single application */
+  computeMatch: async (applicationId: string, refresh = false) =>
+    fetchWithAuth(`${API_BASE_URL}/matching/${applicationId}${refresh ? '?refresh=true' : ''}`, {
+      method: 'POST',
+    }),
+
+  /** Get cached match result (no re-computation) */
+  getCachedMatch: async (applicationId: string) =>
+    fetchWithAuth(`${API_BASE_URL}/matching/${applicationId}`),
+
+  /** Compute match scores for all applications of a job */
+  batchMatch: async (jobId: string) =>
+    fetchWithAuth(`${API_BASE_URL}/matching/batch/${jobId}`, {
+      method: 'POST',
     }),
 };
 

@@ -11,58 +11,134 @@ export interface VideoScript {
   companyName?: string;
   jobTitle?: string;
   location?: string;
+  workType?: string;
 }
 
-const PROMPT_SYSTEM = `You are an expert AI video director and copywriter for short-form vertical recruiting videos.
+const PROMPT_SYSTEM = `You are a professional Cinematographer and Creative Director. Your goal is to produce ultra-realistic, high-fidelity film briefs for AI video generators (Veo/Giz.ai). 
 
-You MUST convert the provided job description into a THREE-PART video concept (3 segments, each ~8 seconds).
-Each segment must flow naturally into the next, like a continuous cinematic story.
+We absolute avoid "AI-looking" stock footage. We want visceral, physical reality with imperfections, authentic textures, and cinematic lighting.
 
-Return JSON using this EXACT schema:
+Every segment visual prompt MUST follow this exact Master Structure:
+[SHOT TYPE] [SUBJECT] [ACTION/STATE], [LIGHTING], [CAMERA MOVEMENT], [LENS DETAIL], [TEXTURE/MATERIAL DETAIL], [ATMOSPHERE], [COLOR GRADE]
+
+GLOBAL RULES (APPLY TO EVERY SEGMENT):
+ALWAYS generate:
+- Real environments with physical imperfections (dust, wood grain, condensation).
+- Specific branded tools (VS Code, GitHub, Figma, terminal).
+- Natural lighting with a clear single light source direction.
+- Shallow depth of field (f/1.8) with realistic bokeh.
+- Micro-details that prove physical reality (reflections, textures, wear).
+- Cinematic 24fps with subtle organic camera movement (organic shake, slow dolly).
+
+NEVER generate:
+- Groups of people smiling at camera.
+- People shaking hands or high-fiving.
+- Stock photo style diverse team lunches.
+- Overly bright corporate meeting rooms.
+- People looking directly at camera.
+- Obviously AI-generated faces.
+
+STRUCTURE (MANDATORY 3 SEGMENTS):
+
+1. SEGMENT 1 — THE HOOK (0-3s): 
+   - CATEGORY: Hook the viewer with the specific CRAFT.
+   - For Backend/Eng: Extreme close-up of marker on glass whiteboard, drawing system diagrams, shallow DOF.
+   - For Frontend/Design: Extreme close-up of fingertips on high-res monitor, Figma prototype, reflections in glasses.
+   - For Data/AI: Close-up of scrolling terminal logs, screen glow on desk, macro lens detail.
+   - OVERLAY: [Company Name] | [Job Title]
+
+2. SEGMENT 2 — THE ROLE (3-7s):
+   - CATEGORY: Show the real environment and tools.
+   - For all Eng: Medium shot of dual ultrawide monitors, VS Code with specific syntax colors, RGB underglow, slow dolly movement.
+   - OVERLAY: [Top Skills]
+
+3. SEGMENT 3 — THE OFFER (7-10s):
+   - CATEGORY: Success and the offer.
+   - For Remote: Minimal home office at golden hour, laptop with GitHub merged PR, steam rising from coffee.
+   - For On-site: Empty workstation at dusk, ergonomic chair with hoodie, bokeh city lights through floor-to-ceiling windows.
+   - NEGATIVE CONSTRAINT: Absolutely no text, letters, or characters from the AI itself. This is a pure cinematic background.
+   - OVERLAY: [Salary] | Apply Now
+
+Return JSON:
 {
-  "companyName": "The EXACT company name from the job description",
+  "companyName": "The EXACT company name",
   "jobTitle": "The EXACT role or job title",
-  "location": "The EXACT location (or Remote)",
+  "location": "The EXACT city/location",
   "segments": [
     {
-      "visualPrompt": "Detailed cinematic prompt for Part 1: INTRO (~8s).",
-      "overlayText": "3-5 word hook",
-      "caption": "Segment 1 caption"
-    },
-    {
-      "visualPrompt": "Detailed cinematic prompt for Part 2: DETAILS (~8s).",
-      "overlayText": "3-5 word hook",
-      "caption": "Segment 2 caption"
-    },
-    {
-      "visualPrompt": "Detailed cinematic prompt for Part 3: CTA (~8s).",
-      "overlayText": "3-5 word hook",
-      "caption": "Segment 3 caption"
+      "visualPrompt": "The ultra-realistic cinematography brief (following the Master Structure).",
+      "overlayText": "Short text\\nMax 2-3 words",
+      "caption": "Specific, high-intent social media caption"
     }
   ]
 }
 
-VISUAL PROMPT RULES:
-1. Each visualPrompt must be 80-150 words of ultra-realistic, cinematic video description.
-2. Prompts must FLOW: Part 1 sets the scene, Part 2 dives deeper, Part 3 wraps up with CTA.
-3. Documentary trailer style: establish, explore, inspire action.
-4. Photorealistic, hyper-detailed, 8K, natural workplace visuals, vertical 9:16 framing.
-5. Authentic camera work: smooth cinematic motion, practical lighting.
-6. NEVER include text/titles/words in the visual prompt. The video must be PURELY visual.
+CAPTION RULES:
+1. overlayText MUST be VERY SHORT (max 15 characters per line).
+2. Use \\n to split into 2 lines if needed.
+3. Example: "Full Stack Dev\\nAgile & Cloud" is perfect. "Experienced Software Engineer with Cloud Knowledge" is BAD.
 
-CAPTION AND OVERLAY TEXT RULES (CRITICAL):
-1. Use ONLY information from the job description. NEVER invent or add details not provided.
-2. Use the EXACT company name, role title, location, and salary from the description.
-3. Each caption MUST be exactly 2 lines, separated by \\\\n.
-4. Each line MUST be under 40 characters for mobile readability.
-5. Start each caption with one relevant emoji.
-6. NO generic filler like "Amazing opportunity" or "Great team". Use SPECIFIC job details only.
-7. NO buzzwords unless they appear in the original description.
-8. overlayText must be exactly 3-5 words, punchy and specific.
-9. Segment 3 caption line 2 MUST end with "Apply now on RapidGig!"
+CRITICAL: Output ONLY the raw JSON object. No markdown, no explanation.`;
 
-CRITICAL: Output ONLY the raw JSON object. No markdown, no explanation. Just the raw {}.`;
+async function siliconFlowChatCompletion(system: string, user: string): Promise<string | null> {
+  const sk = process.env.QWEN_API_KEY;
+  if (!sk) return null;
 
+  try {
+    const res = await axios.post(
+      'https://api.siliconflow.cn/v1/chat/completions',
+      {
+        model: 'deepseek-ai/DeepSeek-V3', // Common on SiliconFlow, but can use others
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: user },
+        ],
+        temperature: 0.7,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${sk}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 20_000,
+      }
+    );
+    return res.data.choices[0]?.message?.content?.trim() || null;
+  } catch (err: any) {
+    console.warn(`SiliconFlow failed: ${err.message}`);
+    return null;
+  }
+}
+
+async function qwenChatCompletion(system: string, user: string): Promise<string | null> {
+  const sk = process.env.QWEN_API_KEY;
+  if (!sk) return null;
+
+  try {
+    const res = await axios.post(
+      'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+      {
+        model: 'qwen-max',
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: user },
+        ],
+        temperature: 0.7,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${sk}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 20_000,
+      }
+    );
+    return res.data.choices[0]?.message?.content?.trim() || null;
+  } catch (err: any) {
+    console.warn(`Qwen failed: ${err.message}`);
+    return null;
+  }
+}
 
 function buildPromptUserMsg(jobDescription: string): string {
   return `Convert this job description into a 3-part cinematic video script JSON:\n\n${jobDescription}`;
@@ -162,6 +238,26 @@ async function ollamaChatCompletion(model: string, system: string, user: string)
   }
 }
 
+function chunkText(text: string, maxLen: number = 20): string {
+  if (!text) return "";
+  const words = text.split(/\s+/);
+  let lines: string[] = [];
+  let currentLine = "";
+
+  words.forEach(word => {
+    if ((currentLine + word).length > maxLen) {
+      if (currentLine) lines.push(currentLine.trim());
+      currentLine = word + " ";
+    } else {
+      currentLine += word + " ";
+    }
+  });
+  if (currentLine) lines.push(currentLine.trim());
+  
+  // Return only first 2 lines to keep it clean in vertical video
+  return lines.slice(0, 2).join('\n');
+}
+
 function parseVideoScript(jsonString: string): VideoScript | null {
   if (!jsonString) return null;
 
@@ -188,11 +284,16 @@ function parseVideoScript(jsonString: string): VideoScript | null {
   try {
     const parsed = JSON.parse(cleanJson);
     if (parsed.segments && Array.isArray(parsed.segments)) {
-      // Ensure each segment has caption field
-      parsed.segments = parsed.segments.map((s: any, i: number) => ({
-        ...s,
-        caption: s.caption || s.overlayText || getDefaultCaption(i),
-      }));
+      // Ensure each segment has caption field and clean overlay text
+      parsed.segments = parsed.segments.map((s: any, i: number) => {
+        // If the caption is too long, we chunk it for vertical video
+        const cleanOverlay = chunkText(s.overlayText || s.caption || getDefaultCaption(i));
+        return {
+          ...s,
+          overlayText: cleanOverlay,
+          caption: s.caption || s.overlayText || getDefaultCaption(i),
+        };
+      });
       return parsed as VideoScript;
     }
     console.warn('[parseVideoScript] Parsed OK but no segments array found');
@@ -257,50 +358,64 @@ function buildDefaultScript(jobDescription: string): VideoScript {
   
   const company = companyMatch?.[1]?.trim() || 'Our Company';
   const title = titleMatch?.[1]?.trim() || 'this exciting role';
-  const pay = payMatch?.[1]?.trim() || 'Competitive Pay';
+  let pay = payMatch?.[1]?.trim() || 'Competitive Pay';
   const location = locationMatch?.[1]?.trim() || 'Remote';
+  
+  // Extract work type (Remote/On-site/Hybrid)
+  const typeMatch = jobDescription.match(/(?:Type|Work Type):\s*(Remote|On-site|Hybrid|In-Person|Office)/i);
+  const workType = typeMatch?.[1] || 'Remote';
+
+  // FIX: Replace ₹ with Rs. for FFmpeg compatibility
+  pay = pay.replace(/₹/g, 'Rs.');
 
   return {
     companyName: company,
     jobTitle: title,
     location: location,
+    workType: workType,
     segments: [
       {
-        visualPrompt:
-          `Ultra-realistic 8K vertical video (9:16). Cinematic establishing shot of a modern tech office building exterior, ` +
-          `then smoothly transitioning inside to reveal a sleek open-plan workspace. Natural morning light streams through floor-to-ceiling windows. ` +
-          `The camera glides past standing desks, multiple monitors showing code and dashboards. Company branding visible on walls. ` +
-          `Professional team members greet each other. Documentary style, authentic workplace feel.`,
-        overlayText: `Now Hiring`,
-        caption: `🚀 Hiring: ${title}\n@ ${company}`,
+        visualPrompt: `Extreme close-up shot of a human hand holding a black marker, drawing arrows and database cylinder icons on a frosted glass whiteboard, shallow depth of field with background bokeh showing blurred monitor screens, natural diffused daylight from left side window, slight lens flare catching the marker tip, micro-detail of ink spreading on glass surface, handheld camera with subtle organic shake, color grade cool blue-white tones, photorealistic 4K, cinematic 24fps`,
+        overlayText: `${company} | ${title}`,
+        caption: `🚀 Hiring: ${title} @ ${company}. Ship features week 1.`,
       },
       {
-        visualPrompt:
-          `Ultra-realistic 8K vertical video (9:16). Continuation of the office scene — camera follows a developer sitting at their dual-monitor setup, ` +
-          `writing code with syntax-highlighted IDE visible. Cut to a collaborative whiteboard session where team members discuss architecture diagrams. ` +
-          `Close-up of hands sketching on tablet, pointing at Figma designs. Candid footage of pair programming, slack messages on screens. ` +
-          `Natural indoor lighting, shallow depth of field, authentic tech workplace energy.`,
-        overlayText: `Day in the Life`,
-        caption: `💻 Build Amazing Things\nWith A World-Class Team`,
+        visualPrompt: `Medium shot of a dual ultrawide monitor setup on a standing desk, left monitor showing VS Code with TypeScript code syntax highlighted in deep blue and orange, right monitor showing a Kubernetes dashboard with green metrics, RGB keyboard with subtle blue underglow on dark wooden desk surface, mechanical keyboard partially in foreground sharp focus, background showing open plan office with soft bokeh of other desks and plants, overhead diffused lighting with warm color temperature 3200K, slow dolly left to right movement covering 15cm over 4 seconds, shallow depth of field f/1.8, micro-detail of cable management visible, color grade desaturated with slight film grain, photorealistic 4K, cinematic 24fps`,
+        overlayText: `React • Node.js\nSystem Design`,
+        caption: `💻 Build apps used by 2M+ users with an elite team.`,
       },
       {
-        visualPrompt:
-          `Ultra-realistic 8K vertical video (9:16). Inspiring closing sequence — team celebration moment, high-fives after sprint demo. ` +
-          `Zoom out to show the full team gathered in a modern meeting room with screens showing growth charts. ` +
-          `Final shot: confident professional looking directly at camera with warm smile, inviting gesture. ` +
-          `Text-friendly composition with clean lower-third area. Golden hour warm lighting, cinematic color grade, aspirational energy.`,
-        overlayText: `Apply Now`,
-        caption: `💰 ${pay}\nApply Now on RapidGig!`,
+        visualPrompt: `Wide shot of a minimal home office at golden hour, a laptop open on a clean white desk showing a GitHub pull request marked merged in green, ceramic coffee mug with steam rising catching warm window light, indoor plant in soft focus background, no people visible, dust particles visible in sunbeam from left window, camera completely static on tripod, micro-detail of wood grain on desk surface and condensation ring from previous coffee mug, color grade warm golden tones desaturated 20 percent, photorealistic 4K, cinematic 24fps. Pure cinematic background only. Absolutely no text, letters, words, numbers, or characters of any kind anywhere in the frame. If any text appears the shot is rejected.`,
+        overlayText: `${pay} | Apply Now`,
+        caption: `💰 ${pay} • Remote First • Apply Now on RapidGigs.`,
       }
     ]
   };
 }
 
 export async function buildVideoPrompt(jobDescription: string): Promise<VideoScript> {
-  console.log('Generating structured 3-part Video Script...');
+  // Step -1: SiliconFlow
+  let rawJson = await siliconFlowChatCompletion(PROMPT_SYSTEM, buildPromptUserMsg(jobDescription));
+  if (rawJson) {
+    const script = parseVideoScript(rawJson);
+    if (script && script.segments.length >= 1) {
+      console.log(`✅ SiliconFlow Script generated successfully`);
+      return script;
+    }
+  }
+
+  // Step 0: Qwen (New Priority)
+  rawJson = await qwenChatCompletion(PROMPT_SYSTEM, buildPromptUserMsg(jobDescription));
+  if (rawJson) {
+    const script = parseVideoScript(rawJson);
+    if (script && script.segments.length >= 1) {
+      console.log(`✅ Qwen (Alibaba) Script generated successfully`);
+      return script;
+    }
+  }
 
   // Step 1: Cerebras
-  let rawJson = await cerebrasChatCompletion(PROMPT_SYSTEM, buildPromptUserMsg(jobDescription));
+  rawJson = await cerebrasChatCompletion(PROMPT_SYSTEM, buildPromptUserMsg(jobDescription));
   
   if (rawJson) {
     const script = parseVideoScript(rawJson);

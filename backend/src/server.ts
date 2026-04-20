@@ -30,6 +30,7 @@ import shortsRoutes from './routes/shorts';
 import aiRoutes from './routes/ai';
 import webhookRoutes from './routes/webhooks';
 import crawlerRoutes from './routes/crawler';
+import matchingRoutes from './routes/matching';
 
 const app = express();
 const httpServer = createServer(app);
@@ -106,6 +107,7 @@ app.use('/api/shorts', shortsRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/crawler', crawlerRoutes);
+app.use('/api/matching', matchingRoutes);
 
 // Error handling middleware - must be LAST middleware after all routes
 app.use(errorHandler);

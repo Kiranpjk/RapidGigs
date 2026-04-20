@@ -1,20 +1,18 @@
 import { generateVideoMagicHour } from './magicHourVideo';
 import { generateVideoVeoAiFree } from './veoaifree';
+import { generateVideoWithBrowser as generateVideoMetaAi } from './puppeteerVideo';
+import { generateVideoWaveSpeed } from './wavespeedVideo';
+import { generateVideoTogether } from './togetherVideo';
+import { generateVideoZSky } from './zskyVideo';
+import { generateVideoGizAI } from './gizai';
 import { v2 as cloudinary } from 'cloudinary';
 import fs from 'fs';
-
-// Initialize Cloudinary (same config as cloudinary.ts service)
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
 
 export interface VideoEngineInput {
   prompt: string;
   coverImageUrl?: string;   // Optional: used for image-to-video
   jobId?: string;           // Used for logging / naming the Cloudinary upload
-  provider?: 'magichour' | 'veoaifree' | 'auto';
+  provider?: 'wavespeed' | 'together' | 'magichour' | 'veoaifree' | 'meta-ai' | 'zsky' | 'gizai' | 'auto';
   aspectRatio?: '9:16' | '16:9' | '1:1';
 }
 
@@ -26,13 +24,22 @@ export interface VideoEngineResult {
 
 type ProgressCallback = (step: string, progress: number) => void;
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Upload a file (local path or remote URL) to Cloudinary
-// ──────────────────────────────────────────────────────────────────────────────
 async function uploadToCloudinary(
   source: string, // Local path or URL
   publicId?: string
 ): Promise<string> {
+  // Ensure Cloudinary is configured using latest env variables
+  if (!process.env.CLOUDINARY_API_KEY) {
+    console.warn('[VideoEngine] Cloudinary API Key missing, skipping upload.');
+    return source;
+  }
+
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  });
+
   try {
     console.log(`[VideoEngine] Uploading to Cloudinary: ${source.slice(0, 80)}...`);
     const result = await cloudinary.uploader.upload(source, {
@@ -55,12 +62,6 @@ async function uploadToCloudinary(
   }
 }
 
-// Providers removed: Together, WaveSpeed, Fal.ai, ZSky, Meta AI.
-// Focused only on Veo (Free) and Magic Hour (Paid).
-
-// ──────────────────────────────────────────────────────────────────────────────
-// Provider 1: Magic Hour (Official SDK)
-// ──────────────────────────────────────────────────────────────────────────────
 // ──────────────────────────────────────────────────────────────────────────────
 // Provider 0: VeoAIFree (Free web automation)
 // ──────────────────────────────────────────────────────────────────────────────
@@ -95,14 +96,74 @@ async function tryVeoAiFree(
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Provider 1: Magic Hour (Paid)
+// Provider 1: ZSky (API based)
 // ──────────────────────────────────────────────────────────────────────────────
+async function tryZSky(
+  input: VideoEngineInput,
+  onProgress?: ProgressCallback
+): Promise<VideoEngineResult | null> {
+  if (!process.env.ZSKY_API_KEY) {
+     console.warn('[VideoEngine] ZSKY_API_KEY missing, skipping ZSky.');
+     return null;
+  }
+  console.log('[VideoEngine] ✈️ Trying ZSky...');
+  try {
+    const result = await generateVideoZSky(input.prompt, input.coverImageUrl, onProgress);
+    if (!result?.localPath) return null;
+
+    const cloudUrl = await uploadToCloudinary(
+      result.localPath,
+      input.jobId ? `job_${input.jobId}_zsky` : undefined
+    );
+
+    return {
+      videoUrl: cloudUrl,
+      rawUrl: result.localPath,
+      provider: 'zsky',
+    };
+  } catch (err: any) {
+    console.error('[VideoEngine] ZSky failed:', err.message);
+    return null;
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Provider 2: Giz.ai (Web automation)
+// ──────────────────────────────────────────────────────────────────────────────
+async function tryGizAi(
+  input: VideoEngineInput,
+  onProgress?: ProgressCallback
+): Promise<VideoEngineResult | null> {
+  console.log('[VideoEngine] 🤖 Trying Giz.ai...');
+  try {
+    const result = await generateVideoGizAI(input.prompt, onProgress);
+    if (!result?.localPath) return null;
+
+    const cloudUrl = await uploadToCloudinary(
+      result.localPath,
+      input.jobId ? `job_${input.jobId}_gizai` : undefined
+    );
+
+    return {
+      videoUrl: cloudUrl,
+      rawUrl: result.localPath,
+      provider: 'gizai',
+    };
+  } catch (err: any) {
+    console.error('[VideoEngine] Giz.ai failed:', err.message);
+    return null;
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Other Providers (Fallbacks / Specific)
+// ──────────────────────────────────────────────────────────────────────────────
+
 async function tryMagicHour(
   input: VideoEngineInput,
   onProgress?: ProgressCallback
 ): Promise<VideoEngineResult | null> {
   if (!process.env.MAGIC_HOUR_API_KEY) return null;
-
   console.log('[VideoEngine] 🌟 Trying Magic Hour...');
   try {
     const result = await generateVideoMagicHour(
@@ -111,26 +172,48 @@ async function tryMagicHour(
       onProgress,
       input.aspectRatio
     );
-
     if (!result?.videoUrl) return null;
-
-    const cloudUrl = await uploadToCloudinary(
-      result.videoUrl,
-      input.jobId ? `job_${input.jobId}_mh` : undefined
-    );
-
-    return {
-      videoUrl: cloudUrl,
-      rawUrl: result.videoUrl,
-      provider: 'magic-hour',
-    };
+    const cloudUrl = await uploadToCloudinary(result.videoUrl, input.jobId ? `job_${input.jobId}_mh` : undefined);
+    return { videoUrl: cloudUrl, rawUrl: result.videoUrl, provider: 'magic-hour' };
   } catch (err: any) {
     console.error('[VideoEngine] Magic Hour failed:', err.message);
     return null;
   }
 }
 
-// Other providers (WaveSpeed, Fal, ZSky, Meta) removed per user request.
+async function tryWaveSpeed(
+  input: VideoEngineInput,
+  onProgress?: ProgressCallback
+): Promise<VideoEngineResult | null> {
+  if (!process.env.WAVESPEED_API_KEY) return null;
+  console.log('[VideoEngine] 🌊 Trying WaveSpeed...');
+  try {
+    const result = await generateVideoWaveSpeed(input.prompt, onProgress);
+    if (!result?.videoUrl) return null;
+    const cloudUrl = await uploadToCloudinary(result.videoUrl, input.jobId ? `job_${input.jobId}_qwen` : undefined);
+    return { videoUrl: cloudUrl, rawUrl: result.videoUrl, provider: 'wavespeed' };
+  } catch (err: any) {
+    console.error('[VideoEngine] WaveSpeed failed:', err.message);
+    return null;
+  }
+}
+
+async function tryTogether(
+  input: VideoEngineInput,
+  onProgress?: ProgressCallback
+): Promise<VideoEngineResult | null> {
+  if (!process.env.TOGETHER_API_KEY) return null;
+  console.log('[VideoEngine] 🤝 Trying Together...');
+  try {
+    const result = await generateVideoTogether(input.prompt, onProgress);
+    if (!result?.videoUrl) return null;
+    const cloudUrl = await uploadToCloudinary(result.videoUrl, input.jobId ? `job_${input.jobId}_together` : undefined);
+    return { videoUrl: cloudUrl, rawUrl: result.videoUrl, provider: 'together' };
+  } catch (err: any) {
+    console.error('[VideoEngine] Together failed:', err.message);
+    return null;
+  }
+}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Main export: orchestrate providers with fallback
@@ -139,18 +222,33 @@ export async function generateJobVideo(
   input: VideoEngineInput,
   onProgress?: ProgressCallback
 ): Promise<VideoEngineResult | null> {
-  const { prompt, jobId, provider = 'auto' } = input;
-  const togetherEnabled = process.env.TOGETHER_ENABLED === 'true';
+  const { prompt, jobId, provider = 'veoaifree' } = input;
   console.log(`\n[VideoEngine] 🎬 Video generation for job=${jobId || 'unknown'} (mode=${provider})`);
 
   // Explicit provider selection
   if (provider === 'veoaifree') return await tryVeoAiFree(input, onProgress);
+  if (provider === 'zsky') return await tryZSky(input, onProgress);
+  if (provider === 'gizai') return await tryGizAi(input, onProgress);
+  if (provider === 'wavespeed') return await tryWaveSpeed(input, onProgress);
+  if (provider === 'together') return await tryTogether(input, onProgress);
   if (provider === 'magichour') return await tryMagicHour(input, onProgress);
 
   // Auto/Fallback chain:
-  // VeoAIFree -> Magic Hour
+  // VeoAIFree -> ZSky -> Giz.ai -> WaveSpeed -> Together -> Magic Hour
   const veoResult = await tryVeoAiFree(input, onProgress);
   if (veoResult) return veoResult;
+
+  const zskyResult = await tryZSky(input, onProgress);
+  if (zskyResult) return zskyResult;
+
+  const gizResult = await tryGizAi(input, onProgress);
+  if (gizResult) return gizResult;
+
+  const qwenResult = await tryWaveSpeed(input, onProgress);
+  if (qwenResult) return qwenResult;
+
+  const togetherResult = await tryTogether(input, onProgress);
+  if (togetherResult) return togetherResult;
 
   const mhResult = await tryMagicHour(input, onProgress);
   if (mhResult) return mhResult;
@@ -161,7 +259,10 @@ export async function generateJobVideo(
 
 export function getVideoProviderStatus(): Record<string, boolean> {
   return {
+    'wavespeed': !!process.env.WAVESPEED_API_KEY,
+    'together': !!process.env.TOGETHER_API_KEY,
     'magic-hour': !!process.env.MAGIC_HOUR_API_KEY,
     'veoaifree': true,
+    'meta-ai': !!process.env.META_AI_COOKIE_DATR,
   };
 }

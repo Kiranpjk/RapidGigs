@@ -12,11 +12,19 @@ interface SettingsPageProps {
 
 const SettingsPage: React.FC<SettingsPageProps> = ({ navigate, theme, toggleTheme, onLogout }) => {
     const { user } = useAuth();
+    const isRecruiter = user?.isRecruiter;
+    const isStudent = user?.isStudent;
+
     const [notifications, setNotifications] = useState({
-        newApplications: true,
+        // Shared
         messages: true,
-        jobMatches: true,
         marketingEmails: false,
+        // Student-specific
+        jobMatches: true,
+        applicationUpdates: true,
+        // Recruiter-specific
+        newApplications: true,
+        candidateShortlisted: true,
     });
     const [saved, setSaved] = useState(false);
 
@@ -84,24 +92,44 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ navigate, theme, toggleThem
 
                 {/* Notifications */}
                 <SettingSection title="Notifications" description="Choose what you want to be notified about.">
-                    <Toggle
-                        checked={notifications.newApplications}
-                        onChange={() => setNotifications(n => ({ ...n, newApplications: !n.newApplications }))}
-                        label="New Applications"
-                        sublabel="Get notified when someone applies to your job."
-                    />
+                    {isRecruiter && (
+                        <Toggle
+                            checked={notifications.newApplications}
+                            onChange={() => setNotifications(n => ({ ...n, newApplications: !n.newApplications }))}
+                            label="New Applications"
+                            sublabel="When a candidate applies to your job."
+                        />
+                    )}
                     <Toggle
                         checked={notifications.messages}
                         onChange={() => setNotifications(n => ({ ...n, messages: !n.messages }))}
-                        label="Messages"
+                        label="New Messages"
                         sublabel="Alerts for new direct messages."
                     />
-                    <Toggle
-                        checked={notifications.jobMatches}
-                        onChange={() => setNotifications(n => ({ ...n, jobMatches: !n.jobMatches }))}
-                        label="Job Matches"
-                        sublabel="When new jobs match your profile."
-                    />
+                    {isStudent && (
+                        <>
+                            <Toggle
+                                checked={notifications.jobMatches}
+                                onChange={() => setNotifications(n => ({ ...n, jobMatches: !n.jobMatches }))}
+                                label="Job Matches"
+                                sublabel="When new jobs match your profile."
+                            />
+                            <Toggle
+                                checked={notifications.applicationUpdates}
+                                onChange={() => setNotifications(n => ({ ...n, applicationUpdates: !n.applicationUpdates }))}
+                                label="Application Updates"
+                                sublabel="When your application status changes."
+                            />
+                        </>
+                    )}
+                    {isRecruiter && (
+                        <Toggle
+                            checked={notifications.candidateShortlisted}
+                            onChange={() => setNotifications(n => ({ ...n, candidateShortlisted: !n.candidateShortlisted }))}
+                            label="Candidate Shortlisted"
+                            sublabel="Reminders for pending decisions on shortlisted candidates."
+                        />
+                    )}
                     <Toggle
                         checked={notifications.marketingEmails}
                         onChange={() => setNotifications(n => ({ ...n, marketingEmails: !n.marketingEmails }))}
@@ -172,7 +200,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ navigate, theme, toggleThem
                             <p className="text-xs text-gray-400 dark:text-slate-500 leading-relaxed">
                                 <strong className="text-gray-600 dark:text-slate-400">User ID:</strong>{' '}
                                 <span className="font-mono select-all text-indigo-500">{user?.id}</span><br />
-                                Share this ID so recruuters in the platform can message you directly.
+                                Share this ID so {isRecruiter ? 'candidates' : 'recruiters'} can message you directly.
                             </p>
                         </div>
                     </div>

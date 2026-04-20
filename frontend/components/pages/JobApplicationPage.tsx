@@ -310,17 +310,29 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ job, navigate, 
                             <div className="border-t border-slate-200 dark:border-slate-700"></div>
 
                             <div>
-                                <label htmlFor="cover-letter" className="block text-lg font-semibold text-slate-800 dark:text-slate-200 mb-3">Portfolio / Project Links *</label>
-                                <textarea 
-                                    id="cover-letter" 
-                                    rows={4} 
-                                    value={coverLetter}
-                                    onChange={(e) => setCoverLetter(e.target.value)}
-                                    placeholder="https://github.com/your-profile&#10;https://your-portfolio.com&#10;Explain briefly how your links prove you are perfect for this role..." 
-                                    className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                    required
-                                ></textarea>
-                                <p className="text-xs text-slate-500 mt-2">Skip the boring cover letter. Just show us your best work.</p>
+                                <label htmlFor="cover-letter" className="block text-xl font-black text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
+                                    <span className="w-8 h-8 rounded-lg bg-indigo-500 text-white flex items-center justify-center text-sm">🔗</span>
+                                    Showcase Your Work (Links & Notes) *
+                                </label>
+                                <div className="relative group">
+                                    <textarea 
+                                        id="cover-letter" 
+                                        rows={6} 
+                                        value={coverLetter}
+                                        onChange={(e) => setCoverLetter(e.target.value)}
+                                        placeholder="🚀 DROP YOUR LINKS HERE:
+• GitHub (Repositories/Projects)
+• Live Demos / Hosted Sites
+• Design Portfolios (Behance, Dribbble)
+
+💡 PRO-TIP: Let's discuss which fits best! Drop your links here and we'll show a live preview to the recruiter. Add any notes about which project you're most proud of." 
+                                        className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-3xl py-5 px-6 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-slate-900 dark:text-white font-medium leading-relaxed transition-all placeholder:text-slate-400"
+                                        required
+                                    ></textarea>
+                                </div>
+                                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 mt-4 flex items-center gap-2 px-2">
+                                    <span className="text-indigo-500">★</span> Skip the boring cover letter. Just show us your best work and explain briefly why it fits.
+                                </p>
                             </div>
                             
                             <div>
@@ -516,9 +528,12 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ job, navigate, 
                                     <MapPinIcon className="w-3.5 h-3.5" />
                                     {job.location}
                                 </span>
-                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 text-xs font-bold">
+                                <span 
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 text-xs font-bold truncate max-w-[120px]"
+                                    title={job.pay.length > 30 ? job.pay : ''}
+                                >
                                     <CurrencyDollarIcon className="w-3.5 h-3.5" />
-                                    {job.pay}
+                                    {job.pay.length > 30 ? `${job.pay.substring(0, 27)}...` : job.pay}
                                 </span>
                             </div>
 
@@ -544,8 +559,8 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ job, navigate, 
 
                             <div className="space-y-4">
                                 <div>
-                                    <p className="text-[11px] font-black text-slate-500 uppercase tracking-[0.18em] mb-2">About The Role</p>
-                                    <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{job.description}</p>
+                                    <p className="text-[11px] font-black text-slate-500 uppercase tracking-[0.18em] mb-2 font-mono">About the Role</p>
+                                    <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-medium">{job.description}</p>
                                 </div>
 
                                 {job.companyBrief?.culture && (

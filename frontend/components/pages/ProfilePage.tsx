@@ -416,9 +416,12 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
                                                 Recruiter
                                             </span>
                                         )}
-                                        <span className="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 text-xs font-semibold px-2.5 py-0.5 rounded capitalize">
-                                            {user.role}
-                                        </span>
+                                        {/* Only show generic role badge if it's not student or recruiter (e.g. admin) */}
+                                        {!user.isStudent && !user.isRecruiter && (
+                                            <span className="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 text-xs font-semibold px-2.5 py-0.5 rounded capitalize">
+                                                {user.role}
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -564,8 +567,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-slate-600 dark:text-slate-400">Status:</span>
-                                <span className={`font-semibold ${user.isActive ? 'text-green-600' : 'text-red-600'}`}>
-                                    {user.isActive ? 'Active' : 'Inactive'}
+                                <span className={`font-semibold ${user.isActive !== false ? 'text-green-600' : 'text-red-600'}`}>
+                                    {user.isActive !== false ? 'Active' : 'Inactive'}
                                 </span>
                             </div>
                             <div className="flex justify-between">

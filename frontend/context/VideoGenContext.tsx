@@ -17,8 +17,8 @@ export interface VideoGenJob {
   error?: string;
   startedAt: number;     // timestamp
   provider?: string;
-  /** When true, Post Job page shows detailed progress; header chip is hidden there to avoid duplicate UI */
   fromPostJob?: boolean;
+  mongoJobId?: string;    // Associated MongoDB Job ID
 }
 
 export interface StartVideoGenOptions {
@@ -80,23 +80,47 @@ export const VideoGenProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (timeout) { clearTimeout(timeout); autoDismissRefs.current.delete(jobId); }
   }, []);
 
-  const startJob = useCallback((jobId: string, title: string, options?: StartVideoGenOptions) => {
-    // Add to jobs list
-    setJobs(prev => [
-      ...prev.filter(j => j.jobId !== jobId),
-      {
-        jobId,
-        title,
-        status: 'processing',
-        progress: 0,
-        startedAt: Date.now(),
-        fromPostJob: options?.fromPostJob === true,
-      },
-    ]);
+  const startJob = useCallback(async (jobId: string, title: string, options?: StartVideoGenOptions & { mongoJobId?: string }) => {
+    // ── Pre-flight: if re-triggering from a failed state, call the API first ────
+    const existingJob = jobsRef.current.find(j => j.jobId === jobId);
+    const mJobId = options?.mongoJobId || existingJob?.mongoJobId;
+
+    if (existingJob?.status === 'failed' && mJobId) {
+       try { await shortsAPI.generateFromJob(mJobId); } catch (e) { console.error('Retry trigger failed:', e); }
+    }
+
+    // Add/Reset in jobs list
+    setJobs(prev => {
+      let filtered = prev.filter(j => j.jobId !== jobId);
+      // Deduplicate by mongoJobId: if we have a job for this mongoJobId, remove it (newest attempt wins)
+      if (mJobId) {
+        filtered = filtered.filter(j => j.mongoJobId !== mJobId);
+      }
+      
+      return [
+        ...filtered,
+        {
+          jobId,
+          title,
+          status: 'processing',
+          progress: 0,
+          startedAt: Date.now(),
+          fromPostJob: options?.fromPostJob === true,
+          mongoJobId: mJobId,
+        },
+      ];
+    });
 
     // ── Simulate progress (non-linear, slows near 90%) ────────────────────
     let simProgress = 0;
     const progressInterval = setInterval(() => {
+      // Find current job state to avoid overlapping with real progress
+      const j = jobsRef.current.find(curr => curr.jobId === jobId);
+      if (j && j.status !== 'processing') {
+        clearInterval(progressInterval);
+        return;
+      }
+
       simProgress += simProgress < 30 ? 3 : simProgress < 60 ? 1.5 : simProgress < 85 ? 0.5 : 0.1;
       const clamped = Math.min(Math.round(simProgress), 89); // Never reach 100 until done
       setJobs(prev => prev.map(j =>

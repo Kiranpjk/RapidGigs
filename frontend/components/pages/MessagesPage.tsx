@@ -254,7 +254,7 @@ const MessagesPage: React.FC = () => {
     );
 
     return (
-        <div className="max-w-7xl mx-auto px-0 sm:px-6 lg:px-8 py-0 sm:py-6 h-[100vh] sm:h-[calc(100vh-80px)] overflow-hidden flex flex-col animate-slide-up">
+        <div className="max-w-[900px] mx-auto px-0 sm:px-6 lg:px-8 py-0 sm:py-6 h-[100vh] sm:h-[calc(100vh-80px)] overflow-hidden flex flex-col animate-slide-up">
             
             {/* New Chat Modal */}
             {showNewChat && (
@@ -336,7 +336,7 @@ const MessagesPage: React.FC = () => {
             <div className="flex-1 flex bg-white dark:bg-slate-800 border-x sm:border border-gray-100 dark:border-slate-700/60 rounded-none sm:rounded-[2.5rem] overflow-hidden shadow-2xl shadow-indigo-500/5 relative">
                 
                 {/* Sidebar */}
-                <aside className={`w-full md:w-85 flex-shrink-0 border-r border-gray-50 dark:border-slate-700/60 flex flex-col bg-slate-50/30 dark:bg-slate-900/40 ${isChatListVisible ? 'flex' : 'hidden md:flex'}`}>
+                <aside className={`w-full md:w-[280px] flex-shrink-0 border-r border-gray-50 dark:border-slate-700/60 flex flex-col bg-slate-50/30 dark:bg-slate-900/40 ${isChatListVisible ? 'flex' : 'hidden md:flex'}`}>
                     
                     {/* Sidebar Header */}
                     <div className="px-7 py-7 pb-5 flex flex-col gap-5 flex-shrink-0">
@@ -471,7 +471,7 @@ const MessagesPage: React.FC = () => {
                             </div>
 
                             {/* Messages Area */}
-                            <div className="flex-1 overflow-y-auto custom-scrollbar px-6 sm:px-10 py-8 flex flex-col gap-5 bg-slate-50/20 dark:bg-slate-900/10">
+                            <div className="flex-1 overflow-y-auto custom-scrollbar px-6 sm:px-10 py-8 flex flex-col gap-5 bg-slate-50/20 dark:bg-slate-900/10 min-h-0">
                                 {loadingMessages ? (
                                     <div className="flex-1 flex items-center justify-center">
                                         <div className="text-center">
@@ -503,11 +503,11 @@ const MessagesPage: React.FC = () => {
                                                             )}
                                                         </div>
                                                     )}
-                                                    <div className={`relative max-w-[80%] sm:max-w-[70%] lg:max-w-[55%] ${
+                                                    <div className={`relative max-w-[80%] sm:max-w-[70%] lg:max-w-[85%] ${
                                                         isMe
-                                                            ? 'bg-gray-900 dark:bg-indigo-600 text-white rounded-[2rem] rounded-br-[0.5rem] shadow-xl shadow-indigo-600/5'
-                                                            : 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-[2rem] rounded-bl-[0.5rem] shadow-sm border border-gray-50 dark:border-slate-600/50 hover:bg-gray-50/50 dark:hover:bg-slate-700/80 transition-colors'
-                                                    } px-6 py-4`}>
+                                                            ? 'bg-indigo-600 text-white rounded-[20px] rounded-br-[4px] shadow-lg shadow-indigo-500/10'
+                                                            : 'bg-gray-800 text-white rounded-[20px] rounded-bl-[4px] shadow-sm border border-transparent'
+                                                    } px-5 py-3`}>
                                                         <p className="text-[13px] leading-relaxed font-medium whitespace-pre-wrap">{msg.text}</p>
                                                         <div className={`flex items-center justify-end gap-1.5 mt-2 ${isMe ? 'text-white/40' : 'text-gray-300 dark:text-slate-500'}`}>
                                                             <p className="text-[9px] font-black uppercase tracking-tighter">{msg.time}</p>
@@ -533,8 +533,8 @@ const MessagesPage: React.FC = () => {
                             </div>
 
                             {/* Input Bar */}
-                            <div className="px-6 sm:px-10 py-6 border-t border-gray-50 dark:border-slate-700/60 bg-white dark:bg-slate-800 flex-shrink-0 z-20">
-                                <div className="flex items-end gap-4 bg-slate-50/50 dark:bg-slate-900/50 rounded-[2rem] px-6 py-4 border border-gray-50 dark:border-slate-700 focus-within:ring-4 focus-within:ring-indigo-500/5 focus-within:border-indigo-500/30 transition-all duration-300">
+                            <div className="px-6 sm:px-10 py-5 border-t border-gray-50 dark:border-slate-700/60 bg-white dark:bg-slate-800 flex-shrink-0 z-20">
+                                <div className="flex items-end gap-4 bg-gray-50 dark:bg-slate-900/50 rounded-[24px] px-5 py-3 border border-gray-100 dark:border-slate-700 focus-within:ring-4 focus-within:ring-indigo-500/5 focus-within:border-indigo-500/30 transition-all duration-300">
                                     <textarea
                                         ref={textareaRef}
                                         rows={1}

@@ -6,6 +6,12 @@ export interface IShortVideoCaption {
   endTime: number;   // seconds
 }
 
+const CaptionSchema = new Schema({
+  text: { type: String, required: true },
+  startTime: { type: Number, required: true, default: 0 },
+  endTime: { type: Number, required: true, default: 5 }
+}, { _id: false });
+
 export interface IShortVideo extends Document {
   userId: mongoose.Types.ObjectId;
   jobId?: mongoose.Types.ObjectId;
@@ -20,7 +26,7 @@ export interface IShortVideo extends Document {
   saves: number;
   applications: number;
   impressions: number;
-  captions?: IShortVideoCaption[];
+  captions: IShortVideoCaption[];
   companyLogoUrl?: string;
   duration?: string;
   createdAt: Date;
@@ -80,11 +86,7 @@ const ShortVideoSchema: Schema = new Schema(
       type: Number,
       default: 0,
     },
-    captions: [{
-      text: String,
-      startTime: Number,
-      endTime: Number,
-    }],
+    captions: [CaptionSchema],
     companyLogoUrl: {
       type: String,
     },
@@ -100,4 +102,3 @@ const ShortVideoSchema: Schema = new Schema(
 ShortVideoSchema.index({ userId: 1, createdAt: -1 });
 
 export const ShortVideo: Model<IShortVideo> = mongoose.model<IShortVideo>('ShortVideo', ShortVideoSchema);
-

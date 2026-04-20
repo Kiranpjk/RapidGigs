@@ -66,7 +66,10 @@ function buildVideoPrompt(script: VideoScript): string {
 }
 
 function escapeDrawtext(input: string): string {
-  return input
+  // FIX: Replace ₹ with Rs. because most standard fonts in FFmpeg don't render it correctly
+  let sanitized = (input || '').replace(/₹/g, 'Rs.');
+
+  return sanitized
     .replace(/\\/g, '\\\\')
     .replace(/:/g, '\\:')
     .replace(/'/g, "\\'")
@@ -76,6 +79,28 @@ function escapeDrawtext(input: string): string {
     .replace(/\]/g, '\\]')
     .replace(/,/g, '\\,')
     .replace(/\n/g, '\\n');
+}
+
+/**
+ * Splits a single long line of text into multiple lines for FFmpeg drawtext.
+ * Useful for portrait videos where vertical space is more abundant than horizontal.
+ */
+function wrapText(text: string, maxCharsPerLine: number = 22): string {
+  if (!text) return "";
+  const words = text.split(/\s+/);
+  let lines: string[] = [];
+  let currentLine = "";
+
+  words.forEach(word => {
+    if ((currentLine + word).length > maxCharsPerLine) {
+      if (currentLine) lines.push(currentLine.trim());
+      currentLine = word + " ";
+    } else {
+      currentLine += word + " ";
+    }
+  });
+  if (currentLine) lines.push(currentLine.trim());
+  return lines.join('\n');
 }
 
 function getSegmentCaption(script: VideoScript, idx: number, fallback: string): string {
@@ -132,10 +157,22 @@ function getPreferredFontPath(): string | null {
     '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
     '/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf',
     '/usr/share/fonts/TTF/DejaVuSans-Bold.ttf',
+    '/usr/share/fonts/noto/NotoSans-Bold.ttf',
+    '/usr/share/fonts/noto/NotoSansKannada-Bold.ttf', // Fallback from our find command
+    '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
   ];
   for (const fontPath of candidates) {
     if (fs.existsSync(fontPath)) return fontPath;
   }
+  // Try to find ANY ttf if candidates fail
+  try {
+    const fallbackDir = '/usr/share/fonts';
+    if (fs.existsSync(fallbackDir)) {
+      const files = fs.readdirSync(fallbackDir, { recursive: true }) as string[];
+      const firstTtf = files.find(f => f.endsWith('.ttf'));
+      if (firstTtf) return path.join(fallbackDir, firstTtf);
+    }
+  } catch {}
   return null;
 }
 
@@ -156,10 +193,14 @@ async function stitchThreeSegments(
     })
   );
 
+  // Probe durations for precise xfade calc
+  const durations = await Promise.all(localPaths.map(p => getVideoDurationSeconds(p)));
+  console.log(`[VideoStitcher] Segment durations: ${durations.map(d => d.toFixed(1)).join(', ')}s`);
+
   let localLogoPath: string | null = null;
   if (coverImageUrl) {
     try {
-      localLogoPath = path.join(UPLOADS_DIR, `${jobId}-logo`); // extension agnostic initially
+      localLogoPath = path.join(UPLOADS_DIR, `${jobId}-logo`); 
       await downloadFile(coverImageUrl, localLogoPath);
     } catch (err) {
       console.warn('[VideoStitcher] Failed to download coverImage/logo:', err);
@@ -178,40 +219,128 @@ async function stitchThreeSegments(
   const fontPath = getPreferredFontPath();
   const fontArg = fontPath ? `:fontfile='${escapeDrawtext(fontPath)}'` : '';
   
-  const voutNames = [];
   const filterGraph = [];
+  const transDuration = 1.0; // 1 second crossfade
 
+  // 1. Prepare each segment (scale, pad, and add dynamic captions)
   for (let i = 0; i < localPaths.length; i++) {
-    const cap = escapeDrawtext(getSegmentCaption(script, i, ''));
-    let drawtextFilter = '';
-    
-    // First segment gets job details overlay at the top
-    if (i === 0) {
-      const titleText = escapeDrawtext(script.jobTitle || 'Exciting Role');
-      const companyText = escapeDrawtext(script.companyName || 'Top Company');
-      const locationText = escapeDrawtext(script.location || 'Remote');
-      
-      const topText = `🏢 ${companyText}\\n💼 ${titleText}\\n📍 ${locationText}`;
-      
-      // Top info panel
-      drawtextFilter += `,drawtext=text='${topText}'${fontArg}:x=(w-text_w)/2:y=250:fontsize=48:line_spacing=24:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=32`;
+    const isFinalSegment = i === localPaths.length - 1;
+    const duration = durations[i];
+    const overlayRaw = script.segments?.[i]?.overlayText || '';
+    let drawtextFilters: string[] = [];
+
+    // Regular caption handling
+    if (overlayRaw) {
+      const overlayLines = overlayRaw.split('\n').filter(Boolean);
+      overlayLines.forEach((text, lineIdx) => {
+        const paddedText = `  ${text.trim()}  `;
+        const escaped = escapeDrawtext(paddedText);
+        const baseSize = 48;
+        const fontSize = lineIdx === 0 ? baseSize + 6 : lineIdx === 2 ? baseSize - 10 : baseSize;
+        const yPos = 1450 + (lineIdx * (fontSize + 30));
+        
+        // Hide regular caption in the last 2 seconds if it's the final segment
+        const enableText = isFinalSegment ? `:enable='lt(t,${(duration - 2.0).toFixed(2)})'` : '';
+        const fontfile = fontPath ? `:fontfile='${escapeDrawtext(fontPath)}'` : '';
+        
+        drawtextFilters.push(`drawtext=text='${escaped}'${fontfile}:x=(w-text_w)/2:y=${yPos}:fontsize=${fontSize}:fontcolor=white:box=1:boxcolor=black@0.4:boxborderw=12:shadowcolor=black@0.2:shadowx=2:shadowy=2${enableText}`);
+      });
     }
 
-    if (cap) {
-      drawtextFilter += `,drawtext=text='${cap}'${fontArg}:x=(w-text_w)/2:y=h-220:fontsize=56:line_spacing=18:fontcolor=white:box=1:boxcolor=black@0.65:boxborderw=24`;
+    // End Card handling for the final segment
+    if (isFinalSegment) {
+      console.log(`[VideoStitcher] Building End Card - Company: "${script.companyName}", Title: "${script.jobTitle}"`);      // Extract salary, location and work type from script/segments (refining extraction)
+      const salaryBase = script.segments?.[i]?.overlayText?.split('|')[0] || 'Competitive Pay';
+      const locBase = script.location || script.segments?.[0]?.caption?.split('@')?.[1]?.split('.')?.[0] || 'Remote';
+      const workType = escapeDrawtext(script.workType || 'Remote');
+
+      // End Card text wrapping - tighter limits for vertical
+      const wrappedCompany = wrapText(script.companyName || 'This Company', 16);
+      const wrappedTitle = wrapText(script.jobTitle || 'Career Opportunity', 18);
+      const wrappedLocation = wrapText(locBase, 20);
+      const wrappedSalary = wrapText(salaryBase, 15);
+      
+      const startTime = (duration - 2.0).toFixed(2);
+      const fontfile = fontPath ? `:fontfile='${escapeDrawtext(fontPath)}'` : '';
+      
+      // Line 1: Company (White, Small, Bold)
+      const companyLines = wrappedCompany.split('\n');
+      companyLines.forEach((line, idx) => {
+        const yCoord = 700 + (idx * 60);
+        drawtextFilters.push(`drawtext=text='${escapeDrawtext(line)}'${fontfile}:x=(w-text_w)/2:y=${yCoord}:fontsize=48:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=20:enable='gt(t,${startTime})'`);
+      });
+
+      // Line 2: Title / Role (Blue, Highlighted)
+      const titleLines = wrappedTitle.split('\n');
+      titleLines.forEach((line, idx) => {
+        const yCoord = 880 + (idx * 65);
+        drawtextFilters.push(`drawtext=text='${escapeDrawtext(line)}'${fontfile}:x=(w-text_w)/2:y=${yCoord}:fontsize=52:fontcolor=0x6366f1:box=1:boxcolor=black@0.6:boxborderw=20:enable='gt(t,${startTime})'`);
+      });
+
+      // Line 3: Location (Amber, Medium)
+      const locationLines = wrappedLocation.split('\n');
+      locationLines.forEach((line, idx) => {
+        const yCoord = 1060 + (idx * 50);
+        drawtextFilters.push(`drawtext=text='${escapeDrawtext(line)}'${fontfile}:x=(w-text_w)/2:y=${yCoord}:fontsize=40:fontcolor=0xF59E0B:box=1:boxcolor=black@0.6:boxborderw=20:enable='gt(t,${startTime})'`);
+      });
+
+      // Line 4: Salary (White, Semi-bold)
+      const salaryLines = wrappedSalary.split('\n');
+      salaryLines.forEach((line, idx) => {
+        const yCoord = 1220 + (idx * 55);
+        drawtextFilters.push(`drawtext=text='${escapeDrawtext(line)}'${fontfile}:x=(w-text_w)/2:y=${yCoord}:fontsize=42:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=20:enable='gt(t,${startTime})'`);
+      });
+
+      // Line 5: Call to Action (Blue Button)
+      drawtextFilters.push(`drawtext=text='APPLY NOW'${fontfile}:x=(w-text_w)/2:y=1420:fontsize=48:fontcolor=white:box=1:boxcolor=0x4F46E5@0.9:boxborderw=20:enable='gt(t,${startTime})'`);
+      
+      console.log(`[VideoStitcher] Generated End Card FFmpeg logic for Segment ${i}`);
     }
+
+    const drawtextJoined = drawtextFilters.length > 0 ? ',' + drawtextFilters.join(',') : '';
+
+    // Scaling and padding to 1080x1920
+    filterGraph.push(`[${i}:v]scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,format=yuv420p${drawtextJoined}[pre_v${i}]`);
     
-    filterGraph.push(`[${i}:v]scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,format=yuv420p${drawtextFilter}[v${i}]`);
-    voutNames.push(`[v${i}]`);
+    // Robust audio handling: Generate silence if input lacks audio
+    const hasAudio = await checkHasAudio(localPaths[i]);
+    if (hasAudio) {
+      filterGraph.push(`[${i}:a]anull[pre_a${i}]`);
+    } else {
+      filterGraph.push(`aevalsrc=0:d=${durations[i]}[pre_a${i}]`);
+    }
   }
 
-  const concatOutName = localLogoPath ? '[concat_out]' : '[vout]';
-  filterGraph.push(`${voutNames.join('')}concat=n=${localPaths.length}:v=1:a=0${concatOutName}`);
+  // 2. Blend segments like butter (xfade)
+  let lastV = 'pre_v0';
+  let lastA = 'pre_a0';
+  let cumulativeOffset = durations[0] - transDuration;
 
+  for (let i = 1; i < localPaths.length; i++) {
+    const nextV = `v_blend_${i}`;
+    const nextA = `a_blend_${i}`;
+    
+    // Video xfade
+    filterGraph.push(`[${lastV}][pre_v${i}]xfade=transition=fade:duration=${transDuration}:offset=${cumulativeOffset.toFixed(2)}[${nextV}]`);
+    // Audio acrossfade
+    filterGraph.push(`[${lastA}][pre_a${i}]acrossfade=d=${transDuration}[${nextA}]`);
+    
+    lastV = nextV;
+    lastA = nextA;
+    cumulativeOffset += (durations[i] - transDuration);
+  }
+
+  const voutLabel = localLogoPath ? '[v_blended_all]' : '[vout]';
+  
   if (localLogoPath) {
     const logoIdx = localPaths.length;
-    // Scale logo width to 280, overlay at top right 50px from edge
-    filterGraph.push(`[${logoIdx}:v]scale=280:-1[logo_scaled];${concatOutName}[logo_scaled]overlay=W-w-50:50[vout]`);
+    filterGraph.push(`[${logoIdx}:v]scale=280:-1[logo_scaled];[${lastV}][logo_scaled]overlay=W-w-50:50[vout]`);
+  } else {
+    // If no logo, we need to map lastV to vout if names don't match
+    if (lastV !== 'vout') {
+       // Using 'copy' filter (format=yuv420p) to just rename the label
+       filterGraph.push(`[${lastV}]format=yuv420p[vout]`); 
+    }
   }
 
   await new Promise<void>((resolve, reject) => {
@@ -219,12 +348,18 @@ async function stitchThreeSegments(
       .complexFilter(filterGraph)
       .outputOptions([
         '-map [vout]',
-        '-an',
+        `-map [${lastA}]`,
         '-pix_fmt yuv420p',
         '-movflags +faststart',
+        '-c:a aac',
+        '-b:a 192k',
+        '-shortest'
       ])
       .on('end', () => resolve())
-      .on('error', (err) => reject(err))
+      .on('error', (err) => {
+        console.error('[VideoStitcher] FFmpeg Error:', err.message);
+        reject(err);
+      })
       .save(outputPath);
   });
 
@@ -235,19 +370,23 @@ async function stitchThreeSegments(
   }
 
   const finalDuration = await getVideoDurationSeconds(outputPath);
-  console.log(`[VideoStitcher] Final duration: ${finalDuration.toFixed(2)}s (target: 24s)`);
+  console.log(`[VideoStitcher] Final duration: ${finalDuration.toFixed(2)}s (Butter-blended)`);
 
+  // Cleanup
   for (const p of localPaths) {
     try { fs.unlinkSync(p); } catch {}
   }
+  if (localLogoPath) {
+    try { fs.unlinkSync(localLogoPath); } catch {}
+  }
 
-  const videoUrl = await uploadFinalVideo(outputPath, `job_${jobId}_3part`);
+  const videoUrl = await uploadFinalVideo(outputPath, `job_${jobId}_premium`);
   return { videoUrl, duration: Math.round(finalDuration), clips: localPaths.length };
 }
 
 /**
  * Generate a video from a VideoScript.
- * Orchestrates calls to videoEngine which handles actual synthesis and fallback.
+ * Now generates 3 segments in parallel for faster turnaround.
  */
 export async function generateStitchedVideo(options: {
   script: VideoScript;
@@ -269,43 +408,70 @@ export async function generateStitchedVideo(options: {
   const genJobId = jobId || uuidv4();
 
   try {
-    console.log(`\n[VideoStitcher] Starting 3-part generation (job=${genJobId}, provider=${provider})`);
-    onProgress?.('Generating 3 parts sequentially...', 0.05);
+    console.log(`\n[VideoStitcher] Starting 3-PART PARALLEL generation (job=${genJobId}, provider=${provider})`);
+    onProgress?.('Launching parallel generation...', 0.05);
 
+    // Use the segments provided in the script (up to 3 for the "3-part" style)
     const segments = script.segments.slice(0, 3);
-    const results = [];
-    
-    for (let i = 0; i < segments.length; i++) {
-      onProgress?.(`Generating segment ${i+1}/${segments.length}...`, 0.1 + (i * 0.25));
-      const res = await generateJobVideo(
-        {
-          prompt: segments[i].visualPrompt,
-          coverImageUrl: i === 0 ? coverImageUrl : undefined,
-          jobId: `${genJobId}_part${i}`,
-          provider: (options.provider || 'veoaifree') as any,
-        }
-      );
-      if (!res) throw new Error(`Segment ${i+1} failed to generate`);
-      results.push(res);
-      console.log(`[VideoStitcher] Segment ${i+1} generated successfully`);
+    if (segments.length === 0) {
+      segments.push({
+        visualPrompt: 'Professional workplace documentary style, cinematic lighting',
+        overlayText: 'Join Our Team',
+        caption: 'Apply Now!'
+      });
     }
 
-    onProgress?.('Stitching 3 parts with captions and logo...', 0.85);
-    const sourceUrls = results.map(r => r.videoUrl);
-    
-    const final = await stitchThreeSegments(sourceUrls, script, genJobId, coverImageUrl);
-    
-    onProgress?.('Video ready! ✅', 1.0);
+    // Generate segments in PARALLEL
+    const segmentResults = await Promise.all(
+      segments.map((seg, idx) => {
+        const segPrompt = `${seg.visualPrompt}. Cinematic, high-quality, vertical video.`;
+        return generateJobVideo(
+          {
+            prompt: segPrompt,
+            jobId: `${genJobId}_seg${idx}`,
+            provider: provider as any,
+          },
+          (step, prog) => {
+            // Aggregate progress for reporting
+            if (idx === 0) onProgress?.(`Generating Segment 1: ${step}`, 0.1 + (prog * 0.7));
+          }
+        );
+      })
+    );
+
+    const validResults = segmentResults.filter(r => !!r);
+    if (validResults.length === 0) throw new Error(`All segment generations failed with ${provider}`);
+
+    onProgress?.('Stitching segments and applying captions...', 0.85);
+
+    const urls = validResults.map(r => r!.videoUrl);
+    const finalResult = await stitchThreeSegments(urls, { ...script, segments }, genJobId, coverImageUrl);
+
+    onProgress?.('Finalizing video... ✅', 0.95);
+
     return {
-      videoUrl: final.videoUrl,
-      duration: final.duration,
-      clips: final.clips,
-      providers: Array.from(new Set(results.map(r => r.provider).concat(['ffmpeg-stitch']))),
-      captions: script.segments.map((s, i) => s.caption || s.overlayText || ''),
+      videoUrl: finalResult.videoUrl,
+      duration: finalResult.duration,
+      clips: finalResult.clips,
+      providers: validResults.map(r => r!.provider),
+      captions: segments.map(s => s.overlayText),
     };
 
   } catch (error: any) {
     console.error('[VideoStitcher] Fatal error:', error);
     throw error;
   }
+}
+
+/**
+ * Checks if a video file has an audio stream.
+ */
+async function checkHasAudio(filePath: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    ffmpeg.ffprobe(filePath, (err, metadata) => {
+      if (err) return resolve(false);
+      const hasAudio = metadata.streams.some(s => s.codec_type === 'audio');
+      resolve(hasAudio);
+    });
+  });
 }

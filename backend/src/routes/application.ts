@@ -11,6 +11,8 @@ import { uploadToCloudinary } from '../services/cloudinary';
 import mongoose from 'mongoose';
 import path from 'path';
 import { promises as fs } from 'fs';
+import { computeMatchScore } from '../services/candidateMatcher';
+import { User } from '../models/User';
 
 const router = express.Router();
 
@@ -97,6 +99,7 @@ router.get('/job/:jobId', authenticate, async (req: AuthRequest, res) => {
       resumeUrl: app.resumeUrl,
       videoUrl: app.videoUrl,
       status: app.status,
+      aiMatchResult: app.aiMatchResult,
       createdAt: (app as any).createdAt,
       dateApplied: app.dateApplied,
     })));
@@ -224,6 +227,30 @@ router.post(
         status: application.status,
         dateApplied: application.dateApplied,
       });
+
+      // Background AI Scoring async triggered
+      (async () => {
+        try {
+          const userDoc = await User.findById(req.user!.userId);
+          const candidateName = userDoc?.name || 'Unknown Candidate';
+
+          const result = await computeMatchScore({
+            jobTitle: job.title,
+            jobDescription: job.description,
+            candidateName,
+            coverLetter: coverLetter || undefined,
+            resumeUrl: resumeUrl || undefined,
+            videoUrl: videoUrl || undefined,
+          });
+
+          await Application.findByIdAndUpdate(application._id, {
+            aiMatchResult: result
+          });
+        } catch (err) {
+          console.error('[Background Scoring] Failed for newly created application', err);
+        }
+      })();
+
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -234,7 +261,7 @@ router.post(
 router.patch(
   '/:id/status',
   authenticate,
-  [body('status').isIn(['pending', 'reviewing', 'shortlisted', 'interviewing', 'accepted', 'rejected'])],
+  [body('status').isIn(['pending', 'reviewing', 'shortlisted', 'interviewing', 'hired', 'rejected'])],
   async (req: AuthRequest, res) => {
     try {
       const errors = validationResult(req);
@@ -246,7 +273,7 @@ router.patch(
         return res.status(400).json({ error: 'Invalid application ID' });
       }
 
-      const { status } = req.body;
+      const { status, aiMatchResult } = req.body;
 
       // Find the current application first
       const currentApp = await Application.findById(req.params.id);
@@ -266,7 +293,7 @@ router.patch(
       }
 
       // Handle accepting: atomically increment filledSlots, reject if full
-      if (status === 'accepted' && previousStatus !== 'accepted') {
+      if (status === 'hired' && previousStatus !== 'hired') {
         const job = await Job.findOneAndUpdate(
           { _id: currentApp.jobId, $expr: { $lt: ['$filledSlots', '$maxSlots'] } },
           { $inc: { filledSlots: 1 } },
@@ -284,7 +311,7 @@ router.patch(
       }
 
       // Handle un-accepting: decrement filledSlots and potentially reopen
-      if (previousStatus === 'accepted' && status !== 'accepted') {
+      if (previousStatus === 'hired' && status !== 'hired') {
         const job = await Job.findByIdAndUpdate(
           currentApp.jobId,
           { $inc: { filledSlots: -1 } },
@@ -295,9 +322,15 @@ router.patch(
         }
       }
 
+      // Build update payload — persist AI match result if provided
+      const updatePayload: any = { status };
+      if (aiMatchResult && typeof aiMatchResult === 'object') {
+        updatePayload.aiMatchResult = aiMatchResult;
+      }
+
       const application = await Application.findByIdAndUpdate(
         req.params.id,
-        { status },
+        updatePayload,
         { new: true }
       );
 
@@ -425,6 +458,77 @@ router.get('/:id/resume', authenticate, async (req: AuthRequest, res) => {
     return res.send(fileBuffer);
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
+  }
+});
+
+// Schedule an interview
+router.post('/:id/interview', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const { timeSlots, meetingType, meetingLink } = req.body;
+    const application = await Application.findById(req.params.id);
+    if (!application) return res.status(404).json({ error: 'Application not found' });
+    
+    const job = await Job.findById(application.jobId);
+    if (!job || job.postedBy.toString() !== req.user!.userId) {
+      return res.status(403).json({ error: 'Unauthorized to schedule interview for this job' });
+    }
+
+    // 1. Create Interview Record
+    const { default: Interview } = await import('../models/Interview.js');
+    const interview = new Interview({
+      applicationId: application._id,
+      candidateId: application.userId,
+      jobId: job._id,
+      recruiterId: req.user!.userId,
+      timeSlots: timeSlots?.map((t: string) => new Date(t)),
+      meetingType,
+      meetingLink,
+      status: 'pending'
+    });
+    await interview.save();
+
+    // 2. Update Status to interviewing
+    application.status = 'interviewing';
+    await application.save();
+
+    // 3. Trigger Notification
+    const { Notification } = await import('../models/Notification.js');
+    await Notification.create({
+      userId: application.userId,
+      type: 'status_update',
+      title: 'Interview Request',
+      message: `${job.company} has requested to interview you for the ${job.title} role! Please check your dashboard to confirm a time.`,
+      link: `/applications/${application._id}`
+    });
+
+    res.json({ message: 'Interview scheduled', application });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Submit AI Feedback (RLHF)
+router.patch('/:id/feedback', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const { wasAiWrong, reasonCode } = req.body;
+    const application = await Application.findById(req.params.id);
+    if (!application) return res.status(404).json({ error: 'Not found' });
+    
+    const job = await Job.findById(application.jobId);
+    if (!job || job.postedBy.toString() !== req.user!.userId) {
+      return res.status(403).json({ error: 'Unauthorized to submit feedback on this job' });
+    }
+
+    application.recruiterFeedback = {
+      wasAiWrong,
+      reasonCode,
+      submittedAt: new Date()
+    };
+    await application.save();
+    
+    res.json({ message: 'Feedback stored successfully' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
   }
 });
 

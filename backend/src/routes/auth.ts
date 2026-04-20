@@ -93,6 +93,7 @@ router.post(
           isRecruiter: user.isRecruiter,
           role: user.role,
           permissions: user.permissions,
+          isActive: user.isActive !== false,
         },
         token,
       });
@@ -146,6 +147,7 @@ router.post(
           isRecruiter: user.isRecruiter,
           role: user.role,
           permissions: user.permissions,
+          isActive: user.isActive !== false,
         },
         token,
       });
@@ -184,7 +186,7 @@ router.get('/me', authenticate, async (req: AuthRequest, res) => {
       isRecruiter: user.isRecruiter,
       role: user.role,
       permissions: user.permissions,
-      isActive: user.isActive,
+      isActive: user.isActive !== false,
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -298,6 +300,7 @@ router.post(
           isRecruiter: user.isRecruiter,
           role: user.role,
           permissions: user.permissions,
+          isActive: user.isActive !== false,
         },
         token: jwtToken,
       });
@@ -375,6 +378,7 @@ router.post('/google', async (req: express.Request, res: express.Response) => {
         isRecruiter: user.isRecruiter,
         role: user.role,
         permissions: user.permissions,
+        isActive: user.isActive !== false,
       },
       token,
     });

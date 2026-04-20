@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Page, Job } from '../../types';
 import Header from './Header';
@@ -14,7 +13,6 @@ import SettingsPage from '../pages/SettingsPage';
 import { useAuth } from '../../context/AuthContext';
 import { canAccessPage } from '../../utils/rbac';
 import { jobsAPI } from '../../services/api';
-
 
 interface MainLayoutProps {
     currentPage: Page;
@@ -107,27 +105,21 @@ const MainLayout: React.FC<MainLayoutProps> = ({ currentPage, navigate, onLogout
         }
     };
 
-    const handleNavigate = (page: Page) => {
-        // Require auth for protected pages
-        const protectedPages: Page[] = ['profile', 'messages', 'notifications', 'upload_video', 'admin', 'settings'];
-
-        if (protectedPages.includes(page) && !isAuthenticated) {
-            requireAuth(() => navigate(page), currentPage);
-            return;
-        }
-
-        if (isAuthenticated && !canAccessPage(user?.role, page)) {
-            navigate('dashboard');
-            return;
-        }
-
-        navigate(page);
-    };
-
     return (
-        <div className="bg-[#f5f5f7] dark:bg-gray-900 min-h-screen">
+        <div className="bg-[var(--bg)] min-h-screen">
             <Header 
-                navigate={handleNavigate} 
+                navigate={(page: Page) => {
+                    const protectedPages: Page[] = ['profile', 'messages', 'notifications', 'upload_video', 'admin', 'settings'];
+                    if (protectedPages.includes(page) && !isAuthenticated) {
+                        requireAuth(() => navigate(page), currentPage);
+                        return;
+                    }
+                    if (isAuthenticated && !canAccessPage(user?.role, page)) {
+                        navigate('dashboard');
+                        return;
+                    }
+                    navigate(page);
+                }}
                 onLogout={onLogout} 
                 currentPage={currentPage} 
                 theme={theme} 
