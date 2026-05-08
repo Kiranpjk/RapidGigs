@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { jobsAPI, applicationsAPI, categoriesAPI, matchingAPI, fetchWithAuth, fetchBlobWithAuth } from '../../services/api';
 import { XMarkIcon } from '../icons/Icons';
 import Swal from 'sweetalert2';
+import InterviewModal from '../recruiter/InterviewModal';
 
 const API_BASE = (import.meta.env.VITE_API_BASE as string) || 'http://localhost:3001/api';
 const BASE_URL = (import.meta.env.VITE_API_BASE as string)?.replace('/api', '') || 'http://localhost:3001';
@@ -230,7 +231,23 @@ const ReviewApplicationsPage: React.FC<ReviewApplicationsPageProps> = ({ initial
                 setFeedbackApp({ id: appId, name: currentApp?.userId?.name || 'Candidate', score: match.matchScore, type: 'rejected_high' });
             }
 
-            Swal.fire({ title: status === 'shortlisted' ? 'Shortlisted' : 'Rejected', icon: status === 'shortlisted' ? 'success' : 'error', toast: true, position: 'bottom-end', showConfirmButton: false, timer: 1500 });
+            const statusLabels: Record<string, string> = {
+                shortlisted: 'Shortlisted',
+                rejected: 'Rejected',
+                interviewing: 'Ready for Interview',
+                hired: 'Hired',
+                pending: 'Set to Pending',
+                reviewing: 'Moved to Review'
+            };
+
+            Swal.fire({ 
+                title: statusLabels[status] || 'Status Updated', 
+                icon: (status === 'shortlisted' || status === 'hired' || status === 'interviewing') ? 'success' : (status === 'rejected' ? 'error' : 'info'), 
+                toast: true, 
+                position: 'bottom-end', 
+                showConfirmButton: false, 
+                timer: 1500 
+            });
         } catch {}
         setUpdatingId(null);
     };
@@ -611,10 +628,26 @@ const ReviewApplicationsPage: React.FC<ReviewApplicationsPageProps> = ({ initial
                                             `}
                                             onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('border-violet-500/50', 'bg-violet-500/5'); }}
                                             onDragLeave={(e) => { e.currentTarget.classList.remove('border-violet-500/50', 'bg-violet-500/5'); }}
-                                            onDrop={(e) => {
+                                            onDrop={async (e) => {
                                                 e.currentTarget.classList.remove('border-violet-500/50', 'bg-violet-500/5');
                                                 const appId = e.dataTransfer.getData('appId');
-                                                if (appId) handleStatusChange(appId, col.status);
+                                                if (!appId) return;
+
+                                                const result = await Swal.fire({
+                                                    title: 'Change Status?',
+                                                    text: `Move candidate to ${col.title}?`,
+                                                    icon: 'question',
+                                                    showCancelButton: true,
+                                                    confirmButtonText: 'Yes, move',
+                                                    cancelButtonText: 'Cancel',
+                                                    background: '#18181b',
+                                                    color: '#fff',
+                                                    confirmButtonColor: '#7c3aed',
+                                                });
+
+                                                if (result.isConfirmed) {
+                                                    handleStatusChange(appId, col.status);
+                                                }
                                             }}
                                         >
                                             <div className="p-4 border-b border-[var(--border)] flex justify-between items-center bg-[var(--surface)] shrink-0">
@@ -1070,14 +1103,14 @@ const ReviewApplicationsPage: React.FC<ReviewApplicationsPageProps> = ({ initial
                                     <span><kbd className="px-1.5 py-0.5 bg-[var(--bg)] border border-[var(--border)] rounded mr-1">R</kbd> Reject</span>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <button onClick={() => handleStatusChange(id, 'rejected')} className="px-4 py-2 text-[12px] font-bold text-red-500 hover:bg-red-500/10 rounded-lg">Pass</button>
+                                    <button onClick={() => handleStatusChange(id, 'rejected')} className="px-4 py-2 text-[12px] font-bold text-red-500 hover:bg-red-500/10 rounded-lg transition-colors">Pass</button>
                                     <button 
                                         onClick={() => {
-                                            setSchedulingApp(app);
-                                            setScheduleForm({ timeSlots: [''], meetingType: 'Google Meet', meetingLink: '' });
+                                            const appToSchedule = applications.find(a => (a._id || a.id) === id);
+                                            setSchedulingApp(appToSchedule);
                                             setExpandedApp(null);
                                         }}
-                                        className="px-6 py-2 bg-violet-600 text-white text-[12px] font-black rounded-lg hover:bg-violet-500 shadow-lg shadow-violet-600/20"
+                                        className="px-6 py-2 bg-violet-600 text-white text-[12px] font-black rounded-lg hover:bg-violet-500 shadow-lg shadow-violet-600/20 transition-all font-sans"
                                     >
                                         Schedule Interview
                                     </button>
@@ -1124,112 +1157,18 @@ const ReviewApplicationsPage: React.FC<ReviewApplicationsPageProps> = ({ initial
 
             {/* ═══ Interview Scheduling Modal ════════════════════════════════ */}
             {schedulingApp && (
-                <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in" onClick={() => setSchedulingApp(null)}>
-                    <div className="bg-[var(--bg)] w-full max-w-md rounded-xl border border-[var(--border-strong)] shadow-2xl overflow-hidden flex flex-col animate-scale-in" onClick={e => e.stopPropagation()}>
-                        
-                        {/* Header */}
-                        <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between bg-[var(--surface)]">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-[var(--surface-hover)] border border-[var(--border)] flex items-center justify-center font-bold text-[var(--text-primary)]">
-                                    {schedulingApp.applicant?.name?.charAt(0) || 'C'}
-                                </div>
-                                <div>
-                                    <h2 className="text-[14px] font-bold text-[var(--text-primary)] leading-tight">{schedulingApp.applicant?.name || 'Candidate'}</h2>
-                                    <p className="text-[12px] text-[var(--text-tertiary)]">{jobs.find(j => (j._id || j.id) === selectedJobId)?.title || 'Role'}</p>
-                                </div>
-                            </div>
-                            <button onClick={() => setSchedulingApp(null)} className="p-1 rounded-md text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)] hover:text-white transition-colors">
-                                <XMarkIcon className="w-5 h-5" />
-                            </button>
-                        </div>
-
-                        {/* Body */}
-                        <div className="p-5 space-y-5">
-                            {/* Time Slots */}
-                            <div className="space-y-3">
-                                <label className="text-[12px] font-semibold text-[var(--text-secondary)] block uppercase tracking-wider">Select Time Slots</label>
-                                {scheduleForm.timeSlots.map((slot, index) => (
-                                    <div key={index} className="flex items-center gap-2">
-                                        <input 
-                                            type="datetime-local" 
-                                            value={slot} 
-                                            onChange={(e) => {
-                                                const newSlots = [...scheduleForm.timeSlots];
-                                                newSlots[index] = e.target.value;
-                                                setScheduleForm({ ...scheduleForm, timeSlots: newSlots });
-                                            }}
-                                            className={`${inputClass} bg-[#111113] border-zinc-800 text-sm`}
-                                        />
-                                        {scheduleForm.timeSlots.length > 1 && (
-                                            <button 
-                                                onClick={() => {
-                                                    const newSlots = scheduleForm.timeSlots.filter((_, i) => i !== index);
-                                                    setScheduleForm({ ...scheduleForm, timeSlots: newSlots });
-                                                }}
-                                                className="text-[var(--text-tertiary)] hover:text-red-400 p-2"
-                                            >
-                                                ✕
-                                            </button>
-                                        )}
-                                    </div>
-                                ))}
-                                {scheduleForm.timeSlots.length < 3 && (
-                                    <button 
-                                        onClick={() => setScheduleForm({ ...scheduleForm, timeSlots: [...scheduleForm.timeSlots, ''] })}
-                                        className="text-[12px] font-medium text-violet-400 hover:text-violet-300"
-                                    >
-                                        + Add another time slot
-                                    </button>
-                                )}
-                            </div>
-
-                            {/* Meeting Info */}
-                            <div className="space-y-3">
-                                <label className="text-[12px] font-semibold text-[var(--text-secondary)] block uppercase tracking-wider">Interview Mode</label>
-                                <select 
-                                    value={scheduleForm.meetingType}
-                                    onChange={(e) => setScheduleForm({ ...scheduleForm, meetingType: e.target.value })}
-                                    className={`${inputClass} bg-[#111113] border-zinc-800 text-sm appearance-none`}
-                                    style={{ backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%24%2024%22%20fill%3D%22none%22%20stroke%3D%22%23a1a1aa%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
-                                >
-                                    <option value="Google Meet">Google Meet</option>
-                                    <option value="Zoom">Zoom</option>
-                                    <option value="Phone">Phone Call</option>
-                                    <option value="External">External System (Add Link)</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <input 
-                                    type="text" 
-                                    placeholder="Paste Google Meet, Zoom link, or instructions..." 
-                                    value={scheduleForm.meetingLink}
-                                    onChange={(e) => setScheduleForm({ ...scheduleForm, meetingLink: e.target.value })}
-                                    className={`${inputClass} bg-[#111113] border-zinc-800 text-sm`}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Footer */}
-                        <div className="px-5 py-4 border-t border-[var(--border)] bg-[var(--surface)] flex flex-col gap-2">
-                            <button 
-                                onClick={handleScheduleInterview} 
-                                disabled={isScheduling || !scheduleForm.timeSlots[0]}
-                                className="w-full py-2.5 bg-violet-600 text-white text-[13px] font-bold rounded-lg hover:bg-violet-500 transition-colors disabled:opacity-50 flex items-center justify-center shadow-lg shadow-violet-500/20"
-                            >
-                                {isScheduling ? 'Sending...' : 'Send Invite'}
-                            </button>
-                            <button 
-                                onClick={handleSkipScheduling}
-                                disabled={isScheduling}
-                                className="w-full py-2.5 text-[12px] font-medium text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
-                            >
-                                Skip & mark as interviewing
-                            </button>
-                        </div>
-
-                    </div>
-                </div>
+                <InterviewModal 
+                    app={schedulingApp}
+                    jobTitle={jobs.find(j => (j._id || j.id) === selectedJobId)?.title || 'Role'}
+                    onClose={() => setSchedulingApp(null)}
+                    onSchedule={async (data) => {
+                        // Map the data to the format handleScheduleInterview expects from state
+                        setScheduleForm(data);
+                        setTimeout(() => handleScheduleInterview(), 0);
+                    }}
+                    onSkip={handleSkipScheduling}
+                    isScheduling={isScheduling}
+                />
             )}
             {/* ═══ AI Feedback Loop Toast ══════════════════════════════════ */}
             {feedbackApp && (

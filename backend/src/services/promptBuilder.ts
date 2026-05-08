@@ -41,26 +41,26 @@ STRUCTURE (MANDATORY 3 SEGMENTS):
 
 1. SEGMENT 1 — THE IDENTITY (0-8s): 
    - CATEGORY: Who and Where.
-   - OVERLAY FORMAT:
-     Line 1: [Specific Role (e.g. Code Lead)]
-     Line 2: [Company Name]
-     Line 3: [Location]
+   - OVERLAY FORMAT (STRICTLY 3 LINES):
+     Line 1: [Specific Role (e.g. Lead Developer)]
+     Line 2: [Company Name (The full name of the company)]
+     Line 3: [Location (City or 'Remote')]
+   - CRITICAL: Do NOT omit the company or location. All 3 lines must be present.
 
-2. SEGMENT 2 — THE STACK (8-16s):
-   - CATEGORY: Technical tools.
-   - OVERLAY FORMAT:
-     Line 1: [Core Tech 1]
-     Line 2: [Core Tech 2]
-     Line 3: [Core Tech 3]
-     Line 4: [Core Tech 4 (if any)]
+2. SEGMENT 2 — THE EXPERTISE (8-16s):
+   - CATEGORY: Technical tools and required experience.
+   - OVERLAY FORMAT (3-4 LINES):
+     Line 1: [Years of Experience Required]
+     Line 2: [Core Tech 1]
+     Line 3: [Core Tech 2]
+     Line 4: [Core Tech 3]
 
 3. SEGMENT 3 — THE REWARD (16-24s):
    - CATEGORY: Compensation and benefits.
-   - OVERLAY FORMAT:
-     Line 1: Salary: [Amount]
-     Line 2: [Perk 1 (e.g. Free Coffee)]
-     Line 3: [Perk 2 (e.g. Free Meals)]
-     Line 4: [Perk 3 (if any)]
+   - OVERLAY FORMAT (STRICTLY 2 LINES):
+     Line 1: Salary: [Amount (e.g. 20k, $100k)]
+     Line 2: Apply Now
+   - CRITICAL: This segment must be short to lead into the final end card.
 
 Return JSON:
 {
@@ -78,10 +78,9 @@ Return JSON:
 
 CAPTION RULES:
 1. overlayText MUST use \\n to separate lines as specified above.
-2. Keep each line very short (max 12-15 characters).
-3. Use simple, high-intent words.
-
-CRITICAL: Output ONLY the raw JSON object. No markdown, no explanation.`;
+2. Keep each line very short (max 15 characters).
+3. For Segment 1, line 2 MUST be the company name.
+4. Use simple, high-intent words.`;
 
 async function siliconFlowChatCompletion(system: string, user: string): Promise<string | null> {
   const sk = process.env.QWEN_API_KEY;
@@ -257,8 +256,8 @@ function chunkText(text: string, maxLen: number = 20): string {
   });
   if (currentLine) lines.push(currentLine.trim());
   
-  // Return only first 2 lines to keep it clean in vertical video
-  return lines.slice(0, 2).join('\n');
+  // Return up to 4 lines for rich info (Profile/Role/Company)
+  return lines.slice(0, 4).join('\n');
 }
 
 function parseVideoScript(jsonString: string): VideoScript | null {
@@ -379,18 +378,18 @@ function buildDefaultScript(jobDescription: string): VideoScript {
     segments: [
       {
         visualPrompt: `Extreme close-up shot of a human hand holding a black marker, drawing arrows and database cylinder icons on a frosted glass whiteboard, shallow depth of field with background bokeh showing blurred monitor screens, natural diffused daylight from left side window, slight lens flare catching the marker tip, micro-detail of ink spreading on glass surface, handheld camera with subtle organic shake, color grade cool blue-white tones, photorealistic 4K, cinematic 24fps`,
-        overlayText: `${company} | ${title}`,
-        caption: `🚀 Hiring: ${title} @ ${company}. Ship features week 1.`,
+        overlayText: `${title}\n${company}\n${location}`,
+        caption: `🚀 Hiring: ${title} @ ${company} in ${location}.`,
       },
       {
         visualPrompt: `Medium shot of a dual ultrawide monitor setup on a standing desk, left monitor showing VS Code with TypeScript code syntax highlighted in deep blue and orange, right monitor showing a Kubernetes dashboard with green metrics, RGB keyboard with subtle blue underglow on dark wooden desk surface, mechanical keyboard partially in foreground sharp focus, background showing open plan office with soft bokeh of other desks and plants, overhead diffused lighting with warm color temperature 3200K, slow dolly left to right movement covering 15cm over 4 seconds, shallow depth of field f/1.8, micro-detail of cable management visible, color grade desaturated with slight film grain, photorealistic 4K, cinematic 24fps`,
-        overlayText: `React • Node.js\nSystem Design`,
+        overlayText: `React • Node.js\nTypeScript\nSystem Design`,
         caption: `💻 Build apps used by 2M+ users with an elite team.`,
       },
       {
         visualPrompt: `Wide shot of a minimal home office at golden hour, a laptop open on a clean white desk showing a GitHub pull request marked merged in green, ceramic coffee mug with steam rising catching warm window light, indoor plant in soft focus background, no people visible, dust particles visible in sunbeam from left window, camera completely static on tripod, micro-detail of wood grain on desk surface and condensation ring from previous coffee mug, color grade warm golden tones desaturated 20 percent, photorealistic 4K, cinematic 24fps. Pure cinematic background only. Absolutely no text, letters, words, numbers, or characters of any kind anywhere in the frame. If any text appears the shot is rejected.`,
-        overlayText: `${pay} | Apply Now`,
-        caption: `💰 ${pay} • Remote First • Apply Now on RapidGigs.`,
+        overlayText: `${pay}\nApply Now\nRapidGigs`,
+        caption: `💰 ${pay} • ${workType} • Apply Now.`,
       }
     ]
   };

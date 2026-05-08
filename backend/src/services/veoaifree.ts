@@ -203,7 +203,7 @@ export async function generateVideoVeoAiFree(
     console.log(`[VeoAiFree] Navigating to ${VEOAIFREE_URL}...`);
     onProgress?.('VeoAiFree: Loading website...', 0.1);
     
-    await page.goto(VEOAIFREE_URL, { waitUntil: 'networkidle2', timeout: 60000 });
+    await page.goto(VEOAIFREE_URL, { waitUntil: 'networkidle2', timeout: 120000 });
     await dismissVignetteAds(page);
     await new Promise(r => setTimeout(r, 2000));
 
@@ -282,7 +282,7 @@ export async function generateVideoVeoAiFree(
     onProgress?.('VeoAiFree: Loading generator...', 0.25);
     
     try {
-      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 });
+      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 });
     } catch {
       // May already have navigated
     }

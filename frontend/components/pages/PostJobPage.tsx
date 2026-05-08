@@ -17,7 +17,7 @@ interface DraftState { form: FormState; videoSource: 'ai' | 'sample' | null; gen
 const EMPTY_FORM: FormState = { title: '', company: '', location: '', type: 'Remote', pay: '', maxSlots: '1', category: '', description: '', requirements: '', shortVideoUrl: '' };
 
 function loadDraft(): DraftState {
-  try { const raw = localStorage.getItem(DRAFT_KEY); if (raw) { const p = JSON.parse(raw) as DraftState; if (p.form && typeof p.form.title === 'string') return p; } } catch {}
+  try { const raw = localStorage.getItem(DRAFT_KEY); if (raw) { const p = JSON.parse(raw) as DraftState; if (p.form && typeof p.form.title === 'string') return p; } } catch { }
   return { form: { ...EMPTY_FORM }, videoSource: null, generateVideoOnPost: true, success: false, postedJobId: null };
 }
 
@@ -36,8 +36,8 @@ const PostJobPage: React.FC<{ navigate: (page: Page) => void }> = ({ navigate })
   const [magicText, setMagicText] = useState('');
   const [inlineFactIndex, setInlineFactIndex] = useState(0);
 
-  useEffect(() => { try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ form, videoSource, generateVideoOnPost, success, postedJobId })); } catch {} }, [form, videoSource, generateVideoOnPost, success, postedJobId]);
-  useEffect(() => { categoriesAPI.getAll().then(data => setCategories(Array.isArray(data) ? data : [])).catch(() => {}); }, []);
+  useEffect(() => { try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ form, videoSource, generateVideoOnPost, success, postedJobId })); } catch { } }, [form, videoSource, generateVideoOnPost, success, postedJobId]);
+  useEffect(() => { categoriesAPI.getAll().then(data => setCategories(Array.isArray(data) ? data : [])).catch(() => { }); }, []);
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -52,7 +52,7 @@ const PostJobPage: React.FC<{ navigate: (page: Page) => void }> = ({ navigate })
       const savedJobId = result.id || result._id;
       setPostedJobId(savedJobId);
       if (generateVideoOnPost && !form.shortVideoUrl && savedJobId) {
-        try { const r = await shortsAPI.generateFromJob(savedJobId); if (r.jobId) startJob(r.jobId, `${form.title} @ ${form.company}`, { fromPostJob: true, mongoJobId: savedJobId }); } catch {}
+        try { const r = await shortsAPI.generateFromJob(savedJobId); if (r.jobId) startJob(r.jobId, `${form.title} @ ${form.company}`, { fromPostJob: true, mongoJobId: savedJobId }); } catch { }
       }
       setSuccess(true);
     } catch (err: any) { setError(err.message || 'Failed to post job.'); } finally { setIsLoading(false); }
@@ -154,16 +154,37 @@ const PostJobPage: React.FC<{ navigate: (page: Page) => void }> = ({ navigate })
       </div>
 
       {/* AI Copilot */}
-      <div className="border border-[var(--border)] rounded-lg p-4 mb-8">
-        <div className="flex items-center gap-2 mb-2">
+      <div className="border border-[var(--border)] rounded-lg p-4 mb-8 bg-[var(--surface)]/30">
+        <div className="flex items-center gap-2 mb-3">
           <SparklesIcon className="w-3.5 h-3.5 text-[var(--accent)]" />
           <span className="text-[11px] font-medium text-[var(--text-tertiary)] uppercase tracking-wider">AI Copilot</span>
         </div>
-        <div className="flex gap-2">
-          <textarea placeholder="Paste a rough job description and let AI structure it for you…" className={`${input} flex-1 h-10 resize-none py-2`} value={magicText} onChange={e => setMagicText(e.target.value)} />
-          <button onClick={handleMagicFill} disabled={isParsing || !magicText.trim()} className="px-4 bg-[var(--accent)] text-white text-[12px] font-medium rounded-md disabled:opacity-40 hover:opacity-90 transition-opacity shrink-0">
-            {isParsing ? '…' : 'Fill'}
-          </button>
+        <div className="relative">
+          <textarea 
+            placeholder="Paste your rough job description here and AI will structure it..." 
+            className={`${input} min-h-[300px] py-4 leading-relaxed resize-y pb-16`} 
+            value={magicText} 
+            onChange={e => setMagicText(e.target.value)} 
+          />
+          <div className="absolute bottom-4 right-4">
+            <button 
+              onClick={handleMagicFill} 
+              disabled={isParsing || !magicText.trim()} 
+              className="px-6 py-2.5 bg-[var(--accent)] text-white text-[12px] font-bold rounded-md disabled:opacity-40 hover:opacity-90 transition-all flex items-center gap-2 shadow-xl shadow-[var(--accent)]/20"
+            >
+              {isParsing ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Parsing...</span>
+                </>
+              ) : (
+                <>
+                  <SparklesIcon className="w-4 h-4" />
+                  <span>Fill Form</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 

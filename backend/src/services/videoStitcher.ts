@@ -234,6 +234,9 @@ async function stitchThreeSegments(
     const overlayRaw = script.segments?.[i]?.overlayText || '';
     let drawtextFilters: string[] = [];
 
+    // Define when the end card starts (last 4 seconds of the final segment)
+    const finalStartTime = isFinalSegment ? Math.max(0, duration - 4.0).toFixed(2) : duration.toFixed(2);
+
     // Regular caption handling
     if (overlayRaw) {
       const overlayLines = overlayRaw.split('\n').filter(Boolean);
@@ -245,15 +248,11 @@ async function stitchThreeSegments(
         // Move captions slightly higher (1300 instead of 1450) to avoid status bar overlap
         const yPos = 1300 + (lineIdx * (fontSize + 35));
         
-        // Use 'between' for captions to stay within segment time
-        const enableText = `:enable='between(t,0,${duration.toFixed(2)})'`;
+        // Ensure regular captions STOP when end card starts in final segment
+        const enableText = `:enable='between(t,0,${finalStartTime})'`;
         drawtextFilters.push(`drawtext=text='${escaped}'${fontArg}:x=(w-text_w)/2:y=${yPos}:fontsize=${fontSize}:fontcolor=white:box=1:boxcolor=black@0.5:boxborderw=15:shadowcolor=black@0.3:shadowx=3:shadowy=3${enableText}`);
       });
     }
-
-    // Burn-in Captions for this specific segment (using cumulativeTime for the final stitch)
-    // However, for individual segments being pre-processed, 't' starts at 0.
-    // We only need the Segment captions here if we aren't using the End Card.
 
     // End Card handling for the final segment
     if (isFinalSegment) {
@@ -267,9 +266,6 @@ async function stitchThreeSegments(
       const wrappedTitle = wrapText(script.jobTitle || 'Senior Role', 18);
       const wrappedLocation = wrapText(locBase, 20);
       const wrappedSalary = wrapText(salaryBase, 15);
-      
-      // CHANGE: End card now lasts for 4 seconds for "Complete Details"
-      const finalStartTime = Math.max(0, duration - 4.0).toFixed(2);
       
       const companyLines = wrappedCompany.split('\n');
       companyLines.forEach((line, idx) => {
