@@ -263,13 +263,12 @@ const PostJobPage: React.FC<{ navigate: (page: Page) => void }> = ({ navigate })
           </div>
         )}
 
-        {/* Sticky CTA */}
         <div className="sticky bottom-6 z-40">
           <div className="flex gap-3 bg-[var(--bg)]/80 backdrop-blur-sm border border-[var(--border)] rounded-lg p-3">
-            <button type="button" onClick={() => navigate('dashboard')} className="flex-1 py-3 text-[13px] font-medium text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
+            <button type="button" onClick={() => navigate('dashboard')} className="flex-1 py-3 text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
               Cancel
             </button>
-            <button type="submit" disabled={isLoading} className="flex-[2] py-3 bg-[var(--text-primary)] text-[var(--bg)] text-[13px] font-medium rounded-md hover:opacity-90 transition-opacity disabled:opacity-50">
+            <button type="submit" disabled={isLoading} className="flex-1 py-3 bg-[var(--text-primary)] text-[var(--bg)] text-[13px] font-medium rounded-md hover:opacity-90 transition-opacity disabled:opacity-50">
               {isLoading ? 'Publishing…' : 'Publish Job'}
             </button>
           </div>

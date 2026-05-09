@@ -14,6 +14,13 @@ import { v2 as cloudinary } from 'cloudinary';
 import { VideoScript } from './promptBuilder';
 import { generateJobVideo } from './videoEngine';
 
+// FFmpeg setup for Cloud (Render/etc)
+const localFfmpeg = path.join(process.cwd(), 'bin', 'ffmpeg');
+if (fs.existsSync(localFfmpeg)) {
+  ffmpeg.setFfmpegPath(localFfmpeg);
+  console.log('[VideoStitcher] Using local FFmpeg binary:', localFfmpeg);
+}
+
 const UPLOADS_DIR = path.join(process.cwd(), 'uploads', 'ai-videos');
 
 // Ensure directory exists
@@ -237,20 +244,41 @@ async function stitchThreeSegments(
     // Define when the end card starts (last 4 seconds of the final segment)
     const finalStartTime = isFinalSegment ? Math.max(0, duration - 4.0).toFixed(2) : duration.toFixed(2);
 
-    // Regular caption handling
+    // Regular caption handling with Dynamic Styling
     if (overlayRaw) {
       const overlayLines = overlayRaw.split('\n').filter(Boolean);
       overlayLines.forEach((text, lineIdx) => {
-        const paddedText = `  ${text.trim()}  `;
+        const paddedText = ` ${text.trim()} `;
         const escaped = escapeDrawtext(paddedText);
-        const baseSize = 52; // Slightly larger
-        const fontSize = lineIdx === 0 ? baseSize + 8 : lineIdx === 2 ? baseSize - 10 : baseSize;
-        // Move captions slightly higher (1300 instead of 1450) to avoid status bar overlap
-        const yPos = 1300 + (lineIdx * (fontSize + 35));
         
-        // Ensure regular captions STOP when end card starts in final segment
-        const enableText = `:enable='between(t,0,${finalStartTime})'`;
-        drawtextFilters.push(`drawtext=text='${escaped}'${fontArg}:x=(w-text_w)/2:y=${yPos}:fontsize=${fontSize}:fontcolor=white:box=1:boxcolor=black@0.5:boxborderw=15:shadowcolor=black@0.3:shadowx=3:shadowy=3${enableText}`);
+        let fontSize = 52;
+        let fontColor = 'white';
+        let boxColor = 'black@0.4'; // Semi-transparent glass look
+        let yBase = 1320;
+
+        // SEGMENT-SPECIFIC STYLING
+        if (i === 0) { // Segment 1: Identity
+          if (lineIdx === 0) { fontSize = 64; fontColor = 'white'; } // Role: Large/White
+          if (lineIdx === 1) { fontSize = 54; fontColor = '0x6366F1'; } // Company: Indigo
+          if (lineIdx === 2) { fontSize = 42; fontColor = '0xF59E0B'; } // Location: Orange
+          yBase = 1250;
+        } else if (i === 1) { // Segment 2: Skills
+          fontSize = 50;
+          fontColor = lineIdx === 0 ? '0x6366F1' : 'white'; // First line is Indigo header
+          yBase = 1300;
+        } else { // Segment 3: Reward
+          fontSize = 58;
+          fontColor = 'white';
+          yBase = 1320;
+        }
+
+        const yPos = yBase + (lineIdx * (fontSize + 30));
+        
+        // Ensure regular captions STOP 0.1s BEFORE end card starts to prevent flicker/overlap
+        const stopTime = isFinalSegment ? (parseFloat(finalStartTime) - 0.1).toFixed(2) : finalStartTime;
+        const enableText = `:enable='between(t,0,${stopTime})'`;
+        
+        drawtextFilters.push(`drawtext=text='${escaped}'${fontArg}:x=(w-text_w)/2:y=${yPos}:fontsize=${fontSize}:fontcolor=${fontColor}:box=1:boxcolor=${boxColor}:boxborderw=12:shadowcolor=black@0.2:shadowx=2:shadowy=2${enableText}`);
       });
     }
 
@@ -269,30 +297,30 @@ async function stitchThreeSegments(
       
       const companyLines = wrappedCompany.split('\n');
       companyLines.forEach((line, idx) => {
-        const yCoord = 700 + (idx * 60);
+        const yCoord = 600 + (idx * 60);
         drawtextFilters.push(`drawtext=text='${escapeDrawtext(line)}'${fontArg}:x=(w-text_w)/2:y=${yCoord}:fontsize=48:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=20:enable='gt(t,${finalStartTime})'`);
       });
 
       const titleLines = wrappedTitle.split('\n');
       titleLines.forEach((line, idx) => {
-        const yCoord = 880 + (idx * 65);
+        const yCoord = 780 + (idx * 65);
         drawtextFilters.push(`drawtext=text='${escapeDrawtext(line)}'${fontArg}:x=(w-text_w)/2:y=${yCoord}:fontsize=52:fontcolor=0x6366f1:box=1:boxcolor=black@0.6:boxborderw=20:enable='gt(t,${finalStartTime})'`);
       });
 
       const locationLines = wrappedLocation.split('\n');
       locationLines.forEach((line, idx) => {
-        const yCoord = 1060 + (idx * 50);
+        const yCoord = 960 + (idx * 50);
         drawtextFilters.push(`drawtext=text='${escapeDrawtext(line)}'${fontArg}:x=(w-text_w)/2:y=${yCoord}:fontsize=40:fontcolor=0xF59E0B:box=1:boxcolor=black@0.6:boxborderw=20:enable='gt(t,${finalStartTime})'`);
       });
 
       const salaryLines = wrappedSalary.split('\n');
       salaryLines.forEach((line, idx) => {
-        const yCoord = 1220 + (idx * 55);
+        const yCoord = 1140 + (idx * 55);
         drawtextFilters.push(`drawtext=text='${escapeDrawtext(line)}'${fontArg}:x=(w-text_w)/2:y=${yCoord}:fontsize=42:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=20:enable='gt(t,${finalStartTime})'`);
       });
 
-      drawtextFilters.push(`drawtext=text='COMPLETE DETAILS'${fontArg}:x=(w-text_w)/2:y=1400:fontsize=44:fontcolor=white:box=1:boxcolor=black@0.7:boxborderw=15:enable='gt(t,${finalStartTime})'`);
-      drawtextFilters.push(`drawtext=text='APPLY NOW'${fontArg}:x=(w-text_w)/2:y=1550:fontsize=52:fontcolor=white:box=1:boxcolor=0x4F46E5@0.9:boxborderw=25:enable='gt(t,${finalStartTime})'`);
+      drawtextFilters.push(`drawtext=text='COMPLETE DETAILS'${fontArg}:x=(w-text_w)/2:y=1320:fontsize=44:fontcolor=white:box=1:boxcolor=black@0.7:boxborderw=15:enable='gt(t,${finalStartTime})'`);
+      drawtextFilters.push(`drawtext=text='APPLY NOW'${fontArg}:x=(w-text_w)/2:y=1500:fontsize=52:fontcolor=white:box=1:boxcolor=0x4F46E5@0.9:boxborderw=25:enable='gt(t,${finalStartTime})'`);
     }
 
     const drawtextJoined = drawtextFilters.length > 0 ? ',' + drawtextFilters.join(',') : '';

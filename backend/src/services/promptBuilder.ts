@@ -29,6 +29,7 @@ ALWAYS generate:
 - Dynamic movement: Handheld organic camera shake (not static!), slow cinematic dolly push-ins, or rack focus.
 - Depth: f/1.4 - f/1.8 aperture for extreme background bokeh and "dreamy" cinematic feel.
 - Imperfection: Don't make it perfect. Add a slightly messy desk, a half-empty coffee mug, or moving shadows.
+- VISUAL TRUTH: ONLY use information provided in the job description. Do NOT add outside facts, funding rounds, or batch info (like "YC S21") unless explicitly mentioned in the input text.
 
 NEVER generate:
 - Generic stock photo people or corporate "diverse team" lunches.
@@ -39,18 +40,19 @@ NEVER generate:
 
 STRUCTURE (MANDATORY 3 SEGMENTS):
 
-1. SEGMENT 1 — THE IDENTITY (0-8s): 
+1. SEGMENT 1 — THE HOOK & IDENTITY (0-8s): 
    - CATEGORY: Who and Where.
+   - HOOK: Use high-intent words like "Hiring Now", "Top Tier Role", or "Join the Team".
    - OVERLAY FORMAT (STRICTLY 3 LINES):
-     Line 1: [Specific Role (e.g. Lead Developer)]
-     Line 2: [Company Name (The full name of the company)]
+     Line 1: [Hook + Role (e.g. Hiring: Lead Dev)]
+     Line 2: [Company Name (The full name)]
      Line 3: [Location (City or 'Remote')]
    - CRITICAL: Do NOT omit the company or location. All 3 lines must be present.
 
-2. SEGMENT 2 — THE EXPERTISE (8-16s):
+2. SEGMENT 2 — THE EDGE (8-16s):
    - CATEGORY: Technical tools and required experience.
    - OVERLAY FORMAT (3-4 LINES):
-     Line 1: [Years of Experience Required]
+     Line 1: [Hook Text (e.g. Master these:)]
      Line 2: [Core Tech 1]
      Line 3: [Core Tech 2]
      Line 4: [Core Tech 3]
@@ -59,8 +61,7 @@ STRUCTURE (MANDATORY 3 SEGMENTS):
    - CATEGORY: Compensation and benefits.
    - OVERLAY FORMAT (STRICTLY 2 LINES):
      Line 1: Salary: [Amount (e.g. 20k, $100k)]
-     Line 2: Apply Now
-   - CRITICAL: This segment must be short to lead into the final end card.
+     Line 2: Apply Now on RapidGigs
 
 Return JSON:
 {
