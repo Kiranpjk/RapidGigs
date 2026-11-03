@@ -178,3 +178,7 @@ VITE_GOOGLE_CLIENT_ID=your_client_id.apps.googleusercontent.com
 - **Payment Service**: Docker (`payment-service/Dockerfile`), needs `PAYMENT_SERVICE_KEY` and `MONGO_URI`
 - **Database**: MongoDB Atlas (free tier, 512MB)
 - **Storage**: Cloudinary (free tier, 25GB)
+
+## More Docs
+
+Architecture, crawler and video-provider guides, plus Postman collections, are in [`docs/`](docs/).

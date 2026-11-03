@@ -55,3 +55,7 @@ fsck.txt
 # Deployment logs
 modal.log
 .vercel
+
+# Generated media
+uploads/
+*.mp4
