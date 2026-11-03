@@ -21,6 +21,8 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [liveJobs, setLiveJobs] = useState<Job[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
+    const [reloadKey, setReloadKey] = useState(0);
     const [sortBy, setSortBy] = useState<'latest' | 'relevant'>('latest');
     const [selectedJobForDetail, setSelectedJobForDetail] = useState<Job | null>(null);
 
@@ -32,6 +34,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
 
     useEffect(() => {
         setIsLoading(true);
+        setLoadError(false);
         const filters: any = {};
         if (debouncedSearch) filters.search = debouncedSearch;
         if (selectedCategory !== 'All') filters.category = selectedCategory;
@@ -49,9 +52,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                     status: j.status, likes: j.likes || 0, comments: j.comments || 0, shares: j.shares || 0,
                 })));
             })
-            .catch(() => {})
+            .catch(() => { setLiveJobs([]); setLoadError(true); })
             .finally(() => setIsLoading(false));
-    }, [debouncedSearch, selectedCategory, sortBy]);
+    }, [debouncedSearch, selectedCategory, sortBy, reloadKey]);
 
     const JobCard: React.FC<{ job: Job }> = ({ job }) => {
         const applied = hasApplied(job.id);
@@ -174,6 +177,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                         <input
                             type="text"
                             placeholder="Search roles, skills, companies…"
+                            aria-label="Search gigs"
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
                             className="w-full pl-11 pr-4 py-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text-primary)] shadow-sm placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-4 focus:ring-[var(--accent)]/10 focus:border-[var(--accent)] transition-all duration-200"
@@ -185,10 +189,11 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                 <div className="flex gap-1.5 overflow-x-auto pb-2 scrollbar-hide mb-6">
                     <button
                         onClick={() => setSelectedCategory('All')}
+                        aria-pressed={selectedCategory === 'All'}
                         className={`px-3 py-1.5 rounded-md text-[12px] font-medium whitespace-nowrap transition-colors duration-100 ${
                             selectedCategory === 'All'
                                 ? 'bg-[var(--text-primary)] text-[var(--bg)]'
-                                : 'text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)] border border-[var(--border)]'
+                                : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border)]'
                         }`}
                     >
                         All
@@ -197,10 +202,11 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                         <button
                             key={cat.id}
                             onClick={() => setSelectedCategory(cat.name)}
+                            aria-pressed={selectedCategory === cat.name}
                             className={`px-3 py-1.5 rounded-md text-[12px] font-medium whitespace-nowrap transition-colors duration-100 ${
                                 selectedCategory === cat.name
                                     ? 'bg-[var(--text-primary)] text-[var(--bg)]'
-                                    : 'text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)] border border-[var(--border)]'
+                                    : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border)]'
                             }`}
                         >
                             {cat.name}
@@ -223,6 +229,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                             <button
                                 key={s}
                                 onClick={() => setSortBy(s)}
+                                aria-pressed={sortBy === s}
                                 className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors duration-100 ${
                                     sortBy === s ? 'bg-[var(--surface)] text-[var(--text-primary)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
                                 }`}
@@ -247,10 +254,25 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                             {liveJobs.map((job, i) => <JobCard key={job.id ?? i} job={job} />)}
                         </div>
                         {liveJobs.length === 0 && (
-                            <div className="text-center py-20">
-                                <p className="text-sm text-[var(--text-tertiary)]">
-                                    {debouncedSearch ? 'No results — try a different search' : 'No jobs available right now'}
+                            <div className="text-center py-20" role="status">
+                                <p className="text-sm text-[var(--text-secondary)] mb-3">
+                                    {loadError
+                                        ? "Couldn't load gigs. The server may be starting up."
+                                        : debouncedSearch
+                                        ? `No gigs match "${debouncedSearch}".`
+                                        : selectedCategory !== 'All'
+                                        ? `No ${selectedCategory} gigs yet.`
+                                        : 'No gigs posted yet.'}
                                 </p>
+                                {loadError ? (
+                                    <button onClick={() => setReloadKey(k => k + 1)} className="px-3 py-1.5 text-[12px] font-medium rounded-md bg-[var(--text-primary)] text-[var(--bg)] hover:opacity-90">
+                                        Try again
+                                    </button>
+                                ) : (debouncedSearch || selectedCategory !== 'All') && (
+                                    <button onClick={() => { setSearchQuery(''); setSelectedCategory('All'); }} className="px-3 py-1.5 text-[12px] font-medium rounded-md border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]">
+                                        Show all gigs
+                                    </button>
+                                )}
                             </div>
                         )}
                     </>
