@@ -16,6 +16,7 @@ A video-first job platform connecting freelancers and recruiters with AI-powered
 - **Real-time Messaging** — Built-in chat between students and recruiters
 - **Role-based Access** — Separate dashboards for students and recruiters
 - **Cloud Storage** — File uploads stored on Cloudinary (persistent across deploys)
+- **Milestone Payments** — Java/Spring Boot escrow service: clients fund milestones, freelancers submit work, payment is released on approval ([details](payment-service/README.md))
 
 ## Tech Stack
 
@@ -23,6 +24,7 @@ A video-first job platform connecting freelancers and recruiters with AI-powered
 |-------|-----------|
 | Frontend | React 18, TypeScript, TailwindCSS, Vite |
 | Backend | Node.js, Express, TypeScript, MongoDB, Mongoose |
+| Payment Service | Java 21, Spring Boot 3.3, Spring Data MongoDB, JUnit 5 |
 | AI Services | Groq, OpenRouter, Ollama (text), Wan 2.1/Kling/Seedance (video) |
 | Storage | Cloudinary |
 | Auth | JWT + Google OAuth |
@@ -38,12 +40,12 @@ A video-first job platform connecting freelancers and recruiters with AI-powered
 │             │ ◀──────────── │                 │
 └─────────────┘   JSON/API    └────────┬────────┘
                                        │
-                              ┌────────┴────────┐
-                              │                 │
-                       ┌──────────────┐  ┌──────────────┐
-                       │  MongoDB     │  │  Cloudinary  │
-                       │  Atlas       │  │  (files)     │
-                       └──────────────┘  └──────────────┘
+                    ┌──────────────────┼──────────────────┐
+                    │                  │                  │
+           ┌────────────────┐  ┌──────────────┐  ┌──────────────┐
+           │ payment-service│  │  MongoDB     │  │  Cloudinary  │
+           │ (Spring Boot)  │─▶│  Atlas       │  │  (files)     │
+           └────────────────┘  └──────────────┘  └──────────────┘
 ```
 
 ## Getting Started
@@ -52,6 +54,7 @@ A video-first job platform connecting freelancers and recruiters with AI-powered
 
 - Node.js 22+
 - MongoDB (local or Atlas URI)
+- Java 21 + Maven (only for the payment service) — or just Docker
 
 ### Quick Start
 
@@ -82,11 +85,20 @@ npm install
 npm run dev
 ```
 
-Run tests:
+Run parts separately:
 ```bash
 npm run dev:backend   # backend only
 npm run dev:frontend  # frontend only
 ```
+
+**Payment service (Java):**
+```bash
+cd payment-service
+PAYMENT_SERVICE_KEY=dev mvn spring-boot:run
+mvn test   # escrow state-machine tests
+```
+
+Or run the whole stack: `docker compose up --build`
 
 ### Configuration
 
@@ -113,6 +125,10 @@ OPENROUTER_API_KEY=your_openrouter_key
 FAL_KEY=your_fal_key
 REPLICATE_API_TOKEN=your_replicate_token
 POLLINATIONS_KEY=your_pollinations_key
+
+# Payment service (same key in both services)
+PAYMENT_SERVICE_URL=http://localhost:8081
+PAYMENT_SERVICE_KEY=dev
 ```
 
 Create `frontend/.env`:
@@ -140,6 +156,9 @@ VITE_GOOGLE_CLIENT_ID=your_client_id.apps.googleusercontent.com
 | PATCH | `/api/users/:id` | Update profile |
 | GET | `/api/messages/threads` | Message threads |
 | POST | `/api/messages` | Send message |
+| POST | `/api/payments/contracts` | Create milestone contract |
+| GET | `/api/payments/contracts/:id` | View contract |
+| POST | `/api/payments/contracts/:id/milestones/:index/{fund,submit,approve,reject}` | Milestone escrow steps |
 
 ## AI Video Pipeline
 
@@ -156,5 +175,6 @@ VITE_GOOGLE_CLIENT_ID=your_client_id.apps.googleusercontent.com
 
 - **Frontend**: Vercel — auto-deploys on push to `main`
 - **Backend**: Render — build: `npm install && npm run build`, start: `npm start`
+- **Payment Service**: Docker (`payment-service/Dockerfile`), needs `PAYMENT_SERVICE_KEY` and `MONGO_URI`
 - **Database**: MongoDB Atlas (free tier, 512MB)
 - **Storage**: Cloudinary (free tier, 25GB)
