@@ -15,8 +15,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - app-net
 
   # ─── Backend API ───────────────────────────────────────────────────────────
   backend:
@@ -30,6 +28,8 @@ services:
       - JWT_SECRET=${JWT_SECRET:?You must set JWT_SECRET in your environment}
       - JWT_EXPIRES_IN=7d
       - HELIOS_SERVICE_URL=http://helios:8000
+      - PAYMENT_SERVICE_URL=http://payment-service:8081
+      - PAYMENT_SERVICE_KEY=${PAYMENT_SERVICE_KEY:?You must set PAYMENT_SERVICE_KEY in your environment}
       - HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN:-}
       - HF_TEXT_MODEL=${HF_TEXT_MODEL:-HuggingFaceH4/zephyr-7b-beta}
       - HF_VIDEO_MODEL=${HF_VIDEO_MODEL:-ali-vilab/text-to-video-ms-1.7b}
@@ -49,6 +49,20 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  # ─── Payment Service (Java / Spring Boot, milestone escrow) ───────────────
+  payment-service:
+    build: ./payment-service
+    # internal only — reached by backend over the Docker network
+    expose:
+      - "8081"
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017/rapidgig
+      - PAYMENT_SERVICE_KEY=${PAYMENT_SERVICE_KEY:?You must set PAYMENT_SERVICE_KEY in your environment}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    restart: unless-stopped
 
   # ─── Frontend (Nginx) ─────────────────────────────────────────────────────
   frontend:

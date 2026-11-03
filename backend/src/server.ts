@@ -31,6 +31,7 @@ import aiRoutes from './routes/ai';
 import webhookRoutes from './routes/webhooks';
 import crawlerRoutes from './routes/crawler';
 import matchingRoutes from './routes/matching';
+import paymentRoutes from './routes/payments';
 
 const app = express();
 const httpServer = createServer(app);
@@ -108,6 +109,7 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/crawler', crawlerRoutes);
 app.use('/api/matching', matchingRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Error handling middleware - must be LAST middleware after all routes
 app.use(errorHandler);
