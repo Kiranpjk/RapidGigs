@@ -37,7 +37,7 @@ export const connectDatabase = async (): Promise<void> => {
   try {
     try {
       await mongoose.connect(config.db.uri, { serverSelectionTimeoutMS: 5000 });
-      console.log('Connected to MongoDB at', config.db.uri);
+      console.log('Connected to MongoDB'); // never log the URI: it contains the password
     } catch (e) {
       // If connect fails and mongodb-memory-server is available, start an in-memory DB
       if (!process.env.MONGO_URI && mongoMemoryServer) {

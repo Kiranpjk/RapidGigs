@@ -1,8 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import path from 'path';
-import fs from 'fs';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { config } from './config/env';
@@ -159,23 +157,6 @@ io.on('connection', (socket) => {
 const startServer = async () => {
   try {
     await connectDatabase();
-    app.get('/api/debug-config', (req, res) => {
-      const pin = req.query.pin;
-      if (pin !== '1234') return res.status(403).json({ error: 'forbidden' });
-      
-      res.json({
-        cwd: process.cwd(),
-        dirname: __dirname,
-        envPath: path.resolve(process.cwd(), '.env'),
-        envExists: fs.existsSync(path.resolve(process.cwd(), '.env')),
-        env: {
-          META_AI_BRIDGE_URL: !!process.env.META_AI_BRIDGE_URL,
-          META_AI_COOKIE_DATR: !!process.env.META_AI_COOKIE_DATR,
-          META_AI_ECTO_1_SESS: !!process.env.META_AI_ECTO_1_SESS,
-        }
-      });
-    });
-
     const PORT = config.port;
     httpServer.listen(PORT, () => {
       console.log(`✅ Server running on http://localhost:${PORT}`);
