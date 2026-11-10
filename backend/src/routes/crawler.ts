@@ -11,8 +11,13 @@ import express, { Request, Response } from 'express';
 import { websiteCrawler, CrawledContent } from '../services/websiteCrawler';
 import { videoGenerationPipeline } from '../services/videoGenerationPipeline';
 import cron from 'node-cron';
+import { authenticate } from '../middleware/auth';
+import { requireAdmin } from '../middleware/rbac';
 
 const router = express.Router();
+
+// These routes start browser automation and paid video generation: admins only
+router.use(authenticate, requireAdmin);
 
 interface CrawlRequest {
   targetUrl: string;
