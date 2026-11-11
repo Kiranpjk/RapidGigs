@@ -22,7 +22,7 @@ const JobDetailModal: React.FC<JobDetailModalProps> = ({ job, isOpen, onClose, o
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
-            <div className="fixed inset-0 bg-[#17150f]/50 backdrop-blur-[2px] animate-fade-in" />
+            <div className="fixed inset-0 bg-[#141413]/50 backdrop-blur-[2px] animate-fade-in" />
 
             <div
                 role="dialog" aria-modal="true" aria-label={job.title}

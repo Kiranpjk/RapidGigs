@@ -19,16 +19,16 @@
 /* ─── Design Tokens ──────────────────────────────────────────────────────── */
 
 :root {
-  /* Warm paper neutrals + one accent (vermilion). Ink is the primary action colour;
+  /* Near-neutral greys + one accent (vermilion). Ink is the primary action colour;
      the accent is reserved for focus, active state and a few highlights. */
-  --bg: #fbfaf8;
-  --surface: #f4f2ee;
-  --surface-hover: #eeebe5;
-  --border: #e6e2da;
-  --border-strong: #d3cdc2;
-  --text-primary: #17150f;
-  --text-secondary: #5f5a50;
-  --text-tertiary: #767064;
+  --bg: #fdfdfc;
+  --surface: #f4f4f2;
+  --surface-hover: #ececea;
+  --border: #e5e5e2;
+  --border-strong: #d2d2ce;
+  --text-primary: #141413;
+  --text-secondary: #5a5a56;
+  --text-tertiary: #71716c;
   --accent: #c4411a;
   --accent-hover: #a83813;
   --accent-subtle: #fbebe4;
@@ -39,24 +39,24 @@
   --danger-subtle: #fbeceb;
   --warning: #a8710a;
   --warning-subtle: #fbf3df;
-  --scrollbar-thumb: #d3cdc2;
-  --scrollbar-thumb-hover: #a39d91;
+  --scrollbar-thumb: #d2d2ce;
+  --scrollbar-thumb-hover: #a1a19c;
   --radius: 10px;
-  --shadow-sm: 0 1px 2px rgb(23 21 15 / 0.05), 0 1px 1px rgb(23 21 15 / 0.03);
-  --shadow-md: 0 1px 2px rgb(23 21 15 / 0.04), 0 12px 28px -12px rgb(23 21 15 / 0.18);
-  --shadow-lg: 0 2px 4px rgb(23 21 15 / 0.04), 0 24px 48px -16px rgb(23 21 15 / 0.28);
+  --shadow-sm: 0 1px 2px rgb(20 20 19 / 0.05), 0 1px 1px rgb(20 20 19 / 0.03);
+  --shadow-md: 0 1px 2px rgb(20 20 19 / 0.04), 0 12px 28px -12px rgb(20 20 19 / 0.18);
+  --shadow-lg: 0 2px 4px rgb(20 20 19 / 0.04), 0 24px 48px -16px rgb(20 20 19 / 0.28);
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .dark {
-  --bg: #121110;
-  --surface: #1a1917;
-  --surface-hover: #23211e;
-  --border: #2c2a26;
-  --border-strong: #3d3a35;
-  --text-primary: #f3f0ea;
-  --text-secondary: #b0aa9f;
-  --text-tertiary: #8a8478;
+  --bg: #111111;
+  --surface: #191918;
+  --surface-hover: #222221;
+  --border: #2b2b29;
+  --border-strong: #3c3c39;
+  --text-primary: #ededeb;
+  --text-secondary: #adada8;
+  --text-tertiary: #8a8a85;
   --accent: #f0703f;
   --accent-hover: #ff8a5c;
   --accent-subtle: #2e1a12;
@@ -75,6 +75,10 @@
 }
 
 /* ─── Base ───────────────────────────────────────────────────────────────── */
+
+html { color-scheme: light; }
+html.dark { color-scheme: dark; }
+::selection { background: var(--accent); color: var(--accent-fg); }
 
 body {
   background-color: var(--bg);

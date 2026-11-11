@@ -143,7 +143,7 @@ const App: React.FC = () => {
       )}
 
       {showAuthModal && (
-        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-[#17150f]/50 backdrop-blur-[2px] p-4 overflow-y-auto animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-[#141413]/50 backdrop-blur-[2px] p-4 overflow-y-auto animate-fade-in">
           <div className="relative w-full max-w-[960px] mx-auto my-8 animate-scale-in">
             <button
               onClick={() => setShowAuthModal(false)}

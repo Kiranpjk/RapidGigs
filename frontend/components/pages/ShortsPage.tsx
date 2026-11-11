@@ -184,7 +184,7 @@ const ShortCard: React.FC<ShortCardProps> = ({
 
                             <div className="flex flex-wrap items-center gap-2 mb-3">
                                 {isJob && displayPay && (
-                                    <span className="bg-white text-[#17150f] text-[12px] font-semibold tabular-nums px-2.5 py-1 rounded-full">
+                                    <span className="bg-white text-[#141413] text-[12px] font-semibold tabular-nums px-2.5 py-1 rounded-full">
                                         {displayPay}
                                     </span>
                                 )}
@@ -256,7 +256,7 @@ const ShortCard: React.FC<ShortCardProps> = ({
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onToggleSave(item); }}
                                     className={`w-11 h-11 rounded-full flex items-center justify-center shadow-lg transition-colors ${
-                                        isSaved ? 'bg-white text-[#17150f]' : 'bg-white/15 backdrop-blur-md hover:bg-white/25 text-white'
+                                        isSaved ? 'bg-white text-[#141413]' : 'bg-white/15 backdrop-blur-md hover:bg-white/25 text-white'
                                     }`}
                                     aria-label={isSaved ? 'Unsave job' : 'Save job'}
                                 >
@@ -295,7 +295,7 @@ const ShortCard: React.FC<ShortCardProps> = ({
                             // Candidate short
                             <div className="flex flex-col items-center">
                                 <button
-                                    className="px-5 py-3 rounded-full bg-white text-[#17150f] hover:bg-white/90 text-[14px] font-semibold flex items-center gap-2 shadow-[var(--shadow-lg)] transition-colors duration-150 active:translate-y-px"
+                                    className="px-5 py-3 rounded-full bg-white text-[#141413] hover:bg-white/90 text-[14px] font-semibold flex items-center gap-2 shadow-[var(--shadow-lg)] transition-colors duration-150 active:translate-y-px"
                                     onClick={(e) => { e.stopPropagation(); item.author?.id && onViewProfile(item.author.id); }}
                                 >
                                     {user?.isRecruiter ? 'Review' : 'Connect'}
