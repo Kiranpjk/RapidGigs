@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Job } from '../../types';
-import { MapPinIcon, BookmarkIcon, SearchIcon, BriefcaseIcon } from '../icons/Icons';
+import { MapPinIcon, BookmarkIcon, SearchIcon } from '../icons/Icons';
 import { useJobs } from '../../context/JobContext';
 import { useAuth } from '../../context/AuthContext';
 import { jobsAPI } from '../../services/api';
@@ -106,34 +106,27 @@ const JobsPage: React.FC<JobsPageProps> = ({ onApplyNow }) => {
                         return (
                             <div
                                 key={job.id}
-                                className="flex items-center gap-4 p-4 hover:bg-[var(--surface-hover)] transition-colors duration-75 cursor-pointer group"
+                                className="flex items-center gap-4 p-4 hover:bg-[var(--surface)] transition-colors duration-150 cursor-pointer group"
                                 onClick={() => setSelectedJobForDetail(job)}
                             >
-                                {/* Thumbnail/Video Section */}
-                                <div className="w-28 h-18 rounded-lg bg-zinc-950 overflow-hidden shrink-0 relative shadow-sm border border-[var(--border)] group/thumb">
+                                {/* Thumbnail: real video, or a quiet company monogram (no black placeholder) */}
+                                <div className="w-28 h-[72px] rounded-[8px] overflow-hidden shrink-0 relative bg-[var(--surface)]">
                                     {videoUrl ? (
                                         <>
                                             <video
                                                 src={videoUrl}
-                                                className="w-full h-full object-cover opacity-80 group-hover/thumb:opacity-100 transition-opacity duration-300"
-                                                muted playsInline
+                                                className="w-full h-full object-cover bg-black"
+                                                muted playsInline preload="metadata"
                                                 onMouseEnter={e => e.currentTarget.play().catch(() => {})}
                                                 onMouseLeave={e => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
                                             />
-                                            {/* Play Overlay */}
-                                            <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover/thumb:bg-transparent transition-colors duration-300">
-                                                <div className="w-7 h-7 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 shadow-lg group-hover/thumb:scale-110 transition-transform duration-300">
-                                                    <div className="w-0 h-0 border-t-[5px] border-t-transparent border-l-[8px] border-l-white border-b-[5px] border-b-transparent ml-0.5" />
-                                                </div>
-                                            </div>
-                                            {/* 'Watch' Badge */}
-                                            <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-md text-[8px] font-bold text-white tracking-widest uppercase border border-white/10">
-                                                WATCH
-                                            </div>
+                                            <span className="pointer-events-none absolute left-1.5 bottom-1.5 grid place-items-center w-5 h-5 rounded-full bg-white text-black" aria-hidden="true">
+                                                <svg width="7" height="8" viewBox="0 0 7 8" fill="currentColor"><path d="M0 0l7 4-7 4z" /></svg>
+                                            </span>
                                         </>
                                     ) : (
-                                        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-zinc-900 to-zinc-950">
-                                            <BriefcaseIcon className="w-5 h-5 text-zinc-700 opacity-40 group-hover:scale-110 transition-transform duration-300" />
+                                        <div className="w-full h-full grid place-items-center font-display text-[22px] font-semibold text-[var(--text-tertiary)]" aria-hidden="true">
+                                            {(job.company || 'R').trim().charAt(0).toUpperCase()}
                                         </div>
                                     )}
                                 </div>
@@ -148,16 +141,16 @@ const JobsPage: React.FC<JobsPageProps> = ({ onApplyNow }) => {
                                             <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-[var(--accent)]" title="Video available" />
                                         )}
                                     </div>
-                                    <p className="text-[12px] text-[var(--text-tertiary)] flex items-center gap-1.5">
+                                    <p className="text-[13px] text-[var(--text-secondary)] flex items-center gap-1.5">
                                         <span className="truncate font-medium">{job.company}</span>
-                                        <span className="opacity-40">·</span>
+                                        <span className="text-[var(--border-strong)]" aria-hidden="true">·</span>
                                         <span className="truncate">{job.location}</span>
                                     </p>
                                 </div>
 
                                 {/* Meta - Styled with borders for Linear look */}
                                 <div className="hidden sm:flex items-center gap-2 shrink-0">
-                                    <span className="text-[11px] font-medium text-[var(--text-secondary)] bg-[var(--surface)] border border-[var(--border)] px-2 py-0.5 rounded-full transition-colors group-hover:border-[var(--accent)]/30">
+                                    <span className="text-[12px] font-medium text-[var(--text-secondary)] bg-[var(--surface)] px-2 py-0.5 rounded-full">
                                         {job.type}
                                     </span>
                                     <span 
@@ -168,7 +161,7 @@ const JobsPage: React.FC<JobsPageProps> = ({ onApplyNow }) => {
                                     </span>
                                 </div>
 
-                                <span className="text-[11px] text-[var(--text-tertiary)] whitespace-nowrap shrink-0 hidden md:block opacity-60">
+                                <span className="w-16 text-right text-[12px] text-[var(--text-tertiary)] whitespace-nowrap shrink-0 hidden md:block">
                                     {job.postedAgo}
                                 </span>
 
