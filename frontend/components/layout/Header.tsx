@@ -117,7 +117,7 @@ const Header: React.FC<HeaderProps> = ({ navigate, onLogout, currentPage, theme,
                             {!isAuthenticated ? (
                                 <div className="flex items-center gap-1 ml-2">
                                     <button onClick={() => navigate('login')} className="hidden sm:block px-3 py-2 text-[13.5px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors focus-ring">Log in</button>
-                                    <button onClick={() => navigate('signup')} className="px-3.5 py-2 text-[13.5px] font-medium bg-[var(--text-primary)] text-[var(--bg)] rounded-[var(--radius)] hover:bg-[var(--accent)] hover:text-[var(--accent-fg)] transition-colors duration-150 focus-ring">Get started</button>
+                                    <button onClick={() => navigate('signup')} className="px-3.5 py-2 text-[13.5px] font-medium bg-[var(--text-primary)] text-[var(--bg)] rounded-[var(--radius)] hover:bg-[var(--accent)] hover:text-[var(--accent-fg)] transition-colors duration-150 focus-ring">Sign up</button>
                                 </div>
                             ) : (
                                 <div className="relative ml-1" ref={profileMenuRef}>
@@ -166,7 +166,7 @@ const Header: React.FC<HeaderProps> = ({ navigate, onLogout, currentPage, theme,
                             {!isAuthenticated && (
                                 <div className="pt-3 border-t border-[var(--border)] flex flex-col gap-1.5">
                                     <button onClick={() => handleNav('login')} className="w-full px-3 py-2.5 text-[13.5px] text-[var(--text-secondary)]">Log in</button>
-                                    <button onClick={() => handleNav('signup')} className="w-full bg-[var(--text-primary)] text-[var(--bg)] rounded-[var(--radius)] py-2.5 text-[13.5px] font-medium">Get started</button>
+                                    <button onClick={() => handleNav('signup')} className="w-full bg-[var(--text-primary)] text-[var(--bg)] rounded-[var(--radius)] py-2.5 text-[13.5px] font-medium">Sign up</button>
                                 </div>
                             )}
                         </div>

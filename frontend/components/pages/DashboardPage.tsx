@@ -172,11 +172,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                         </>
                     ) : (
                         <>
-                            <p className="flex items-center gap-2 text-[13px] font-medium text-[var(--text-secondary)]">
-                                <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]" aria-hidden="true" />
-                                Gigs with a face and a voice
-                            </p>
-                            <h1 className="mt-4 max-w-[14ch] font-display text-display font-semibold text-[var(--text-primary)] text-balance">
+                            <h1 className="max-w-[14ch] font-display text-display font-semibold text-[var(--text-primary)] text-balance">
                                 See the team before you <span className="text-[var(--accent)]">apply.</span>
                             </h1>
                             <p className="mt-5 max-w-[52ch] text-[17px] leading-[1.6] text-[var(--text-secondary)]">
@@ -210,7 +206,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                 </section>
 
                 {/* Category filters */}
-                <div className="-mx-5 px-5 sm:mx-0 sm:px-0 flex gap-2 overflow-x-auto pb-1 scrollbar-hide" role="group" aria-label="Filter by category">
+                <div className="-mx-5 px-5 sm:mx-0 sm:px-0 flex gap-2 overflow-x-auto pb-1 scrollbar-hide [mask-image:linear-gradient(to_right,#000_calc(100%-48px),transparent)] sm:pr-12" role="group" aria-label="Filter by category">
                     <button onClick={() => setSelectedCategory('All')} aria-pressed={selectedCategory === 'All'} className={chip(selectedCategory === 'All')}>
                         All
                     </button>
