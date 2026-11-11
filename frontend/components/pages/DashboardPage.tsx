@@ -83,8 +83,8 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                             onMouseEnter={e => e.currentTarget.play().catch(() => {})}
                             onMouseLeave={e => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
                         />
-                        <span className="pointer-events-none absolute left-3 bottom-3 inline-flex items-center gap-1.5 rounded-full bg-black/55 backdrop-blur-sm pl-1.5 pr-2.5 py-1 text-[12px] font-medium text-white">
-                            <span className="grid place-items-center w-4 h-4 rounded-full bg-white text-black">
+                        <span className="pointer-events-none absolute left-3 bottom-3 inline-flex items-center gap-1.5 rounded-full bg-[var(--secondary)]/90 backdrop-blur-sm pl-1.5 pr-2.5 py-1 text-[12px] font-medium text-[var(--secondary-fg)]">
+                            <span className="grid place-items-center w-4 h-4 rounded-full bg-[var(--secondary-fg)] text-[var(--secondary)]">
                                 <svg width="7" height="8" viewBox="0 0 7 8" fill="currentColor" aria-hidden="true"><path d="M0 0l7 4-7 4z" /></svg>
                             </span>
                             Video pitch
