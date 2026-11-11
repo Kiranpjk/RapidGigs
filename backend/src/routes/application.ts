@@ -444,7 +444,7 @@ router.get('/:id/resume', authenticate, async (req: AuthRequest, res) => {
       const response = await axios.get(sourceUrl, { responseType: 'arraybuffer', timeout: 20000 });
       fileBuffer = Buffer.from(response.data);
       fileName = getFileNameFromUrl(sourceUrl);
-      contentType = getMimeType(fileName, response.headers['content-type'] || 'application/octet-stream');
+      contentType = getMimeType(fileName, String(response.headers['content-type'] || 'application/octet-stream'));
     }
 
     const safeName = fileName || 'resume';
