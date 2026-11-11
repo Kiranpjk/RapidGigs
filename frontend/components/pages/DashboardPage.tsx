@@ -260,7 +260,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                 {/* Grid */}
                 {!isLoading && (
                     <div className="pb-20">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 items-start gap-x-5 gap-y-6">
                             {liveJobs.map((job, i) => renderJobCard(job, i))}
                         </div>
                         {liveJobs.length === 0 && (
