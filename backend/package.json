@@ -7,6 +7,7 @@
         "dev": "tsx watch src/server.ts",
         "build": "tsc",
         "start": "bash start.sh",
+        "seed:demo": "tsx src/scripts/seed-demo.ts",
         "migrate": "node node_modules/tsx/dist/cli.mjs src/config/database.ts",
         "test:veo": "tsx src/scripts/test_veoaifree_puppeteer.ts"
     },
