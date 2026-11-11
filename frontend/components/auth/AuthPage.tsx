@@ -67,14 +67,14 @@ const AuthPage: React.FC<AuthPageProps> = ({ initialPage, navigate }) => {
   };
 
   const Illustration = () => (
-    <aside className="hidden lg:flex w-[44%] flex-col justify-between p-10 bg-[var(--text-primary)] text-[var(--bg)]">
+    <aside className="hidden lg:flex w-[44%] flex-col justify-between p-10 bg-[var(--secondary)] text-[var(--secondary-fg)]">
       <div className="flex items-center gap-2">
-        <LogoIcon className="w-7 h-7 text-[var(--bg)] [&_path]:stroke-[var(--text-primary)]" />
+        <LogoIcon className="w-7 h-7 text-[var(--secondary-fg)] [&_path]:stroke-[var(--secondary)]" />
         <span className="font-display text-[19px] font-semibold tracking-[-0.02em]">RapidGig</span>
       </div>
       <div>
         <h2 className="font-display text-[40px] leading-[1.05] font-semibold tracking-[-0.03em] text-balance">
-          Your work, your pitch, your gig in <span className="text-[var(--accent)]">30 seconds.</span>
+          Your work, your pitch, your gig in <span className="text-[var(--secondary-accent)]">30 seconds.</span>
         </h2>
         <ol className="mt-10 space-y-5 text-[14px]">
           {[

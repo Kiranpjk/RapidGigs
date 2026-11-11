@@ -33,6 +33,10 @@
   --accent-hover: #a83813;
   --accent-subtle: #fbebe4;
   --accent-fg: #ffffff;
+  /* Secondary: deep green for brand surfaces (auth panel, video badge). Never for buttons. */
+  --secondary: #1c3a2c;
+  --secondary-fg: #f4f2ea;
+  --secondary-accent: #f0703f; /* vermilion lightened to stay readable on the green */
   --success: #2f7d4f;
   --success-subtle: #e9f3ec;
   --danger: #c0352b;
@@ -61,6 +65,10 @@
   --accent-hover: #ff8a5c;
   --accent-subtle: #2e1a12;
   --accent-fg: #1a0d06;
+  /* Secondary: deep green for brand surfaces (auth panel, video badge). Never for buttons. */
+  --secondary: #183226;
+  --secondary-fg: #f4f2ea;
+  --secondary-accent: #f0703f; /* vermilion lightened to stay readable on the green */
   --success: #4cb67a;
   --success-subtle: #13241a;
   --danger: #ef5a4f;
