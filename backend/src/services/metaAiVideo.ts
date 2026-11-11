@@ -6,7 +6,7 @@
  */
 
 import axios from 'axios';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID as uuidv4 } from 'node:crypto';
 
 const META_GRAPHQL_URL = 'https://www.meta.ai/api/graphql';
 

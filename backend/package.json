@@ -36,8 +36,7 @@
         "puppeteer-extra": "^3.3.6",
         "puppeteer-extra-plugin-stealth": "^2.11.2",
         "socket.io": "^4.6.1",
-        "together-ai": "^0.39.0",
-        "uuid": "^9.0.1"
+        "together-ai": "^0.39.0"
     },
     "devDependencies": {
         "@types/bcryptjs": "^2.4.6",
@@ -52,7 +51,6 @@
         "@types/node": "^20.10.5",
         "@types/node-cron": "^3.0.11",
         "@types/nodemailer": "^8.0.0",
-        "@types/uuid": "^9.0.7",
         "mongodb-memory-server": "^11.0.1",
         "tsx": "^4.7.0",
         "typescript": "^5.3.3"

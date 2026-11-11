@@ -12,7 +12,7 @@
 
 import express from 'express';
 import axios from 'axios';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID as uuidv4 } from 'node:crypto';
 import { ShortVideo } from '../models/ShortVideo';
 import { ShortEngagement } from '../models/ShortEngagement';
 import { Notification } from '../models/Notification';
