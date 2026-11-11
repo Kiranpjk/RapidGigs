@@ -68,49 +68,44 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                 key={job.id ?? i}
                 className="lift group flex flex-col rounded-[14px] border border-[var(--border)] bg-[var(--bg)] shadow-[var(--shadow-sm)] overflow-hidden"
             >
-                <button
-                    type="button"
-                    aria-label={`Open details for ${job.title}`}
-                    className="relative aspect-[16/10] overflow-hidden bg-[var(--surface)] text-left focus-ring"
-                    onClick={() => setSelectedJobForDetail(job)}
-                >
-                    {videoUrl ? (
-                        <>
-                            <video
-                                src={videoUrl}
-                                className="w-full h-full object-cover bg-black"
-                                muted loop playsInline preload="metadata"
-                                onMouseEnter={e => e.currentTarget.play().catch(() => {})}
-                                onMouseLeave={e => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
-                            />
-                            <span className="pointer-events-none absolute left-3 bottom-3 inline-flex items-center gap-1.5 rounded-full bg-black/55 backdrop-blur-sm pl-1.5 pr-2.5 py-1 text-[11px] font-medium text-white">
-                                <span className="grid place-items-center w-4 h-4 rounded-full bg-white text-black">
-                                    <svg width="7" height="8" viewBox="0 0 7 8" fill="currentColor" aria-hidden="true"><path d="M0 0l7 4-7 4z" /></svg>
-                                </span>
-                                Video pitch
+                {/* Media only when there is a real video: no grey placeholder standing in for one */}
+                {videoUrl && (
+                    <button
+                        type="button"
+                        aria-label={`Play video pitch for ${job.title}`}
+                        className="relative aspect-[16/10] overflow-hidden bg-black text-left focus-ring"
+                        onClick={() => setSelectedJobForDetail(job)}
+                    >
+                        <video
+                            src={videoUrl}
+                            className="w-full h-full object-cover"
+                            muted loop playsInline preload="metadata"
+                            onMouseEnter={e => e.currentTarget.play().catch(() => {})}
+                            onMouseLeave={e => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
+                        />
+                        <span className="pointer-events-none absolute left-3 bottom-3 inline-flex items-center gap-1.5 rounded-full bg-black/55 backdrop-blur-sm pl-1.5 pr-2.5 py-1 text-[12px] font-medium text-white">
+                            <span className="grid place-items-center w-4 h-4 rounded-full bg-white text-black">
+                                <svg width="7" height="8" viewBox="0 0 7 8" fill="currentColor" aria-hidden="true"><path d="M0 0l7 4-7 4z" /></svg>
                             </span>
-                        </>
-                    ) : (
-                        <div className="w-full h-full flex items-end p-4 bg-[linear-gradient(135deg,var(--surface)_0%,var(--surface-hover)_100%)]">
-                            <span className="font-display text-[64px] leading-none font-semibold text-[var(--border-strong)] select-none transition-colors duration-200 group-hover:text-[var(--text-tertiary)]">
-                                {monogram}
-                            </span>
-                        </div>
-                    )}
-                    {isFull && (
-                        <span className="absolute top-3 left-3 rounded-full bg-[var(--bg)] px-2.5 py-1 text-[11px] font-medium text-[var(--text-secondary)] shadow-[var(--shadow-sm)]">
-                            Positions filled
+                            Video pitch
                         </span>
-                    )}
-                </button>
+                    </button>
+                )}
 
-                <div className="flex flex-1 flex-col px-5 pt-4 pb-5">
-                    <div className="flex items-center justify-between gap-3 text-[12px] text-[var(--text-tertiary)]">
-                        <span className="truncate font-medium text-[var(--text-secondary)]">{job.company}</span>
-                        <span className="shrink-0">{job.postedAgo}</span>
+                <div className="flex flex-1 flex-col px-5 pt-5 pb-5">
+                    <div className="flex items-center gap-3">
+                        <span aria-hidden="true" className="grid place-items-center w-9 h-9 shrink-0 rounded-[8px] bg-[var(--surface)] font-display text-[15px] font-semibold text-[var(--text-secondary)]">
+                            {monogram}
+                        </span>
+                        <div className="min-w-0 flex-1 leading-tight">
+                            <p className="truncate text-[13px] font-medium text-[var(--text-primary)]">{job.company}</p>
+                            <p className="text-[12px] text-[var(--text-tertiary)]">
+                                {isFull ? <span className="text-[var(--danger)]">Positions filled</span> : job.postedAgo}
+                            </p>
+                        </div>
                     </div>
 
-                    <h3 className="mt-1.5 font-display text-[19px] font-semibold leading-[1.2] tracking-[-0.015em] text-[var(--text-primary)] line-clamp-2">
+                    <h3 className="mt-4 font-display text-[19px] font-semibold leading-[1.2] tracking-[-0.015em] text-[var(--text-primary)] line-clamp-2">
                         <button type="button" onClick={() => setSelectedJobForDetail(job)} className="text-left hover:text-[var(--accent)] transition-colors duration-150 focus-ring">
                             {job.title}
                         </button>
@@ -119,9 +114,17 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                     <p className="mt-2 flex items-center gap-1.5 text-[13px] text-[var(--text-secondary)]">
                         <MapPinIcon className="w-3.5 h-3.5 shrink-0 text-[var(--text-tertiary)]" />
                         <span className="truncate">{job.location}</span>
-                        <span className="text-[var(--border-strong)]" aria-hidden="true">/</span>
-                        <span className="shrink-0">{job.type}</span>
+                        {job.type && job.type.toLowerCase() !== (job.location || '').toLowerCase() && (
+                            <>
+                                <span className="text-[var(--border-strong)]" aria-hidden="true">/</span>
+                                <span className="shrink-0">{job.type}</span>
+                            </>
+                        )}
                     </p>
+
+                    {!videoUrl && job.description && (
+                        <p className="mt-3 text-[14px] leading-[1.55] text-[var(--text-secondary)] line-clamp-3">{job.description}</p>
+                    )}
 
                     <div className="mt-auto pt-5 flex items-center justify-between gap-3">
                         <span className="min-w-0 truncate text-[14px] font-semibold tabular-nums text-[var(--text-primary)]" title={job.pay}>
