@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Job } from '../../types';
-import { MapPinIcon, BookmarkIcon, SearchIcon, BriefcaseIcon } from '../icons/Icons';
+import { MapPinIcon, BookmarkIcon, SearchIcon } from '../icons/Icons';
 import { useJobs } from '../../context/JobContext';
 import { useAuth } from '../../context/AuthContext';
 import { jobsAPI } from '../../services/api';
@@ -48,11 +48,11 @@ const JobsPage: React.FC<JobsPageProps> = ({ onApplyNow }) => {
     });
 
     return (
-        <div className="max-w-screen-xl mx-auto px-6 py-8 animate-fade-in">
+        <div className="max-w-screen-xl mx-auto px-5 sm:px-8 pt-10 pb-20 animate-fade-in">
             {/* Header */}
             <div className="mb-6">
-                <h1 className="text-xl font-semibold text-[var(--text-primary)] tracking-tight">All Jobs</h1>
-                <p className="text-[13px] text-[var(--text-tertiary)] mt-0.5">
+                <h1 className="font-display text-title font-semibold text-[var(--text-primary)]">All jobs</h1>
+                <p className="text-[14px] text-[var(--text-secondary)] mt-1 tabular-nums">
                     {isLoading ? 'Loading…' : `${filtered.length} opportunities`}
                 </p>
             </div>
@@ -64,7 +64,7 @@ const JobsPage: React.FC<JobsPageProps> = ({ onApplyNow }) => {
                     <input
                         type="text" placeholder="Search roles or companies…"
                         value={search} onChange={e => setSearch(e.target.value)}
-                        className="w-full pl-9 pr-4 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-md text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20 focus:border-[var(--accent)] transition-all duration-100"
+                        className="w-full h-10 pl-9 pr-4 bg-[var(--bg)] border border-[var(--border-strong)] rounded-[var(--radius)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-4 focus:ring-[var(--accent)]/15 focus:border-[var(--text-primary)] transition-[border-color,box-shadow] duration-150"
                     />
                 </div>
                 <div className="flex gap-1.5">
@@ -99,41 +99,34 @@ const JobsPage: React.FC<JobsPageProps> = ({ onApplyNow }) => {
 
             {/* Job List — table-style rows with inline video */}
             {!isLoading && filtered.length > 0 && (
-                <div className="border border-[var(--border)] rounded-lg overflow-hidden divide-y divide-[var(--border)]">
+                <div className="border border-[var(--border)] rounded-[14px] bg-[var(--bg)] shadow-[var(--shadow-sm)] overflow-hidden divide-y divide-[var(--border)]">
                     {filtered.map(job => {
                         const videoUrl = getMediaUrl(job.companyVideoUrl || job.shortVideoUrl);
                         const applied = hasApplied(job.id);
                         return (
                             <div
                                 key={job.id}
-                                className="flex items-center gap-4 p-4 hover:bg-[var(--surface-hover)] transition-colors duration-75 cursor-pointer group"
+                                className="flex items-center gap-4 p-4 hover:bg-[var(--surface)] transition-colors duration-150 cursor-pointer group"
                                 onClick={() => setSelectedJobForDetail(job)}
                             >
-                                {/* Thumbnail/Video Section */}
-                                <div className="w-28 h-18 rounded-lg bg-zinc-950 overflow-hidden shrink-0 relative shadow-sm border border-[var(--border)] group/thumb">
+                                {/* Thumbnail: real video, or a quiet company monogram (no black placeholder) */}
+                                <div className="w-28 h-[72px] rounded-[8px] overflow-hidden shrink-0 relative bg-[var(--surface)]">
                                     {videoUrl ? (
                                         <>
                                             <video
                                                 src={videoUrl}
-                                                className="w-full h-full object-cover opacity-80 group-hover/thumb:opacity-100 transition-opacity duration-300"
-                                                muted playsInline
+                                                className="w-full h-full object-cover bg-black"
+                                                muted playsInline preload="metadata"
                                                 onMouseEnter={e => e.currentTarget.play().catch(() => {})}
                                                 onMouseLeave={e => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
                                             />
-                                            {/* Play Overlay */}
-                                            <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover/thumb:bg-transparent transition-colors duration-300">
-                                                <div className="w-7 h-7 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 shadow-lg group-hover/thumb:scale-110 transition-transform duration-300">
-                                                    <div className="w-0 h-0 border-t-[5px] border-t-transparent border-l-[8px] border-l-white border-b-[5px] border-b-transparent ml-0.5" />
-                                                </div>
-                                            </div>
-                                            {/* 'Watch' Badge */}
-                                            <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-md text-[8px] font-bold text-white tracking-widest uppercase border border-white/10">
-                                                WATCH
-                                            </div>
+                                            <span className="pointer-events-none absolute left-1.5 bottom-1.5 grid place-items-center w-5 h-5 rounded-full bg-white text-black" aria-hidden="true">
+                                                <svg width="7" height="8" viewBox="0 0 7 8" fill="currentColor"><path d="M0 0l7 4-7 4z" /></svg>
+                                            </span>
                                         </>
                                     ) : (
-                                        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-zinc-900 to-zinc-950">
-                                            <BriefcaseIcon className="w-5 h-5 text-zinc-700 opacity-40 group-hover:scale-110 transition-transform duration-300" />
+                                        <div className="w-full h-full grid place-items-center font-display text-[22px] font-semibold text-[var(--text-tertiary)]" aria-hidden="true">
+                                            {(job.company || 'R').trim().charAt(0).toUpperCase()}
                                         </div>
                                     )}
                                 </div>
@@ -141,34 +134,34 @@ const JobsPage: React.FC<JobsPageProps> = ({ onApplyNow }) => {
                                 {/* Info section with better spacing */}
                                 <div className="flex-1 min-w-0 py-0.5">
                                     <div className="flex items-center gap-1.5 mb-0.5">
-                                        <h3 className="text-[14px] font-semibold text-[var(--text-primary)] truncate group-hover:text-[var(--accent)] transition-colors duration-200">
+                                        <h3 className="font-display text-[16px] font-semibold tracking-[-0.01em] text-[var(--text-primary)] truncate group-hover:text-[var(--accent)] transition-colors duration-150">
                                             {job.title}
                                         </h3>
                                         {job.shortVideoUrl && (
-                                            <span className="shrink-0 w-2 h-2 rounded-full bg-[var(--accent)] animate-pulse" title="Video available" />
+                                            <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-[var(--accent)]" title="Video available" />
                                         )}
                                     </div>
-                                    <p className="text-[12px] text-[var(--text-tertiary)] flex items-center gap-1.5">
+                                    <p className="text-[13px] text-[var(--text-secondary)] flex items-center gap-1.5">
                                         <span className="truncate font-medium">{job.company}</span>
-                                        <span className="opacity-40">·</span>
+                                        <span className="text-[var(--border-strong)]" aria-hidden="true">·</span>
                                         <span className="truncate">{job.location}</span>
                                     </p>
                                 </div>
 
                                 {/* Meta - Styled with borders for Linear look */}
                                 <div className="hidden sm:flex items-center gap-2 shrink-0">
-                                    <span className="text-[11px] font-medium text-[var(--text-secondary)] bg-[var(--surface)] border border-[var(--border)] px-2 py-0.5 rounded-full transition-colors group-hover:border-[var(--accent)]/30">
+                                    <span className="text-[12px] font-medium text-[var(--text-secondary)] bg-[var(--surface)] px-2 py-0.5 rounded-full">
                                         {job.type}
                                     </span>
                                     <span 
-                                        className="text-[11px] font-semibold text-[var(--success)] bg-[var(--success-subtle)] border border-[var(--success)]/20 px-2 py-0.5 rounded-full truncate max-w-[140px]"
+                                        className="text-[13px] font-semibold tabular-nums text-[var(--text-primary)] truncate max-w-[160px]"
                                         title={job.pay}
                                     >
                                         {job.pay}
                                     </span>
                                 </div>
 
-                                <span className="text-[11px] text-[var(--text-tertiary)] whitespace-nowrap shrink-0 hidden md:block opacity-60">
+                                <span className="w-16 text-right text-[12px] text-[var(--text-tertiary)] whitespace-nowrap shrink-0 hidden md:block">
                                     {job.postedAgo}
                                 </span>
 
@@ -177,11 +170,12 @@ const JobsPage: React.FC<JobsPageProps> = ({ onApplyNow }) => {
                                     <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
                                         <button
                                             onClick={() => isJobSaved(job.id) ? unsaveJob(job.id) : saveJob(job)}
+                                            aria-label={isJobSaved(job.id) ? "Remove from saved" : "Save job"}
                                             className={`p-1.5 rounded-md transition-colors duration-100 ${
-                                                isJobSaved(job.id) ? 'text-amber-500 bg-amber-50 dark:bg-amber-950' : 'text-[var(--text-tertiary)] hover:bg-[var(--surface)]'
+                                                isJobSaved(job.id) ? 'text-[var(--accent)] bg-[var(--accent-subtle)]' : 'text-[var(--text-tertiary)] hover:bg-[var(--surface)]'
                                             }`}
                                         >
-                                            <BookmarkIcon className="w-3.5 h-3.5" />
+                                            <BookmarkIcon className="w-4 h-4" />
                                         </button>
                                         <button
                                             onClick={() => { if (job.status !== 'Full' && !applied) onApplyNow(job); }}
@@ -191,10 +185,10 @@ const JobsPage: React.FC<JobsPageProps> = ({ onApplyNow }) => {
                                                     ? 'bg-[var(--success-subtle)] text-[var(--success)]'
                                                     : job.status === 'Full'
                                                     ? 'bg-[var(--surface)] text-[var(--text-tertiary)] cursor-not-allowed'
-                                                    : 'bg-[var(--text-primary)] text-[var(--bg)] hover:opacity-90'
+                                                    : 'bg-[var(--text-primary)] text-[var(--bg)] hover:bg-[var(--accent)] hover:text-[var(--accent-fg)]'
                                             }`}
                                         >
-                                            {applied ? '✓ Applied' : job.status === 'Full' ? 'Full' : 'Apply'}
+                                            {applied ? 'Applied' : job.status === 'Full' ? 'Full' : 'Apply'}
                                         </button>
                                     </div>
                                 )}

@@ -67,35 +67,41 @@ const AuthPage: React.FC<AuthPageProps> = ({ initialPage, navigate }) => {
   };
 
   const Illustration = () => (
-    <div className="hidden lg:flex w-1/2 items-center justify-center p-12 relative overflow-hidden bg-gray-100 dark:bg-gray-900 min-h-[500px]">
-      <div
-        className="absolute top-0 left-0 w-full h-full z-0 opacity-20 dark:opacity-40"
-        style={{
-          backgroundImage: 'url(https://picsum.photos/seed/rapidgig/1920/1080)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}
-      />
-      <div className="z-10 text-center">
-        <div className="flex items-center justify-center gap-3">
-          <LogoIcon className="w-16 h-16 text-indigo-500" />
-          <span className="text-6xl font-bold tracking-tighter text-gray-800 dark:text-white">
-            RapidGig
-          </span>
-        </div>
-        <p className="text-2xl text-slate-600 dark:text-slate-300 mt-4 max-w-sm mx-auto">
-          Your Work, Your Code, Your Gig in 30 Seconds.
-        </p>
+    <aside className="hidden lg:flex w-[44%] flex-col justify-between p-10 bg-[var(--text-primary)] text-[var(--bg)]">
+      <div className="flex items-center gap-2">
+        <LogoIcon className="w-7 h-7 text-[var(--bg)] [&_path]:stroke-[var(--text-primary)]" />
+        <span className="font-display text-[19px] font-semibold tracking-[-0.02em]">RapidGig</span>
       </div>
-    </div>
+      <div>
+        <h2 className="font-display text-[40px] leading-[1.05] font-semibold tracking-[-0.03em] text-balance">
+          Your work, your pitch, your gig in <span className="text-[var(--accent)]">30 seconds.</span>
+        </h2>
+        <ol className="mt-10 space-y-5 text-[14px]">
+          {[
+            ['Watch', 'Short video pitches from the team hiring.'],
+            ['Apply', 'Send links to your work, not a cover letter.'],
+            ['Talk', 'Recruiters reply in your RapidGig inbox.'],
+          ].map(([title, body], n) => (
+            <li key={title} className="flex gap-4">
+              <span className="font-display tabular-nums text-[13px] opacity-50 pt-0.5">0{n + 1}</span>
+              <span>
+                <span className="font-medium">{title}.</span>{' '}
+                <span className="opacity-70">{body}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      </div>
+      <p className="text-[12px] opacity-50">Free for students. Recruiters post roles in minutes.</p>
+    </aside>
   );
 
   return (
     <>
-      <div className="flex bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white font-sans rounded-2xl overflow-hidden">
+      <div className="flex min-h-[600px] bg-[var(--bg)] text-[var(--text-primary)]">
         <Illustration />
-        <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
-          <div className="w-full max-w-md">{renderForm()}</div>
+        <div className="w-full lg:w-[56%] flex items-center justify-center px-6 py-10 sm:px-12">
+          <div className="w-full max-w-[380px]">{renderForm()}</div>
         </div>
       </div>
       <Modal
@@ -117,7 +123,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ initialPage, navigate }) => {
 // ─── Shared UI components ─────────────────────────────────────────────────────
 
 const InputField = ({
-  id, type, placeholder, icon, value, onChange,
+  id, type, placeholder, icon, value, onChange, label, autoComplete,
 }: {
   id: string;
   type: string;
@@ -125,21 +131,33 @@ const InputField = ({
   icon: React.ReactNode;
   value?: string;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  label?: string;
+  autoComplete?: string;
 }) => (
-  <div className="relative">
-    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-      {icon}
+  <div>
+    {label && <FieldLabel htmlFor={id}>{label}</FieldLabel>}
+    <div className="relative">
+      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[var(--text-tertiary)] [&_svg]:w-[18px] [&_svg]:h-[18px]">
+        {icon}
+      </div>
+      <input
+        className="w-full h-11 rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--bg)] pl-10 pr-3 text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--text-primary)] focus:ring-4 focus:ring-[var(--accent)]/15 transition-[border-color,box-shadow] duration-150"
+        id={id}
+        type={type}
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        autoComplete={autoComplete}
+        required
+      />
     </div>
-    <input
-      className="w-full bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg py-3 pl-10 pr-3 text-gray-800 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 leading-tight focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300"
-      id={id}
-      type={type}
-      placeholder={placeholder}
-      value={value}
-      onChange={onChange}
-      required
-    />
   </div>
+);
+
+const FieldLabel: React.FC<{ htmlFor: string; children: React.ReactNode }> = ({ htmlFor, children }) => (
+  <label className="block mb-1.5 text-[13px] font-medium text-[var(--text-primary)]" htmlFor={htmlFor}>
+    {children}
+  </label>
 );
 
 const PrimaryButton: React.FC<{ children: React.ReactNode; type: 'submit' | 'button' }> = ({
@@ -147,7 +165,7 @@ const PrimaryButton: React.FC<{ children: React.ReactNode; type: 'submit' | 'but
   type,
 }) => (
   <button
-    className="w-full group bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg focus:outline-none transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2"
+    className="w-full h-11 group inline-flex items-center justify-center gap-2 rounded-[var(--radius)] bg-[var(--text-primary)] text-[var(--bg)] text-[15px] font-medium hover:bg-[var(--accent)] hover:text-[var(--accent-fg)] active:translate-y-px transition-colors duration-150 focus-ring"
     type={type}
   >
     {children}
@@ -155,10 +173,32 @@ const PrimaryButton: React.FC<{ children: React.ReactNode; type: 'submit' | 'but
 );
 
 const FormContainer: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="bg-white/90 dark:bg-gray-800/90 sm:bg-white/50 sm:dark:bg-gray-800/50 backdrop-blur-xl border border-gray-200/50 dark:border-gray-700/50 p-6 sm:p-8 rounded-2xl shadow-2xl shadow-black/10 dark:shadow-black/30 animate-fade-in w-full transition-all duration-300">
+  <div className="w-full animate-slide-up">{children}</div>
+);
+
+const FormHeader: React.FC<{ title: string; subtitle: string }> = ({ title, subtitle }) => (
+  <div className="mb-8">
+    <LogoIcon className="w-8 h-8 text-[var(--text-primary)] lg:hidden mb-6" />
+    <h1 className="font-display text-title font-semibold">{title}</h1>
+    <p className="mt-2 text-[15px] text-[var(--text-secondary)]">{subtitle}</p>
+  </div>
+);
+
+const ErrorNote: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <div role="alert" className="rounded-[var(--radius)] border-l-2 border-[var(--danger)] bg-[var(--danger-subtle)] px-3.5 py-2.5 text-[13.5px] text-[var(--danger)]">
     {children}
   </div>
 );
+
+const OrDivider = () => (
+  <div className="flex items-center gap-3 text-[12px] text-[var(--text-tertiary)]">
+    <div className="flex-grow border-t border-[var(--border)]" />
+    or
+    <div className="flex-grow border-t border-[var(--border)]" />
+  </div>
+);
+
+const linkClass = "font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] underline-offset-4 hover:underline cursor-pointer focus-ring";
 
 // ✅ FIXED: Google button renderer — each form instance manages its own
 // initialization state via a ref, avoiding the shared module-level singleton
@@ -271,71 +311,60 @@ const LoginForm = ({
 
   return (
     <FormContainer>
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold tracking-tighter mb-2">Welcome Back!</h1>
-        <p className="text-gray-600 dark:text-gray-400">Login to your RapidGig account</p>
-      </div>
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <FormHeader title="Welcome back" subtitle="Log in to pick up where you left off." />
+      <form onSubmit={handleSubmit} className="space-y-5">
         {error && (
-          <div className="bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-400 px-4 py-3 rounded">
-            {error}
-          </div>
+          <ErrorNote>{error}</ErrorNote>
         )}
         <div>
-          <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" htmlFor="email">
-            Email
-          </label>
+          <FieldLabel htmlFor="email">Email</FieldLabel>
           <InputField
+            autoComplete="email"
             id="email"
             type="email"
             placeholder="you@example.com"
             value={email}
             onChange={e => setEmail(e.target.value)}
-            icon={<EnvelopeIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />}
+            icon={<EnvelopeIcon />}
           />
         </div>
         <div>
           <div className="flex justify-between items-baseline">
-            <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" htmlFor="password">
-              Password
-            </label>
+            <FieldLabel htmlFor="password">Password</FieldLabel>
             <button
               type="button"
               onClick={onForgotPasswordClick}
-              className="text-sm text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 cursor-pointer"
+              className={`text-[13px] ${linkClass}`}
             >
-              Forgot?
+              Forgot password?
             </button>
           </div>
           <InputField
+            autoComplete="current-password"
             id="password"
             type="password"
             placeholder="••••••••"
             value={password}
             onChange={e => setPassword(e.target.value)}
-            icon={<LockClosedIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />}
+            icon={<LockClosedIcon />}
           />
         </div>
         <PrimaryButton type="submit">
-          {isLoading ? 'Logging in...' : 'Login'}
+          {isLoading ? 'Logging in…' : 'Log in'}
           {!isLoading && (
-            <ArrowRightIcon className="w-5 h-5 transform transition-transform duration-300 group-hover:translate-x-1" />
+            <ArrowRightIcon className="w-4 h-4 transition-transform duration-150 group-hover:translate-x-0.5" />
           )}
         </PrimaryButton>
-        <div className="my-6 flex items-center">
-          <div className="flex-grow border-t border-gray-300 dark:border-gray-700" />
-          <span className="px-4 text-gray-500 text-sm">OR</span>
-          <div className="flex-grow border-t border-gray-300 dark:border-gray-700" />
-        </div>
-        <div id="googleLoginBtn" className="w-full flex justify-center" />
-        <p className="text-center text-gray-600 dark:text-gray-400 text-sm mt-8">
-          Don&apos;t have an account?{' '}
+        <OrDivider />
+        <div id="googleLoginBtn" className="w-full flex justify-center min-h-[44px]" />
+        <p className="pt-2 text-[14px] text-[var(--text-secondary)]">
+          New to RapidGig?{' '}
           <button
             type="button"
             onClick={onSignUpClick}
-            className="font-bold text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 cursor-pointer"
+            className={linkClass}
           >
-            Sign Up
+            Create an account
           </button>
         </p>
       </form>
@@ -402,59 +431,55 @@ const SignUpForm = ({
 
   return (
     <FormContainer>
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold tracking-tighter mb-2">Create your Account</h1>
-        <p className="text-gray-600 dark:text-gray-400">Join our community of talent.</p>
-      </div>
+      <FormHeader title="Create your account" subtitle="Takes a minute. You can add your video later." />
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-400 px-4 py-3 rounded">
-            {error}
-          </div>
+          <ErrorNote>{error}</ErrorNote>
         )}
-        <InputField id="fullName" type="text" placeholder="John Doe" value={name} onChange={e => setName(e.target.value)} icon={<UserIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />} />
-        <InputField id="email-signup" type="email" placeholder="name@example.com" value={email} onChange={e => setEmail(e.target.value)} icon={<EnvelopeIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />} />
-        <InputField id="password-signup" type="password" placeholder="Create a secure password" value={password} onChange={e => setPassword(e.target.value)} icon={<LockClosedIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />} />
-        <InputField id="confirm-password" type="password" placeholder="Re-enter your password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} icon={<LockClosedIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />} />
+        <InputField label="Full name" autoComplete="name" id="fullName" type="text" placeholder="Alex Chen" value={name} onChange={e => setName(e.target.value)} icon={<UserIcon />} />
+        <InputField label="Email" autoComplete="email" id="email-signup" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} icon={<EnvelopeIcon />} />
+        <InputField label="Password" autoComplete="new-password" id="password-signup" type="password" placeholder="8+ characters, 1 capital, 1 number" value={password} onChange={e => setPassword(e.target.value)} icon={<LockClosedIcon />} />
+        <InputField label="Confirm password" autoComplete="new-password" id="confirm-password" type="password" placeholder="Same again" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} icon={<LockClosedIcon />} />
 
-        <div className="space-y-3 py-2">
-          <p className="text-sm font-bold text-gray-700 dark:text-gray-300">I am a...</p>
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => { setIsStudent(true); setIsRecruiter(false); }}
-              className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all duration-200 text-sm font-semibold ${isStudent ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400' : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-indigo-300'}`}
-            >
-              Student
-            </button>
-            <button
-              type="button"
-              onClick={() => { setIsRecruiter(true); setIsStudent(false); }}
-              className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all duration-200 text-sm font-semibold ${isRecruiter ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400' : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-indigo-300'}`}
-            >
-              Recruiter
-            </button>
+        <fieldset className="pt-1">
+          <legend className="mb-1.5 text-[13px] font-medium text-[var(--text-primary)]">I&apos;m here as a</legend>
+          <div className="grid grid-cols-2 gap-2">
+            {([
+              ['Student', 'Looking for gigs', isStudent, () => { setIsStudent(true); setIsRecruiter(false); }],
+              ['Recruiter', 'Hiring for a role', isRecruiter, () => { setIsRecruiter(true); setIsStudent(false); }],
+            ] as const).map(([title, hint, active, pick]) => (
+              <button
+                key={title}
+                type="button"
+                aria-pressed={active}
+                onClick={pick}
+                className={`rounded-[var(--radius)] border px-3.5 py-3 text-left transition-[border-color,background-color,box-shadow] duration-150 focus-ring ${
+                  active
+                    ? 'border-[var(--text-primary)] bg-[var(--surface)] shadow-[inset_0_0_0_1px_var(--text-primary)]'
+                    : 'border-[var(--border-strong)] hover:border-[var(--text-tertiary)]'
+                }`}
+              >
+                <span className="block text-[14px] font-medium text-[var(--text-primary)]">{title}</span>
+                <span className="block text-[12.5px] text-[var(--text-secondary)]">{hint}</span>
+              </button>
+            ))}
           </div>
-        </div>
+        </fieldset>
 
         <PrimaryButton type="submit">
-          {isLoading ? 'Creating Account...' : 'Create Account'}
-          {!isLoading && <ArrowRightIcon className="w-5 h-5 transform transition-transform duration-300 group-hover:translate-x-1" />}
+          {isLoading ? 'Creating account…' : 'Create account'}
+          {!isLoading && <ArrowRightIcon className="w-4 h-4 transition-transform duration-150 group-hover:translate-x-0.5" />}
         </PrimaryButton>
-        <div className="py-2 flex items-center">
-          <div className="flex-grow border-t border-gray-300 dark:border-gray-700" />
-          <span className="px-4 text-gray-500 text-sm">OR</span>
-          <div className="flex-grow border-t border-gray-300 dark:border-gray-700" />
-        </div>
-        <div id="googleSignupBtn" className="w-full flex justify-center" />
-        <p className="text-center text-gray-600 dark:text-gray-400 text-sm pt-4">
+        <OrDivider />
+        <div id="googleSignupBtn" className="w-full flex justify-center min-h-[44px]" />
+        <p className="pt-2 text-[14px] text-[var(--text-secondary)]">
           Already have an account?{' '}
           <button
             type="button"
             onClick={onLoginClick}
-            className="font-bold text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 cursor-pointer"
+            className={linkClass}
           >
-            Login
+            Log in
           </button>
         </p>
       </form>
@@ -477,13 +502,7 @@ const ForgotPasswordForm = ({
 
   return (
     <FormContainer>
-      <div className="text-center mb-8">
-        <LogoIcon className="w-12 h-12 text-indigo-500 mx-auto" />
-        <h1 className="text-4xl font-bold tracking-tighter mt-4">Forgot Password?</h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-2 max-w-xs mx-auto">
-          No worries, we&apos;ll send you reset instructions.
-        </p>
-      </div>
+      <FormHeader title="Reset your password" subtitle="We'll email you a link to set a new one." />
       <form
         onSubmit={async (e) => {
           e.preventDefault();
@@ -492,7 +511,7 @@ const ForgotPasswordForm = ({
           try {
             const { authAPI } = await import('../../services/api');
             await authAPI.forgotPassword(email);
-            showSuccess('Reset Link Sent!', 'Check your email for password reset instructions.');
+            showSuccess('Reset link sent', 'Check your email for password reset instructions.');
             setTimeout(() => onBackToLoginClick(), 2000);
           } catch (err: any) {
             setError(err.message || 'Failed to send reset link.');
@@ -500,32 +519,32 @@ const ForgotPasswordForm = ({
             setIsLoading(false);
           }
         }}
-        className="space-y-6"
+        className="space-y-5"
       >
         {error && (
-          <div className="bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-400 px-4 py-3 rounded">
-            {error}
-          </div>
+          <ErrorNote>{error}</ErrorNote>
         )}
         <InputField
           id="email-forgot"
+          label="Email"
+          autoComplete="email"
           type="email"
           placeholder="your.email@example.com"
-          icon={<EnvelopeIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />}
+          icon={<EnvelopeIcon />}
           value={email}
           onChange={e => setEmail(e.target.value)}
         />
         <PrimaryButton type="submit">
-          {isLoading ? 'Sending...' : 'Send Reset Link'}{' '}
-          {!isLoading && <PaperAirplaneIcon className="w-5 h-5 transform transition-transform duration-300 group-hover:rotate-45" />}
+          {isLoading ? 'Sending…' : 'Send reset link'}
+          {!isLoading && <PaperAirplaneIcon className="w-4 h-4" />}
         </PrimaryButton>
-        <div className="text-center mt-6">
+        <div className="pt-2">
           <button
             type="button"
             onClick={onBackToLoginClick}
-            className="font-bold text-sm text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 cursor-pointer"
+            className={`text-[14px] ${linkClass}`}
           >
-            &larr; Back to Login
+            &larr; Back to log in
           </button>
         </div>
       </form>

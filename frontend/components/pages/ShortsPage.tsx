@@ -7,6 +7,8 @@ import {
     ShareIcon,
     PaperAirplaneIcon,
     EyeIcon,
+    CheckCircleIcon,
+    XMarkIcon,
 } from '../icons/Icons';
 import { shortsAPI } from '../../services/api';
 import { useSwipeGesture } from '../../hooks/useSwipeGesture';
@@ -172,29 +174,29 @@ const ShortCard: React.FC<ShortCardProps> = ({
                                     src={item.author?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.author?.name || 'A')}`}
                                     alt={item.author?.name}
                                     onClick={(e) => { e.stopPropagation(); if (item.author?.id) onViewProfile(item.author.id); }}
-                                    className="w-9 h-9 rounded-lg border-2 border-white/20 object-cover cursor-pointer hover:border-white/40 transition-colors shadow-lg"
+                                    className="w-10 h-10 rounded-full ring-2 ring-white/25 object-cover cursor-pointer hover:ring-white/60 transition-[box-shadow] duration-150"
                                 />
                                 <div className="min-w-0">
-                                    <h2 className="text-xl font-black leading-tight drop-shadow-lg text-white truncate max-w-[320px]">{item.title || 'Untitled Role'}</h2>
-                                    <p className="text-[12px] text-white/70 font-bold uppercase tracking-wider truncate">{displayCompany}</p>
+                                    <h2 className="font-display text-[22px] font-semibold leading-tight tracking-[-0.015em] text-white truncate max-w-[340px]">{item.title || 'Untitled Role'}</h2>
+                                    <p className="text-[13px] text-white/75 font-medium truncate">{displayCompany}</p>
                                 </div>
                             </div>
 
                             <div className="flex flex-wrap items-center gap-2 mb-3">
                                 {isJob && displayPay && (
-                                    <span className="bg-emerald-500 text-white text-[10px] font-black px-2 py-1 rounded border border-emerald-400/20 shadow-md">
+                                    <span className="bg-white text-[#141413] text-[12px] font-semibold tabular-nums px-2.5 py-1 rounded-full">
                                         {displayPay}
                                     </span>
                                 )}
-                                <span className="bg-white/10 backdrop-blur-md text-white text-[10px] font-black px-2 py-1 rounded border border-white/10 uppercase tracking-widest flex items-center gap-1.5 shadow-sm">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                <span className="bg-white/15 backdrop-blur-md text-white text-[12px] font-medium tabular-nums px-2.5 py-1 rounded-full flex items-center gap-1.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]" aria-hidden="true" />
                                     {matchScore}% Match
                                 </span>
                             </div>
 
                             <div className="flex flex-wrap gap-1.5 mb-4 max-w-[320px]">
                                 {skills.slice(0, 5).map((skill: string) => (
-                                    <span key={skill} className="text-[9px] font-black uppercase tracking-wider bg-black/40 border border-white/5 px-2 py-0.5 rounded text-white/70">
+                                    <span key={skill} className="text-[11.5px] font-medium bg-white/10 px-2 py-0.5 rounded-full text-white/80">
                                         {skill}
                                     </span>
                                 ))}
@@ -204,8 +206,8 @@ const ShortCard: React.FC<ShortCardProps> = ({
 
                     {/* Permanent Basic Info (Fades out when overlay shows) */}
                     <div className={`absolute bottom-6 left-6 right-24 z-20 pointer-events-none transition-all duration-300 ${isVisible ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
-                        <h2 className="text-xl font-black text-white mb-0.5 drop-shadow-lg">{item.title || 'Untitled Role'}</h2>
-                        <p className="text-[11px] font-black text-white/60 uppercase tracking-[0.2em]">{displayCompany}</p>
+                        <h2 className="font-display text-[22px] font-semibold tracking-[-0.015em] text-white mb-0.5">{item.title || 'Untitled Role'}</h2>
+                        <p className="text-[13px] font-medium text-white/70">{displayCompany}</p>
                     </div>
 
                     {/* Bottom-right direct actions: Like, Share, Save, Apply — with counts */}
@@ -216,13 +218,13 @@ const ShortCard: React.FC<ShortCardProps> = ({
                                 onClick={(e) => { e.stopPropagation(); onLike(item.id); }}
                                 className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg ${
                                     likedJobs.has(item.id)
-                                        ? 'bg-red-500 scale-110'
+                                        ? 'bg-[var(--accent)]'
                                         : 'bg-white/15 backdrop-blur-md hover:bg-white/25'
                                 }`}
                                 aria-label="Like"
                             >
                                 {showHeartAnimation === item.id && (
-                                    <span className="absolute w-11 h-11 rounded-full bg-red-400/60 animate-ping" />
+                                    <span className="absolute w-11 h-11 rounded-full bg-[var(--accent)]/50 animate-ping" />
                                 )}
                                 <HeartIcon className={`w-6 h-6 ${likedJobs.has(item.id) ? 'fill-white text-white' : 'text-white'}`} />
                             </button>
@@ -254,11 +256,11 @@ const ShortCard: React.FC<ShortCardProps> = ({
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onToggleSave(item); }}
                                     className={`w-11 h-11 rounded-full flex items-center justify-center shadow-lg transition-colors ${
-                                        isSaved ? 'bg-emerald-500' : 'bg-white/15 backdrop-blur-md hover:bg-white/25'
+                                        isSaved ? 'bg-white text-[#141413]' : 'bg-white/15 backdrop-blur-md hover:bg-white/25 text-white'
                                     }`}
                                     aria-label={isSaved ? 'Unsave job' : 'Save job'}
                                 >
-                                    <BookmarkIcon className="w-6 h-6 text-white" />
+                                    <BookmarkIcon className="w-6 h-6" />
                                 </button>
                                 <span className="text-[10px] font-bold text-white/80 mt-0.5">{formatCount(item.saves || 0)}</span>
                             </div>
@@ -270,10 +272,10 @@ const ShortCard: React.FC<ShortCardProps> = ({
                             !user?.isRecruiter && (
                                 <div className="flex flex-col items-center">
                                     <button
-                                        className={`px-5 py-3 rounded-full text-[13px] font-black tracking-widest uppercase flex items-center gap-2 shadow-2xl transition-all duration-150 ${
+                                        className={`px-5 py-3 rounded-full text-[14px] font-semibold flex items-center gap-1.5 shadow-[var(--shadow-lg)] transition-colors duration-150 active:translate-y-px ${
                                             userHasApplied
-                                                ? 'bg-emerald-500 text-white opacity-90 cursor-default'
-                                                : 'bg-white text-zinc-900 hover:bg-zinc-100 hover:scale-105 active:scale-95 cursor-pointer'
+                                                ? 'bg-white/90 text-[var(--success)] cursor-default'
+                                                : 'bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] cursor-pointer'
                                         }`}
                                         onClick={(e) => {
                                             e.stopPropagation();
@@ -285,7 +287,7 @@ const ShortCard: React.FC<ShortCardProps> = ({
                                         }}
                                         disabled={userHasApplied}
                                     >
-                                        {userHasApplied ? <><span className="text-sm">✓</span> Applied</> : <>Apply</>}
+                                        {userHasApplied ? <><CheckCircleIcon className="w-4 h-4" /> Applied</> : <>Apply</>}
                                     </button>
                                 </div>
                             )
@@ -293,7 +295,7 @@ const ShortCard: React.FC<ShortCardProps> = ({
                             // Candidate short
                             <div className="flex flex-col items-center">
                                 <button
-                                    className="px-5 py-3 rounded-full bg-white text-zinc-900 hover:bg-zinc-100 text-[13px] font-black tracking-widest uppercase flex items-center gap-2 shadow-2xl transition-all active:scale-95 hover:scale-105"
+                                    className="px-5 py-3 rounded-full bg-white text-[#141413] hover:bg-white/90 text-[14px] font-semibold flex items-center gap-2 shadow-[var(--shadow-lg)] transition-colors duration-150 active:translate-y-px"
                                     onClick={(e) => { e.stopPropagation(); item.author?.id && onViewProfile(item.author.id); }}
                                 >
                                     {user?.isRecruiter ? 'Review' : 'Connect'}
@@ -593,7 +595,7 @@ const ShortsPage: React.FC<ShortsPageProps> = ({ onApplyNow, onNavigateToJobDeta
                     <div className="relative w-full max-w-sm bg-[var(--bg)] border-l border-[var(--border)] h-full overflow-y-auto animate-slide-left">
                         <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
                             <p className="text-[11px] font-medium text-[var(--text-tertiary)] uppercase tracking-wider">Profile</p>
-                            <button onClick={() => setViewingProfile(null)} className="p-1 rounded-md text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)]">✕</button>
+                            <button onClick={() => setViewingProfile(null)} aria-label="Close profile" className="p-1 rounded-md text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)]"><XMarkIcon className="w-4 h-4" /></button>
                         </div>
                         <div className="p-4">
                             <div className="flex items-center gap-3 mb-5">

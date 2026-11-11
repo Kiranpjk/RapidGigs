@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Page, Job } from '../../types';
-import { MapPinIcon, SearchIcon, VideoCameraIcon, BriefcaseIcon, BriefcaseSolidIcon } from '../icons/Icons';
+import { MapPinIcon, SearchIcon, VideoCameraIcon, BriefcaseIcon, CheckCircleIcon } from '../icons/Icons';
 import { CATEGORIES } from '../../data/mockData';
 import { useAuth } from '../../context/AuthContext';
 import { useJobs } from '../../context/JobContext';
@@ -56,182 +56,183 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
             .finally(() => setIsLoading(false));
     }, [debouncedSearch, selectedCategory, sortBy, reloadKey]);
 
-    const JobCard: React.FC<{ job: Job }> = ({ job }) => {
+    // Plain render function (not a nested component) so cards don't remount — and videos don't reset — on every keystroke.
+    const renderJobCard = (job: Job, i: number) => {
         const applied = hasApplied(job.id);
+        const isFull = job.status === 'Full';
         const videoUrl = getMediaUrl(job.companyVideoUrl || job.shortVideoUrl);
+        const monogram = (job.company || 'R').trim().charAt(0).toUpperCase();
 
         return (
-            <div className="border border-[var(--border)] rounded-lg overflow-hidden hover:border-[var(--border-strong)] transition-colors duration-100 group bg-[var(--bg)]">
-                {/* Video Section — Adaptive for Vertical/Horizontal */}
-                <div
-                    className="aspect-video relative bg-black cursor-pointer overflow-hidden group/media border-b border-[var(--border)]"
-                    onClick={() => setSelectedJobForDetail(job)}
-                >
-                    {videoUrl ? (
-                        <>
-                            <video
-                                src={videoUrl}
-                                className="w-full h-full object-contain"
-                                muted loop playsInline
-                                onMouseEnter={e => e.currentTarget.play().catch(() => {})}
-                                onMouseLeave={e => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
-                            />
-                            {/* Improved Play Button Overlay */}
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-transparent transition-all duration-300">
-                                <div className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-xl group-hover/media:scale-110 transition-transform">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="white" className="ml-0.5"><path d="M8 5v14l11-7z"/></svg>
-                                </div>
-                            </div>
-                            {/* Vertical Badge */}
-                            <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-[var(--accent)] text-[8px] font-bold text-white tracking-widest uppercase shadow-lg">
-                                SHORT
-                            </div>
-                        </>
-                    ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-zinc-900 to-[#121212]">
-                            <div className="w-12 h-12 rounded-full bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-500">
-                                <BriefcaseSolidIcon className="w-5 h-5 text-[var(--text-tertiary)] opacity-30" />
-                            </div>
-                            <span className="text-zinc-500 text-[10px] font-bold tracking-[0.2em] uppercase opacity-60 px-4 text-center truncate w-full">
-                                {job.company || 'RapidGig'}
+            <article
+                key={job.id ?? i}
+                className="lift group flex flex-col rounded-[14px] border border-[var(--border)] bg-[var(--bg)] shadow-[var(--shadow-sm)] overflow-hidden"
+            >
+                {/* Media only when there is a real video: no grey placeholder standing in for one */}
+                {videoUrl && (
+                    <button
+                        type="button"
+                        aria-label={`Play video pitch for ${job.title}`}
+                        className="relative aspect-[16/10] overflow-hidden bg-black text-left focus-ring"
+                        onClick={() => setSelectedJobForDetail(job)}
+                    >
+                        <video
+                            src={videoUrl}
+                            className="w-full h-full object-cover"
+                            muted loop playsInline preload="metadata"
+                            onMouseEnter={e => e.currentTarget.play().catch(() => {})}
+                            onMouseLeave={e => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
+                        />
+                        <span className="pointer-events-none absolute left-3 bottom-3 inline-flex items-center gap-1.5 rounded-full bg-black/55 backdrop-blur-sm pl-1.5 pr-2.5 py-1 text-[12px] font-medium text-white">
+                            <span className="grid place-items-center w-4 h-4 rounded-full bg-white text-black">
+                                <svg width="7" height="8" viewBox="0 0 7 8" fill="currentColor" aria-hidden="true"><path d="M0 0l7 4-7 4z" /></svg>
                             </span>
-                        </div>
-                    )}
-                    {/* Status badge */}
-                    {job.status === 'Full' && (
-                        <span className="absolute top-2 left-2 text-[9px] font-bold bg-red-500 text-white px-2 py-0.5 rounded shadow-lg uppercase tracking-wider">FULL</span>
-                    )}
-                </div>
-
-                {/* Info Section */}
-                <div className="p-3.5">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                        <div className="min-w-0 cursor-pointer" onClick={() => setSelectedJobForDetail(job)}>
-                            <h3 className="text-[13px] font-medium text-[var(--text-primary)] truncate group-hover:text-[var(--accent)] transition-colors duration-100">
-                                {job.title}
-                            </h3>
-                            <p className="text-[11px] text-[var(--text-tertiary)] truncate">{job.company} · {job.location}</p>
-                        </div>
-                        <span className="text-[10px] text-[var(--text-tertiary)] whitespace-nowrap shrink-0">{job.postedAgo}</span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 mb-3 relative group/badge">
-                        <span className="text-[10px] font-medium text-[var(--text-secondary)] bg-[var(--surface)] px-1.5 py-0.5 rounded">{job.type}</span>
-                        <span 
-                            className="text-[10px] font-medium text-[var(--success)] bg-[var(--success-subtle)] px-1.5 py-0.5 rounded truncate max-w-[120px] cursor-help"
-                        >
-                            {job.pay && job.pay.length > 30 ? `${job.pay.substring(0, 30)}...` : job.pay}
+                            Video pitch
                         </span>
-                        {/* Custom Tooltip */}
-                        {job.pay && job.pay.length > 30 && (
-                            <div className="absolute bottom-full left-0 mb-2 invisible group-hover/badge:visible opacity-0 group-hover/badge:opacity-100 transition-all duration-200 z-50">
-                                <div className="bg-zinc-900 border border-zinc-800 text-white text-[11px] px-3 py-1.5 rounded-lg shadow-2xl max-w-[250px] whitespace-normal leading-relaxed">
-                                    {job.pay}
-                                    <div className="absolute top-full left-4 -mt-1.5 border-8 border-transparent border-t-zinc-900" />
-                                </div>
-                            </div>
-                        )}
+                    </button>
+                )}
+
+                <div className="flex flex-1 flex-col px-5 pt-5 pb-5">
+                    <div className="flex items-center gap-3">
+                        <span aria-hidden="true" className="grid place-items-center w-9 h-9 shrink-0 rounded-[8px] bg-[var(--surface)] font-display text-[15px] font-semibold text-[var(--text-secondary)]">
+                            {monogram}
+                        </span>
+                        <div className="min-w-0 flex-1 leading-tight">
+                            <p className="truncate text-[13px] font-medium text-[var(--text-primary)]">{job.company}</p>
+                            <p className="text-[12px] text-[var(--text-tertiary)]">
+                                {isFull ? <span className="text-[var(--danger)]">Positions filled</span> : job.postedAgo}
+                            </p>
+                        </div>
                     </div>
 
-                    {!isRecruiter && (
-                        <div className="flex gap-2">
+                    <h3 className="mt-4 font-display text-[19px] font-semibold leading-[1.2] tracking-[-0.015em] text-[var(--text-primary)] line-clamp-2">
+                        <button type="button" onClick={() => setSelectedJobForDetail(job)} className="text-left hover:text-[var(--accent)] transition-colors duration-150 focus-ring">
+                            {job.title}
+                        </button>
+                    </h3>
+
+                    <p className="mt-2 flex items-center gap-1.5 text-[13px] text-[var(--text-secondary)]">
+                        <MapPinIcon className="w-3.5 h-3.5 shrink-0 text-[var(--text-tertiary)]" />
+                        <span className="truncate">{job.location}</span>
+                        {job.type && job.type.toLowerCase() !== (job.location || '').toLowerCase() && (
+                            <>
+                                <span className="text-[var(--border-strong)]" aria-hidden="true">/</span>
+                                <span className="shrink-0">{job.type}</span>
+                            </>
+                        )}
+                    </p>
+
+                    {!videoUrl && job.description && (
+                        <p className="mt-3 text-[14px] leading-[1.55] text-[var(--text-secondary)] line-clamp-3">{job.description}</p>
+                    )}
+
+                    <div className="mt-auto pt-5 flex items-center justify-between gap-3">
+                        <span className="min-w-0 truncate text-[14px] font-semibold tabular-nums text-[var(--text-primary)]" title={job.pay}>
+                            {job.pay}
+                        </span>
+                        {!isRecruiter && (
                             <button
-                                onClick={() => setSelectedJobForDetail(job)}
-                                className="flex-1 py-2 text-[11px] font-medium text-[var(--text-secondary)] border border-[var(--border)] rounded-md hover:bg-[var(--surface-hover)] transition-colors duration-100"
-                            >
-                                Details
-                            </button>
-                            <button
-                                onClick={() => { if (job.status !== 'Full' && !applied) onApplyNow(job); }}
-                                disabled={job.status === 'Full' || applied}
-                                className={`flex-[1.5] py-2 text-[11px] font-medium rounded-md transition-all duration-100 ${
+                                onClick={() => { if (!isFull && !applied) onApplyNow(job); }}
+                                disabled={isFull || applied}
+                                className={`shrink-0 inline-flex items-center gap-1.5 rounded-[var(--radius)] px-3.5 py-2 text-[13px] font-medium transition-colors duration-150 focus-ring ${
                                     applied
-                                        ? 'bg-[var(--success-subtle)] text-[var(--success)] border border-[var(--success)]/20'
-                                        : job.status === 'Full'
+                                        ? 'bg-[var(--success-subtle)] text-[var(--success)]'
+                                        : isFull
                                         ? 'bg-[var(--surface)] text-[var(--text-tertiary)] cursor-not-allowed'
-                                        : 'bg-[var(--text-primary)] text-[var(--bg)] hover:opacity-90'
+                                        : 'bg-[var(--text-primary)] text-[var(--bg)] hover:bg-[var(--accent)] hover:text-[var(--accent-fg)]'
                                 }`}
                             >
-                                {applied ? '✓ Applied' : job.status === 'Full' ? 'Filled' : 'Apply Now'}
+                                {applied ? (
+                                    <><CheckCircleIcon className="w-4 h-4" /> Applied</>
+                                ) : isFull ? 'Filled' : 'Apply'}
                             </button>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
-            </div>
+            </article>
         );
     };
 
+    const chip = (active: boolean) =>
+        `shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-150 focus-ring ${
+            active
+                ? 'bg-[var(--text-primary)] text-[var(--bg)]'
+                : 'text-[var(--text-secondary)] border border-[var(--border)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]'
+        }`;
+
     return (
         <>
-            <div className="max-w-screen-xl mx-auto px-6 py-8 animate-fade-in">
-                {/* Search */}
-                <div className="mb-10 flex flex-col items-center text-center">
-                    <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight mb-2">
-                        {isRecruiter ? 'Browse talent' : 'Find your next gig'}
-                    </h1>
-                    <p className="text-[14px] text-[var(--text-tertiary)] mb-6 max-w-lg">
-                        {isRecruiter ? 'Explore available opportunities' : 'Discover opportunities through short-form video pitches and direct applications.'}
-                    </p>
-                    <div className="relative w-full max-w-xl mx-auto group">
-                        <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-[var(--text-tertiary)] group-focus-within:text-[var(--accent)] transition-colors" />
-                        <input
-                            type="text"
-                            placeholder="Search roles, skills, companies…"
-                            aria-label="Search gigs"
-                            value={searchQuery}
-                            onChange={e => setSearchQuery(e.target.value)}
-                            className="w-full pl-11 pr-4 py-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text-primary)] shadow-sm placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-4 focus:ring-[var(--accent)]/10 focus:border-[var(--accent)] transition-all duration-200"
-                        />
+            <div className="max-w-screen-xl mx-auto px-5 sm:px-8 animate-fade-in">
+                {/* Hero */}
+                <section className={isRecruiter ? 'pt-10 pb-8' : 'pt-14 pb-10 sm:pt-20 sm:pb-14'}>
+                    {isRecruiter ? (
+                        <>
+                            <h1 className="font-display text-title font-semibold text-[var(--text-primary)]">Browse open roles</h1>
+                            <p className="mt-2 text-[15px] text-[var(--text-secondary)]">See what else is live on RapidGig right now.</p>
+                        </>
+                    ) : (
+                        <>
+                            <h1 className="max-w-[14ch] font-display text-display font-semibold text-[var(--text-primary)] text-balance">
+                                See the team before you <span className="text-[var(--accent)]">apply.</span>
+                            </h1>
+                            <p className="mt-5 max-w-[52ch] text-[17px] leading-[1.6] text-[var(--text-secondary)]">
+                                Every role comes with a short video from the people hiring. Watch, decide, and apply with your work instead of a cover letter.
+                            </p>
+                        </>
+                    )}
+
+                    <div className={`flex flex-col sm:flex-row sm:items-center gap-3 ${isRecruiter ? 'mt-6' : 'mt-8'}`}>
+                        <div className="relative w-full sm:max-w-md">
+                            <SearchIcon className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[var(--text-tertiary)]" />
+                            <input
+                                type="search"
+                                placeholder="Search roles, skills or companies"
+                                aria-label="Search gigs"
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                                className="w-full h-12 pl-11 pr-4 rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--bg)] text-[15px] text-[var(--text-primary)] shadow-[var(--shadow-sm)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--text-primary)] focus:ring-4 focus:ring-[var(--accent)]/15 transition-[border-color,box-shadow] duration-150"
+                            />
+                        </div>
+                        {!isRecruiter && (
+                            <button
+                                onClick={() => navigate('shorts')}
+                                className="inline-flex h-12 items-center justify-center gap-2 rounded-[var(--radius)] px-5 text-[15px] font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors duration-150 focus-ring"
+                            >
+                                <VideoCameraIcon className="w-[18px] h-[18px]" />
+                                Watch the feed
+                            </button>
+                        )}
                     </div>
-                </div>
+                </section>
 
                 {/* Category filters */}
-                <div className="flex gap-1.5 overflow-x-auto pb-2 scrollbar-hide mb-6">
-                    <button
-                        onClick={() => setSelectedCategory('All')}
-                        aria-pressed={selectedCategory === 'All'}
-                        className={`px-3 py-1.5 rounded-md text-[12px] font-medium whitespace-nowrap transition-colors duration-100 ${
-                            selectedCategory === 'All'
-                                ? 'bg-[var(--text-primary)] text-[var(--bg)]'
-                                : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border)]'
-                        }`}
-                    >
+                <div className="-mx-5 px-5 sm:mx-0 sm:px-0 flex gap-2 overflow-x-auto pb-1 scrollbar-hide [mask-image:linear-gradient(to_right,#000_calc(100%-48px),transparent)] sm:pr-12" role="group" aria-label="Filter by category">
+                    <button onClick={() => setSelectedCategory('All')} aria-pressed={selectedCategory === 'All'} className={chip(selectedCategory === 'All')}>
                         All
                     </button>
                     {CATEGORIES.map(cat => (
-                        <button
-                            key={cat.id}
-                            onClick={() => setSelectedCategory(cat.name)}
-                            aria-pressed={selectedCategory === cat.name}
-                            className={`px-3 py-1.5 rounded-md text-[12px] font-medium whitespace-nowrap transition-colors duration-100 ${
-                                selectedCategory === cat.name
-                                    ? 'bg-[var(--text-primary)] text-[var(--bg)]'
-                                    : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border)]'
-                            }`}
-                        >
+                        <button key={cat.id} onClick={() => setSelectedCategory(cat.name)} aria-pressed={selectedCategory === cat.name} className={chip(selectedCategory === cat.name)}>
                             {cat.name}
                         </button>
                     ))}
                 </div>
 
                 {/* Results header */}
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                        <h2 className="text-sm font-medium text-[var(--text-primary)]">
-                            {selectedCategory === 'All' ? 'All roles' : selectedCategory}
-                        </h2>
-                        {liveJobs.length > 0 && (
-                            <span className="text-[10px] font-medium text-[var(--success)] bg-[var(--success-subtle)] px-1.5 py-0.5 rounded">{liveJobs.length} live</span>
+                <div className="mt-10 mb-5 flex items-end justify-between gap-4 border-b border-[var(--border)] pb-3">
+                    <h2 className="font-display text-[22px] font-semibold tracking-[-0.02em] text-[var(--text-primary)]">
+                        {selectedCategory === 'All' ? 'Open roles' : selectedCategory}
+                        {!isLoading && liveJobs.length > 0 && (
+                            <span className="ml-2 align-middle font-sans text-[13px] font-medium tabular-nums text-[var(--text-tertiary)]">{liveJobs.length}</span>
                         )}
-                    </div>
-                    <div className="flex gap-0.5">
+                    </h2>
+                    <div className="flex rounded-[var(--radius)] bg-[var(--surface)] p-0.5" role="group" aria-label="Sort">
                         {(['latest', 'relevant'] as const).map(s => (
                             <button
                                 key={s}
                                 onClick={() => setSortBy(s)}
                                 aria-pressed={sortBy === s}
-                                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors duration-100 ${
-                                    sortBy === s ? 'bg-[var(--surface)] text-[var(--text-primary)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
+                                className={`rounded-[8px] px-3 py-1.5 text-[12.5px] font-medium transition-colors duration-150 focus-ring ${
+                                    sortBy === s ? 'bg-[var(--bg)] text-[var(--text-primary)] shadow-[var(--shadow-sm)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                                 }`}
                             >
                                 {s === 'latest' ? 'Latest' : 'Popular'}
@@ -240,24 +241,37 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                     </div>
                 </div>
 
-                {/* Loading */}
+                {/* Loading: skeletons in the card's own shape, so the grid doesn't jump when data lands */}
                 {isLoading && (
-                    <div className="flex items-center justify-center py-20">
-                        <div className="w-5 h-5 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-6 pb-16" aria-busy="true" aria-label="Loading gigs">
+                        {[0, 1, 2].map(k => (
+                            <div key={k} className="rounded-[14px] border border-[var(--border)] overflow-hidden">
+                                <div className="aspect-[16/10] bg-[var(--surface)] animate-pulse" />
+                                <div className="p-5 space-y-3">
+                                    <div className="h-3 w-1/3 rounded bg-[var(--surface)] animate-pulse" />
+                                    <div className="h-5 w-3/4 rounded bg-[var(--surface)] animate-pulse" />
+                                    <div className="h-3 w-1/2 rounded bg-[var(--surface)] animate-pulse" />
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 )}
 
                 {/* Grid */}
                 {!isLoading && (
-                    <>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {liveJobs.map((job, i) => <JobCard key={job.id ?? i} job={job} />)}
+                    <div className="pb-20">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 items-start gap-x-5 gap-y-6">
+                            {liveJobs.map((job, i) => renderJobCard(job, i))}
                         </div>
                         {liveJobs.length === 0 && (
-                            <div className="text-center py-20" role="status">
-                                <p className="text-sm text-[var(--text-secondary)] mb-3">
+                            <div className="rounded-[14px] border border-dashed border-[var(--border-strong)] px-6 py-16 text-center" role="status">
+                                <BriefcaseIcon className="mx-auto w-6 h-6 text-[var(--text-tertiary)]" />
+                                <p className="mt-3 font-display text-[18px] font-semibold text-[var(--text-primary)]">
+                                    {loadError ? 'The server is waking up' : 'Nothing here yet'}
+                                </p>
+                                <p className="mt-1 text-[14px] text-[var(--text-secondary)]">
                                     {loadError
-                                        ? "Couldn't load gigs. The server may be starting up."
+                                        ? "Couldn't load gigs. The server may still be starting, so give it half a minute."
                                         : debouncedSearch
                                         ? `No gigs match "${debouncedSearch}".`
                                         : selectedCategory !== 'All'
@@ -265,17 +279,17 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                                         : 'No gigs posted yet.'}
                                 </p>
                                 {loadError ? (
-                                    <button onClick={() => setReloadKey(k => k + 1)} className="px-3 py-1.5 text-[12px] font-medium rounded-md bg-[var(--text-primary)] text-[var(--bg)] hover:opacity-90">
+                                    <button onClick={() => setReloadKey(k => k + 1)} className="mt-5 px-4 py-2 text-[13px] font-medium rounded-[var(--radius)] bg-[var(--text-primary)] text-[var(--bg)] hover:bg-[var(--accent)] hover:text-[var(--accent-fg)] transition-colors focus-ring">
                                         Try again
                                     </button>
                                 ) : (debouncedSearch || selectedCategory !== 'All') && (
-                                    <button onClick={() => { setSearchQuery(''); setSelectedCategory('All'); }} className="px-3 py-1.5 text-[12px] font-medium rounded-md border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]">
+                                    <button onClick={() => { setSearchQuery(''); setSelectedCategory('All'); }} className="mt-5 px-4 py-2 text-[13px] font-medium rounded-[var(--radius)] border border-[var(--border-strong)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors focus-ring">
                                         Show all gigs
                                     </button>
                                 )}
                             </div>
                         )}
-                    </>
+                    </div>
                 )}
             </div>
 

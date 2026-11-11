@@ -2,6 +2,15 @@
 
 @theme {
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Bricolage Grotesque', 'Inter', system-ui, sans-serif;
+
+  /* Type scale: display → title → body → meta. Everything else uses Tailwind's defaults. */
+  --text-display: clamp(2.5rem, 4vw + 1rem, 4.25rem);
+  --text-display--line-height: 1.02;
+  --text-display--letter-spacing: -0.035em;
+  --text-title: 1.5rem;
+  --text-title--line-height: 1.15;
+  --text-title--letter-spacing: -0.02em;
 }
 
 /* Dark mode via class */
@@ -10,51 +19,66 @@
 /* ─── Design Tokens ──────────────────────────────────────────────────────── */
 
 :root {
-  --bg: #ffffff;
-  --surface: #fafafa;
-  --surface-hover: #f4f4f5;
-  --border: #e4e4e7;
-  --border-strong: #d4d4d8;
-  --text-primary: #09090b;
-  --text-secondary: #71717a;
-  --text-tertiary: #a1a1aa;
-  --accent: #2563eb;
-  --accent-hover: #1d4ed8;
-  --accent-subtle: #eff6ff;
-  --success: #16a34a;
-  --success-subtle: #f0fdf4;
-  --danger: #dc2626;
-  --danger-subtle: #fef2f2;
-  --warning: #ca8a04;
-  --warning-subtle: #fefce8;
-  --scrollbar-thumb: #d4d4d8;
-  --scrollbar-thumb-hover: #a1a1aa;
-  --radius: 8px;
+  /* Near-neutral greys + one accent (vermilion). Ink is the primary action colour;
+     the accent is reserved for focus, active state and a few highlights. */
+  --bg: #fdfdfc;
+  --surface: #f4f4f2;
+  --surface-hover: #ececea;
+  --border: #e5e5e2;
+  --border-strong: #d2d2ce;
+  --text-primary: #141413;
+  --text-secondary: #5a5a56;
+  --text-tertiary: #71716c;
+  --accent: #c4411a;
+  --accent-hover: #a83813;
+  --accent-subtle: #fbebe4;
+  --accent-fg: #ffffff;
+  --success: #2f7d4f;
+  --success-subtle: #e9f3ec;
+  --danger: #c0352b;
+  --danger-subtle: #fbeceb;
+  --warning: #a8710a;
+  --warning-subtle: #fbf3df;
+  --scrollbar-thumb: #d2d2ce;
+  --scrollbar-thumb-hover: #a1a19c;
+  --radius: 10px;
+  --shadow-sm: 0 1px 2px rgb(20 20 19 / 0.05), 0 1px 1px rgb(20 20 19 / 0.03);
+  --shadow-md: 0 1px 2px rgb(20 20 19 / 0.04), 0 12px 28px -12px rgb(20 20 19 / 0.18);
+  --shadow-lg: 0 2px 4px rgb(20 20 19 / 0.04), 0 24px 48px -16px rgb(20 20 19 / 0.28);
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .dark {
-  --bg: #09090b;
-  --surface: #111113;
-  --surface-hover: #18181b;
-  --border: #27272a;
-  --border-strong: #3f3f46;
-  --text-primary: #fafafa;
-  --text-secondary: #a1a1aa;
-  --text-tertiary: #71717a;
-  --accent: #3b82f6;
-  --accent-hover: #60a5fa;
-  --accent-subtle: #172554;
-  --success: #22c55e;
-  --success-subtle: #052e16;
-  --danger: #ef4444;
-  --danger-subtle: #450a0a;
-  --warning: #eab308;
-  --warning-subtle: #422006;
-  --scrollbar-thumb: #3f3f46;
-  --scrollbar-thumb-hover: #52525b;
+  --bg: #111111;
+  --surface: #191918;
+  --surface-hover: #222221;
+  --border: #2b2b29;
+  --border-strong: #3c3c39;
+  --text-primary: #ededeb;
+  --text-secondary: #adada8;
+  --text-tertiary: #8a8a85;
+  --accent: #f0703f;
+  --accent-hover: #ff8a5c;
+  --accent-subtle: #2e1a12;
+  --accent-fg: #1a0d06;
+  --success: #4cb67a;
+  --success-subtle: #13241a;
+  --danger: #ef5a4f;
+  --danger-subtle: #2d1513;
+  --warning: #e0a634;
+  --warning-subtle: #2a2010;
+  --scrollbar-thumb: #3d3a35;
+  --scrollbar-thumb-hover: #57534c;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 1px 2px rgb(0 0 0 / 0.4), 0 12px 28px -12px rgb(0 0 0 / 0.6);
+  --shadow-lg: 0 2px 4px rgb(0 0 0 / 0.4), 0 24px 48px -16px rgb(0 0 0 / 0.7);
 }
 
 /* ─── Base ───────────────────────────────────────────────────────────────── */
+
+html { color-scheme: light; }
+html.dark { color-scheme: dark; }
+::selection { background: var(--accent); color: var(--accent-fg); }
 
 body {
   background-color: var(--bg);
@@ -101,8 +125,18 @@ body {
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes confetti {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+.animate-confetti { animation: confetti 3s ease-out forwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 
 @keyframes slideLeft {
@@ -113,6 +147,13 @@ body {
 /* ─── Utility Classes ────────────────────────────────────────────────────── */
 
 .text-balance { text-wrap: balance; }
+.font-display { font-optical-sizing: auto; font-variation-settings: 'wdth' 92; }
+
+/* Cards that respond to the pointer: lift 2px, deepen shadow. Kept short so it never feels laggy. */
+.lift {
+  transition: transform 180ms var(--ease-out), box-shadow 180ms var(--ease-out), border-color 180ms var(--ease-out);
+}
+.lift:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--border-strong); }
 
 /* Focus ring — consistent across all interactive elements */
 .focus-ring:focus-visible {
