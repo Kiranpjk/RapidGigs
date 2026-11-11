@@ -10,6 +10,7 @@ import { VideoGenProvider } from './context/VideoGenContext';
 import { canAccessPage, getDefaultPageForRole } from './utils/rbac';
 import AdminLayout from './components/layout/AdminLayout';
 import RecruiterLayout from './components/layout/RecruiterLayout';
+import { XMarkIcon } from './components/icons/Icons';
 
 // All valid page routes
 const VALID_PAGES: Page[] = [
@@ -142,13 +143,16 @@ const App: React.FC = () => {
       )}
 
       {showAuthModal && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 overflow-y-auto">
-          <div className="relative w-full max-w-6xl mx-auto my-8">
+        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-[#17150f]/50 backdrop-blur-[2px] p-4 overflow-y-auto animate-fade-in">
+          <div className="relative w-full max-w-[960px] mx-auto my-8 animate-scale-in">
             <button
               onClick={() => setShowAuthModal(false)}
-              className="absolute -top-3 -right-3 w-8 h-8 bg-[var(--bg)] border border-[var(--border)] rounded-full flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors z-10 text-sm"
-            >✕</button>
-            <div className="rounded-lg overflow-hidden border border-[var(--border)]">
+              aria-label="Close"
+              className="absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors z-10 focus-ring"
+            >
+              <XMarkIcon className="w-5 h-5" />
+            </button>
+            <div className="rounded-[18px] overflow-hidden shadow-[var(--shadow-lg)]">
               <AuthPage
                 initialPage={authModalPage}
                 navigate={(page) => { if (page === 'dashboard') handleAuthSuccess(); }}

@@ -71,16 +71,16 @@ const Header: React.FC<HeaderProps> = ({ navigate, onLogout, currentPage, theme,
 
     return (
         <>
-            <header className="sticky top-0 z-50 bg-[var(--bg)] border-b border-[var(--border)]">
+            <header className="sticky top-0 z-50 bg-[var(--bg)]/90 backdrop-blur-md border-b border-[var(--border)]">
                 <div className="max-w-screen-2xl mx-auto px-4 sm:px-6">
-                    <div className="flex items-center justify-between h-12">
+                    <div className="flex items-center justify-between h-14">
                         {/* Left */}
-                        <div className="flex items-center gap-6">
-                            <button onClick={() => navigate('dashboard')} className="flex items-center gap-2 shrink-0">
-                                <LogoIcon className="h-5 w-5 text-[var(--accent)]" />
-                                <span className="text-sm font-semibold text-[var(--text-primary)] tracking-tight hidden sm:block">RapidGig</span>
+                        <div className="flex items-center gap-8 h-full">
+                            <button onClick={() => navigate('dashboard')} aria-label="RapidGig home" className="flex items-center gap-2 shrink-0 focus-ring">
+                                <LogoIcon className="h-6 w-6 text-[var(--text-primary)]" />
+                                <span className="font-display text-[17px] font-semibold text-[var(--text-primary)] tracking-[-0.02em] hidden sm:block">RapidGig</span>
                             </button>
-                            <nav className="hidden lg:flex items-center border-l border-[var(--border)] pl-6">
+                            <nav className="hidden lg:flex items-stretch gap-1 h-full" aria-label="Primary">
                                 {allNavItems.map(item => {
                                     if (item.requiresAuth && !isAuthenticated) return null;
                                     const isActive = currentPage === item.page;
@@ -88,13 +88,14 @@ const Header: React.FC<HeaderProps> = ({ navigate, onLogout, currentPage, theme,
                                         <button
                                             key={item.name}
                                             onClick={() => handleNav(item.page)}
-                                            className={`flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium rounded-md transition-colors duration-100
+                                            aria-current={isActive ? 'page' : undefined}
+                                            className={`relative flex items-center px-3 text-[13.5px] font-medium transition-colors duration-150 focus-ring
+                                                after:absolute after:left-3 after:right-3 after:-bottom-px after:h-[2px] after:rounded-full after:transition-colors after:duration-150
                                                 ${isActive
-                                                    ? 'text-[var(--text-primary)] bg-[var(--surface)]'
-                                                    : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)]'
+                                                    ? 'text-[var(--text-primary)] after:bg-[var(--accent)]'
+                                                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] after:bg-transparent'
                                                 }`}
                                         >
-                                            {item.icon}
                                             {item.name}
                                         </button>
                                     );
@@ -104,7 +105,7 @@ const Header: React.FC<HeaderProps> = ({ navigate, onLogout, currentPage, theme,
 
                         {/* Right */}
                         <div className="flex items-center gap-1">
-                            <button onClick={toggleTheme} className="p-2 rounded-md text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors duration-100">
+                            <button onClick={toggleTheme} aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} className="p-2 rounded-md text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors duration-100">
                                 {theme === 'dark' ? <SunIcon className="h-4 w-4" /> : <MoonIcon className="h-4 w-4" />}
                             </button>
                             {isAuthenticated && (
@@ -114,21 +115,21 @@ const Header: React.FC<HeaderProps> = ({ navigate, onLogout, currentPage, theme,
                                 </div>
                             )}
                             {!isAuthenticated ? (
-                                <div className="flex items-center gap-1.5 ml-2">
-                                    <button onClick={() => navigate('login')} className="px-3 py-1.5 text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Login</button>
-                                    <button onClick={() => navigate('signup')} className="px-3 py-1.5 text-[13px] font-medium bg-[var(--text-primary)] text-[var(--bg)] rounded-md hover:opacity-90 transition-opacity">Sign Up</button>
+                                <div className="flex items-center gap-1 ml-2">
+                                    <button onClick={() => navigate('login')} className="hidden sm:block px-3 py-2 text-[13.5px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors focus-ring">Log in</button>
+                                    <button onClick={() => navigate('signup')} className="px-3.5 py-2 text-[13.5px] font-medium bg-[var(--text-primary)] text-[var(--bg)] rounded-[var(--radius)] hover:bg-[var(--accent)] hover:text-[var(--accent-fg)] transition-colors duration-150 focus-ring">Get started</button>
                                 </div>
                             ) : (
                                 <div className="relative ml-1" ref={profileMenuRef}>
                                     <button ref={floatingRefs.setReference} onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)} className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-[var(--surface-hover)] transition-colors duration-100">
                                         <img
-                                            src={user?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'U')}&size=24&background=2563eb&color=fff&bold=true`}
+                                            src={user?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'U')}&size=24&background=c4411a&color=fff&bold=true`}
                                             alt=""
                                             className="w-6 h-6 rounded-full"
                                         />
                                     </button>
                                     {isProfileMenuOpen && (
-                                        <div ref={floatingRefs.setFloating} style={floatingStyles} className="w-48 bg-[var(--bg)] border border-[var(--border)] rounded-lg shadow-lg py-1 z-50 animate-fade-in">
+                                        <div ref={floatingRefs.setFloating} style={floatingStyles} className="w-52 bg-[var(--bg)] border border-[var(--border)] rounded-[var(--radius)] shadow-[var(--shadow-lg)] py-1 z-50 animate-fade-in">
                                             <div className="px-3 py-2 border-b border-[var(--border)]">
                                                 <p className="text-[13px] font-medium text-[var(--text-primary)] truncate">{user?.name}</p>
                                                 {user?.role && <p className="text-[10px] text-[var(--text-tertiary)] capitalize">{user.role}</p>}
@@ -143,7 +144,7 @@ const Header: React.FC<HeaderProps> = ({ navigate, onLogout, currentPage, theme,
                                 </div>
                             )}
                             <div className="lg:hidden ml-1">
-                                <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 rounded-md text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)]">
+                                <button onClick={() => setIsMenuOpen(!isMenuOpen)} aria-label="Menu" aria-expanded={isMenuOpen} className="p-2 rounded-md text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)]">
                                     {isMenuOpen ? <XMarkIcon className="w-5 h-5" /> : <Bars3Icon className="w-5 h-5" />}
                                 </button>
                             </div>
@@ -164,8 +165,8 @@ const Header: React.FC<HeaderProps> = ({ navigate, onLogout, currentPage, theme,
                             })}
                             {!isAuthenticated && (
                                 <div className="pt-3 border-t border-[var(--border)] flex flex-col gap-1.5">
-                                    <button onClick={() => handleNav('login')} className="w-full px-3 py-2 text-[13px] text-[var(--text-secondary)]">Login</button>
-                                    <button onClick={() => handleNav('signup')} className="w-full bg-[var(--text-primary)] text-[var(--bg)] rounded-md py-2 text-[13px] font-medium">Sign Up</button>
+                                    <button onClick={() => handleNav('login')} className="w-full px-3 py-2.5 text-[13.5px] text-[var(--text-secondary)]">Log in</button>
+                                    <button onClick={() => handleNav('signup')} className="w-full bg-[var(--text-primary)] text-[var(--bg)] rounded-[var(--radius)] py-2.5 text-[13.5px] font-medium">Get started</button>
                                 </div>
                             )}
                         </div>
