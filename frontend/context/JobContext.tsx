@@ -42,6 +42,7 @@ const serializeJob = (job: Job): Job => ({
   shortVideoUrl: job.shortVideoUrl,
   applyUrl: job.applyUrl,
   source: job.source,
+  kind: job.kind,
   likes: job.likes,
   comments: job.comments,
   shares: job.shares,

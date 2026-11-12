@@ -36,6 +36,9 @@ export interface CompanyBrief {
   instagramReelUrl?: string;
 }
 
+export type JobSource = 'simplify' | 'zapply' | 'arbeitnow' | 'remotive' | 'remoteok' | 'jobicy' | 'himalayas';
+export type JobKind = 'Internship' | 'Working student' | 'Job';
+
 export interface Job {
   id: string; // ✅ was: number — MongoDB returns string ObjectIds
   title: string;
@@ -53,7 +56,8 @@ export interface Job {
   freelancerVideoUrl?: string;
   shortVideoUrl?: string;
   applyUrl?: string;
-  source?: 'simplify' | 'zapply';
+  source?: JobSource;
+  kind?: JobKind;
   maxSlots?: number;
   filledSlots?: number;
   status?: 'Open' | 'Full' | 'Closed';

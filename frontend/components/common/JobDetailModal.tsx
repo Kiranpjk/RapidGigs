@@ -80,6 +80,7 @@ const JobDetailModal: React.FC<JobDetailModalProps> = ({ job, isOpen, onClose, o
                             {job.pay.length > 30 ? `${job.pay.substring(0, 30)}...` : job.pay}
                         </span>
                         <span className="text-[12.5px] font-medium bg-[var(--surface)] text-[var(--text-secondary)] px-2.5 py-1 rounded-full">{job.type}</span>
+                        {job.kind && <span className="text-[12.5px] font-medium bg-[var(--surface)] text-[var(--text-secondary)] px-2.5 py-1 rounded-full">{job.kind}</span>}
                     </div>
 
                     <div className="mb-5">
