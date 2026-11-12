@@ -9,52 +9,32 @@ import { requireRole } from '../middleware/rbac';
 import { formatTimestamp } from '../utils/formatTimestamp';
 import mongoose from 'mongoose';
 import { parseJobDescription } from '../services/jobParser';
+import { parseJobListQuery } from '../services/jobQuery';
 
 const router = express.Router();
 
-// Get all jobs with filters
+// Get jobs with filters, 1-based paging (page, limit up to 100) and the total match count in X-Total-Count
 router.get('/', async (req, res) => {
   try {
-    const query: any = {};
+    const { filter: query, sort: sortOption, limit, skip } = parseJobListQuery(req.query);
 
-    if (req.query.category) {
+    if (typeof req.query.category === 'string' && req.query.category) {
       const category = await Category.findOne({ name: req.query.category });
       if (category) {
         query.categoryId = category._id;
       }
     }
 
-    if (req.query.type) {
-      query.type = req.query.type;
-    }
-
-    if (req.query.location) {
-      const escaped = (req.query.location as string).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      query.location = { $regex: escaped, $options: 'i' };
-    }
-
-    // Text search across title, company, and description
-    if (req.query.search) {
-      const escaped = (req.query.search as string).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const searchRegex = new RegExp(escaped, 'i');
-      query.$or = [
-        { title: searchRegex },
-        { company: searchRegex },
-        { description: searchRegex },
-      ];
-    }
-
-    // Sort: default is latest, 'popular' sorts by likes
-    let sortOption: any = { createdAt: -1 };
-    if (req.query.sort === 'popular') {
-      sortOption = { likes: -1, createdAt: -1 };
-    }
-
-    const jobs = await Job.find(query)
-      .populate('categoryId', 'name')
-      .populate('postedBy', 'name avatarUrl')
-      .sort(sortOption)
-      .limit(100);
+    const [jobs, total] = await Promise.all([
+      Job.find(query)
+        .populate('categoryId', 'name')
+        .populate('postedBy', 'name avatarUrl')
+        .sort(sortOption)
+        .skip(skip)
+        .limit(limit),
+      Job.countDocuments(query),
+    ]);
+    res.setHeader('X-Total-Count', String(total));
 
     res.json(jobs.map(job => ({
       id: job._id.toString(),
@@ -78,6 +58,7 @@ router.get('/', async (req, res) => {
       createdAt: job.createdAt,
       applyUrl: job.applyUrl,
       source: job.source,
+      kind: job.kind,
     })));
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -153,6 +134,7 @@ router.get('/:id', async (req, res) => {
       createdAt: job.createdAt,
       applyUrl: job.applyUrl,
       source: job.source,
+      kind: job.kind,
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

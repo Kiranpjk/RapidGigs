@@ -11,6 +11,7 @@ import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { verifyToken } from './utils/jwt';
 import mongoose from 'mongoose';
+import { startListingScheduler } from './services/listingScheduler';
 
 // Routes
 import authRoutes from './routes/auth';
@@ -44,6 +45,7 @@ const io = new Server(httpServer, {
 app.use(cors({
   origin: config.cors.origin,
   credentials: true,           // Allow cookies cross-origin
+  exposedHeaders: ['X-Total-Count'],
 }));
 app.use(cookieParser());       // Parse httpOnly cookies
 app.use(express.json({ limit: '10mb' }));
@@ -160,6 +162,7 @@ const startServer = async () => {
     const PORT = config.port;
     httpServer.listen(PORT, () => {
       console.log(`✅ Server running on http://localhost:${PORT}`);
+      startListingScheduler(); // never throws; does nothing unless enabled
     });
   } catch (error) {
     console.error('Failed to start server:', error);
