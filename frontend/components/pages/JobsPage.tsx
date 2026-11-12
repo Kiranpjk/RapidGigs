@@ -5,6 +5,7 @@ import { useJobs } from '../../context/JobContext';
 import { useAuth } from '../../context/AuthContext';
 import { jobsAPI } from '../../services/api';
 import JobDetailModal from '../common/JobDetailModal';
+import JobSourceCredit from '../common/JobSourceCredit';
 
 const BASE_URL = (import.meta.env.VITE_API_BASE as string)?.replace('/api', '') || 'http://localhost:3001';
 const getMediaUrl = (url?: string) => { if (!url) return ''; if (url.startsWith('http')) return url; return url.startsWith('/') ? `${BASE_URL}${url}` : `${BASE_URL}/${url}`; };
@@ -33,7 +34,7 @@ const JobsPage: React.FC<JobsPageProps> = ({ onApplyNow }) => {
                     type: j.type || 'Remote', pay: j.pay, description: j.description,
                     postedAgo: j.postedAgo || 'Recently', category: j.category,
                     companyVideoUrl: j.companyVideoUrl, freelancerVideoUrl: j.freelancerVideoUrl,
-                    shortVideoUrl: j.shortVideoUrl, maxSlots: j.maxSlots, filledSlots: j.filledSlots,
+                    shortVideoUrl: j.shortVideoUrl, applyUrl: j.applyUrl, source: j.source, maxSlots: j.maxSlots, filledSlots: j.filledSlots,
                     status: j.status, likes: j.likes || 0, comments: j.comments || 0,
                 })));
             })
@@ -145,6 +146,12 @@ const JobsPage: React.FC<JobsPageProps> = ({ onApplyNow }) => {
                                         <span className="truncate font-medium">{job.company}</span>
                                         <span className="text-[var(--border-strong)]" aria-hidden="true">·</span>
                                         <span className="truncate">{job.location}</span>
+                                        {job.source && (
+                                            <>
+                                                <span className="text-[var(--border-strong)]" aria-hidden="true">·</span>
+                                                <span className="shrink-0"><JobSourceCredit source={job.source} /></span>
+                                            </>
+                                        )}
                                     </p>
                                 </div>
 
@@ -177,6 +184,16 @@ const JobsPage: React.FC<JobsPageProps> = ({ onApplyNow }) => {
                                         >
                                             <BookmarkIcon className="w-4 h-4" />
                                         </button>
+                                        {job.applyUrl ? (
+                                        <a
+                                            href={job.applyUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="px-3 py-1.5 rounded-md text-[11px] font-medium transition-all duration-100 bg-[var(--text-primary)] text-[var(--bg)] hover:bg-[var(--accent)] hover:text-[var(--accent-fg)]"
+                                        >
+                                            Apply on company site
+                                        </a>
+                                        ) : (
                                         <button
                                             onClick={() => { if (job.status !== 'Full' && !applied) onApplyNow(job); }}
                                             disabled={job.status === 'Full' || applied}
@@ -190,6 +207,7 @@ const JobsPage: React.FC<JobsPageProps> = ({ onApplyNow }) => {
                                         >
                                             {applied ? 'Applied' : job.status === 'Full' ? 'Full' : 'Apply'}
                                         </button>
+                                        )}
                                     </div>
                                 )}
                             </div>

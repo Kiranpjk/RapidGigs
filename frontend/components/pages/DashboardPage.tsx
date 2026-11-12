@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useJobs } from '../../context/JobContext';
 import { jobsAPI } from '../../services/api';
 import JobDetailModal from '../common/JobDetailModal';
+import JobSourceCredit from '../common/JobSourceCredit';
 
 const BASE_URL = (import.meta.env.VITE_API_BASE as string)?.replace('/api', '') || 'http://localhost:3001';
 const getMediaUrl = (url?: string) => { if (!url) return ''; if (url.startsWith('http')) return url; return url.startsWith('/') ? `${BASE_URL}${url}` : `${BASE_URL}/${url}`; };
@@ -48,7 +49,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                     type: j.type || 'Remote', pay: j.pay, description: j.description,
                     postedAgo: j.postedAgo || 'Recently', category: j.category,
                     companyVideoUrl: j.companyVideoUrl, freelancerVideoUrl: j.freelancerVideoUrl,
-                    shortVideoUrl: j.shortVideoUrl, maxSlots: j.maxSlots, filledSlots: j.filledSlots,
+                    shortVideoUrl: j.shortVideoUrl, applyUrl: j.applyUrl, source: j.source, maxSlots: j.maxSlots, filledSlots: j.filledSlots,
                     status: j.status, likes: j.likes || 0, comments: j.comments || 0, shares: j.shares || 0,
                 })));
             })
@@ -101,6 +102,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                             <p className="truncate text-[13px] font-medium text-[var(--text-primary)]">{job.company}</p>
                             <p className="text-[12px] text-[var(--text-tertiary)]">
                                 {isFull ? <span className="text-[var(--danger)]">Positions filled</span> : job.postedAgo}
+                                {job.source && <> <span aria-hidden="true">·</span> <JobSourceCredit source={job.source} /></>}
                             </p>
                         </div>
                     </div>
@@ -130,7 +132,17 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                         <span className="min-w-0 truncate text-[14px] font-semibold tabular-nums text-[var(--text-primary)]" title={job.pay}>
                             {job.pay}
                         </span>
-                        {!isRecruiter && (
+                        {!isRecruiter && job.applyUrl && (
+                            <a
+                                href={job.applyUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="shrink-0 inline-flex items-center gap-1.5 rounded-[var(--radius)] px-3.5 py-2 text-[13px] font-medium transition-colors duration-150 focus-ring bg-[var(--text-primary)] text-[var(--bg)] hover:bg-[var(--accent)] hover:text-[var(--accent-fg)]"
+                            >
+                                Apply on company site
+                            </a>
+                        )}
+                        {!isRecruiter && !job.applyUrl && (
                             <button
                                 onClick={() => { if (!isFull && !applied) onApplyNow(job); }}
                                 disabled={isFull || applied}

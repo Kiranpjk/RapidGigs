@@ -52,6 +52,8 @@ export interface Job {
   companyVideoUrl?: string;
   freelancerVideoUrl?: string;
   shortVideoUrl?: string;
+  applyUrl?: string;
+  source?: 'simplify' | 'zapply';
   maxSlots?: number;
   filledSlots?: number;
   status?: 'Open' | 'Full' | 'Closed';

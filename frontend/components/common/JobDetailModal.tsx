@@ -2,6 +2,7 @@ import React from 'react';
 import { Job } from '../../types';
 import { XMarkIcon, MapPinIcon, PlayCircleIcon } from '../icons/Icons';
 import { useJobs } from '../../context/JobContext';
+import JobSourceCredit from './JobSourceCredit';
 
 const BASE_URL = (import.meta.env.VITE_API_BASE as string)?.replace('/api', '') || 'http://localhost:3001';
 const getMediaUrl = (url?: string) => { if (!url) return ''; if (url.startsWith('http')) return url; return url.startsWith('/') ? `${BASE_URL}${url}` : `${BASE_URL}/${url}`; };
@@ -59,6 +60,12 @@ const JobDetailModal: React.FC<JobDetailModalProps> = ({ job, isOpen, onClose, o
                              <p className="text-[14px] text-[var(--text-secondary)] font-medium">{job.company}</p>
                              <span className="w-1 h-1 rounded-full bg-[var(--border-strong)]" />
                              <span className="text-[13px] text-[var(--text-tertiary)]">{job.postedAgo || 'Open'}</span>
+                             {job.source && (
+                                 <>
+                                     <span className="w-1 h-1 rounded-full bg-[var(--border-strong)]" />
+                                     <span className="text-[13px]"><JobSourceCredit source={job.source} /></span>
+                                 </>
+                             )}
                         </div>
                     </div>
 
@@ -101,6 +108,16 @@ const JobDetailModal: React.FC<JobDetailModalProps> = ({ job, isOpen, onClose, o
 
                 {/* Footer CTA */}
                 <div className="px-7 py-4 border-t border-[var(--border)] bg-[var(--surface)]">
+                    {job.applyUrl ? (
+                    <a
+                        href={job.applyUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center w-full h-11 rounded-[var(--radius)] text-[15px] font-medium transition-colors duration-150 focus-ring bg-[var(--text-primary)] text-[var(--bg)] hover:bg-[var(--accent)] hover:text-[var(--accent-fg)]"
+                    >
+                        Apply on company site
+                    </a>
+                    ) : (
                     <button
                         className={`w-full h-11 rounded-[var(--radius)] text-[15px] font-medium transition-colors duration-150 focus-ring ${
                             applied
@@ -114,6 +131,7 @@ const JobDetailModal: React.FC<JobDetailModalProps> = ({ job, isOpen, onClose, o
                     >
                         {applied ? 'Applied' : job.status === 'Full' ? 'Positions filled' : 'Apply for this role'}
                     </button>
+                    )}
                 </div>
             </div>
         </div>
