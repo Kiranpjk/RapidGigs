@@ -1,12 +1,9 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Page, Job } from '../../types';
-import { 
-    BriefcaseIcon,
-    MapPinIcon,
-    CurrencyDollarIcon,
-    VideoCameraIcon
-} from '../icons/Icons';
+import { BriefcaseIcon, MapPinIcon, CurrencyDollarIcon, VideoCameraIcon, ArrowLeftIcon, DocumentTextIcon, CheckIcon, CheckCircleIcon, StopIcon, ArrowTopRightIcon } from '../icons/Icons';
+import StatusBadge, { statusNext } from '../common/StatusBadge';
+import { page, pageTitle, pageLead, card, chip, label, hint, textarea, btnPrimary, btnSecondary, btnGhost, btnDanger, btnSm } from '../ui/classes';
 import { useJobs } from '../../context/JobContext';
 import Modal from '../common/Modal';
 import Confetti from '../common/Confetti';
@@ -142,10 +139,10 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ job, navigate, 
 
     if (!job) {
         return (
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center">
-                <h1 className="text-2xl font-bold mb-4">Job not found</h1>
-                <p className="text-slate-500 dark:text-slate-400 mb-6">The job you are trying to apply for does not exist.</p>
-                <button onClick={goBack} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-6 rounded-lg">Back</button>
+            <div className={`${page} text-center`}>
+                <h1 className={pageTitle}>Job not found</h1>
+                <p className={`${pageLead} mb-6`}>The job you are trying to apply for does not exist.</p>
+                <button onClick={goBack} className={btnPrimary}>Back</button>
             </div>
         );
     }
@@ -257,346 +254,232 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ job, navigate, 
       }
     };
 
+    const backLabel = previousPage === 'shorts' ? 'Shorts' : previousPage === 'dashboard' ? 'Dashboard' : 'All jobs';
+    const sideLabel = 'text-[12px] font-medium uppercase tracking-[0.08em] text-[var(--text-tertiary)] mb-2';
+    const tag = 'inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-[var(--surface)] text-[var(--text-secondary)] text-[12.5px] font-medium';
+    const tabBtn = (on: boolean) => `flex-1 h-8 text-[13px] font-medium rounded-[8px] transition-colors focus-ring ${on ? 'bg-[var(--bg)] text-[var(--text-primary)] shadow-[var(--shadow-sm)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`;
+    const roundBtn = 'flex items-center justify-center w-14 h-14 bg-white/15 backdrop-blur border-2 border-white rounded-full hover:bg-white/25 transition-colors focus-ring';
+
     return (
         <>
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="mb-6">
-              <button onClick={goBack} className="text-sm text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300">
-                ← Back to {previousPage === 'shorts' ? 'Shorts' : previousPage === 'dashboard' ? 'Dashboard' : 'All Jobs'}
-              </button>
-            </div>
+        <div className={page}>
+            <button onClick={goBack} className={`${btnGhost} ${btnSm} -ml-3 mb-4`}>
+                <ArrowLeftIcon className="w-4 h-4" /> Back to {backLabel}
+            </button>
             <div className="flex flex-col lg:flex-row gap-8">
-                {/* Main Application Form */}
-                {/* Main Content Area */}
                 <div className="w-full lg:w-2/3">
                     {alreadyApplied ? (
-                        <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 p-12 rounded-[2rem] space-y-8 flex flex-col items-center justify-center text-center shadow-sm">
-                            <div className="w-24 h-24 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center mb-2">
-                                <span className="text-5xl">🎉</span>
+                        <div className={`${card} p-8 sm:p-12 flex flex-col items-center text-center`}>
+                            <div className="w-14 h-14 rounded-full bg-[var(--success-subtle)] text-[var(--success)] flex items-center justify-center mb-5">
+                                <CheckCircleIcon className="w-7 h-7" />
                             </div>
-                            <div>
-                                <h1 className="text-3xl font-extrabold tracking-tighter text-slate-900 dark:text-white">You've Already Applied!</h1>
-                                <p className="text-slate-500 dark:text-slate-400 mt-3 max-w-md mx-auto">
-                                    Your application for the <strong className="text-indigo-600 dark:text-indigo-400">{job?.title}</strong> role at {job?.company} has been received.
-                                </p>
+                            <h1 className={pageTitle}>You've already applied</h1>
+                            <p className={`${pageLead} max-w-md`}>
+                                Your application for <span className="font-medium text-[var(--text-primary)]">{job.title}</span> at {job.company} has been received.
+                            </p>
+                            <div className="mt-6 w-full max-w-md rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left">
+                                <p className={sideLabel}>Current status</p>
+                                <StatusBadge status={existingApp?.status} />
+                                <p className="mt-2 text-[13.5px] text-[var(--text-secondary)]">{statusNext(existingApp?.status)}</p>
                             </div>
-                            
-                            <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-2xl w-full max-w-md border border-slate-100 dark:border-slate-800">
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Current Status</p>
-                                <span className={`inline-block px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-widest ${
-                                    existingApp?.status === 'shortlisted' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' :
-                                    existingApp?.status === 'reviewing' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
-                                    existingApp?.status === 'rejected' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' :
-                                    'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
-                                }`}>
-                                    {existingApp?.status || 'Pending'}
-                                </span>
-                            </div>
-                            
-                            <button 
-                                onClick={goBack}
-                                className="mt-4 px-8 py-4 bg-slate-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl font-bold hover:scale-105 transition-all outline-none"
-                            >
-                                Continue Exploring Jobs
-                            </button>
+                            <button onClick={goBack} className={`${btnPrimary} mt-6`}>Continue exploring jobs</button>
                         </div>
                     ) : (
-                        <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 p-8 rounded-[2rem] space-y-8 shadow-sm">
+                        <form onSubmit={handleSubmit} className={`${card} p-6 sm:p-8 space-y-8`}>
                             <div>
-                                <h1 className="text-3xl font-bold tracking-tighter">Apply to {job.company}</h1>
-                                <p className="text-slate-500 dark:text-slate-400 text-lg">{job.title}</p>
+                                <h1 className={pageTitle}>Apply to {job.company}</h1>
+                                <p className={pageLead}>{job.title}</p>
                             </div>
-                            
-                            <div className="border-t border-slate-200 dark:border-slate-700"></div>
 
                             <div>
-                                <label htmlFor="cover-letter" className="block text-xl font-black text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
-                                    <span className="w-8 h-8 rounded-lg bg-indigo-500 text-white flex items-center justify-center text-sm">🔗</span>
-                                    Showcase Your Work (Links & Notes) *
-                                </label>
-                                <div className="relative group">
-                                    <textarea 
-                                        id="cover-letter" 
-                                        rows={6} 
-                                        value={coverLetter}
-                                        onChange={(e) => setCoverLetter(e.target.value)}
-                                        placeholder="🚀 DROP YOUR LINKS HERE:
-• GitHub (Repositories/Projects)
-• Live Demos / Hosted Sites
-• Design Portfolios (Behance, Dribbble)
-
-💡 PRO-TIP: Let's discuss which fits best! Drop your links here and we'll show a live preview to the recruiter. Add any notes about which project you're most proud of." 
-                                        className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-3xl py-5 px-6 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-slate-900 dark:text-white font-medium leading-relaxed transition-all placeholder:text-slate-400"
-                                        required
-                                    ></textarea>
-                                </div>
-                                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 mt-4 flex items-center gap-2 px-2">
-                                    <span className="text-indigo-500">★</span> Skip the boring cover letter. Just show us your best work and explain briefly why it fits.
-                                </p>
+                                <label htmlFor="cover-letter" className={label}>Your work: links and notes *</label>
+                                <textarea
+                                    id="cover-letter"
+                                    rows={6}
+                                    value={coverLetter}
+                                    onChange={(e) => setCoverLetter(e.target.value)}
+                                    placeholder={'GitHub repositories or projects\nLive demos or hosted sites\nDesign portfolios (Behance, Dribbble)\n\nAdd a line on which project you are proudest of and why it fits this role.'}
+                                    className={textarea}
+                                    required
+                                />
+                                <p className={hint}>Skip the cover letter. Show your best work and say briefly why it fits.</p>
                             </div>
-                            
+
                             <div>
-                                <label className="block text-lg font-semibold text-slate-800 dark:text-slate-200 mb-3">Attachments</label>
-                                <div className="mb-4">
-                                    <label htmlFor="resume-upload" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Resume/CV *</label>
-                                    <div className="mt-2 flex items-center gap-4">
-                                        <label htmlFor="resume-upload" className="cursor-pointer bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors">
-                                          <span>Choose File</span>
-                                          <input 
-                                            id="resume-upload" 
-                                            name="resume-upload" 
-                                            type="file" 
-                                            accept=".pdf,.doc,.docx"
-                                            onChange={handleResumeChange}
-                                            className="sr-only" 
-                                          />
-                                        </label>
-                                        <span className="text-sm text-slate-600 dark:text-slate-400">
-                                            {resumeFile ? (
-                                                <span className="flex items-center gap-2">
-                                                    <span className="text-green-600 dark:text-green-400">✓</span>
-                                                    {resumeFile.name}
-                                                </span>
-                                            ) : (
-                                                'No file chosen'
-                                            )}
+                                <span className={label}>Resume / CV *</span>
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <label htmlFor="resume-upload" className={`${btnSecondary} cursor-pointer has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--accent)]`}>
+                                        <DocumentTextIcon className="w-4 h-4" />
+                                        {resumeFile ? 'Replace file' : 'Choose file'}
+                                        <input id="resume-upload" name="resume-upload" type="file" accept=".pdf,.doc,.docx" onChange={handleResumeChange} className="sr-only" />
+                                    </label>
+                                    {resumeFile ? (
+                                        <span className="inline-flex items-center gap-1.5 text-[13.5px] text-[var(--text-primary)] min-w-0">
+                                            <CheckIcon className="w-4 h-4 shrink-0 text-[var(--success)]" />
+                                            <span className="truncate">{resumeFile.name}</span>
                                         </span>
-                                    </div>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Accepted formats: PDF, DOC, DOCX</p>
-                                </div>
-                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">30-Second Video Pitch *</label>
-                                    
-                                    <div className="flex bg-slate-100 dark:bg-slate-700 p-1 rounded-lg w-full max-w-sm mb-4">
-                                        <button
-                                            type="button"
-                                            onClick={() => { setRecordingMode('upload'); clearRecording(); }}
-                                            className={`flex-1 py-1.5 text-sm font-semibold rounded-md transition-colors ${recordingMode === 'upload' ? 'bg-white dark:bg-slate-800 shadow text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
-                                        >
-                                            Upload File
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => { setRecordingMode('record'); setVideoFile(null); }}
-                                            className={`flex-1 py-1.5 text-sm font-semibold rounded-md transition-colors flex items-center justify-center gap-1 ${recordingMode === 'record' ? 'bg-white dark:bg-slate-800 shadow text-red-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
-                                        >
-                                            <div className="w-2 h-2 rounded-full bg-current" /> Record Now
-                                        </button>
-                                    </div>
-
-                                    {recordingMode === 'upload' ? (
-                                        <div 
-                                            className={`mt-2 flex justify-center rounded-lg border-2 border-dashed ${
-                                                isDragging 
-                                                    ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' 
-                                                    : 'border-slate-300 dark:border-slate-600'
-                                            } hover:border-indigo-500 transition-colors px-6 py-10`}
-                                            onDragOver={handleDragOver}
-                                            onDragLeave={handleDragLeave}
-                                            onDrop={handleDrop}
-                                        >
-                                            <div className="text-center">
-                                                {videoFile ? (
-                                                    <div className="space-y-3">
-                                                        <div className="flex items-center justify-center">
-                                                            <span className="text-4xl">🎥</span>
-                                                        </div>
-                                                        <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{videoFile.name}</p>
-                                                        <p className="text-xs text-slate-500">Size: {(videoFile.size / (1024 * 1024)).toFixed(2)} MB</p>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setVideoFile(null)}
-                                                            className="text-sm text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 font-bold"
-                                                        >
-                                                            Remove video
-                                                        </button>
-                                                    </div>
-                                                ) : (
-                                                    <>
-                                                        <VideoCameraIcon className="mx-auto h-12 w-12 text-slate-500 dark:text-slate-400" />
-                                                        <div className="mt-4 flex text-sm leading-6 text-slate-500 dark:text-slate-400 justify-center">
-                                                            <label htmlFor="video-upload" className="relative cursor-pointer rounded-md font-semibold text-indigo-500 dark:text-indigo-400 focus-within:outline-none hover:text-indigo-600 dark:hover:text-indigo-300">
-                                                                <span>Upload a short video</span>
-                                                                <input 
-                                                                    id="video-upload" 
-                                                                    name="video-upload" 
-                                                                    type="file" 
-                                                                    accept="video/mp4,video/webm,video/quicktime"
-                                                                    onChange={handleVideoChange}
-                                                                    className="sr-only" 
-                                                                />
-                                                            </label>
-                                                            <p className="pl-1">or drag and drop</p>
-                                                        </div>
-                                                        <p className="text-xs leading-5 text-slate-500 mt-2">MP4, WebM, or MOV • Max 1 minute, up to 50MB</p>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
                                     ) : (
-                                        <div className="mt-2 flex flex-col items-center bg-black rounded-lg overflow-hidden relative border border-slate-700">
-                                            {!recordedVideoUrl ? (
-                                                <>
-                                                    <video 
-                                                        ref={videoPreviewRef} 
-                                                        className={`w-full aspect-[4/3] object-cover bg-slate-900 ${isRecording ? '' : 'opacity-50'}`} 
-                                                    />
-                                                    
-                                                    <div className="absolute bottom-4 left-0 right-0 flex justify-center items-center">
-                                                        {!isRecording ? (
-                                                            <button 
-                                                                type="button" 
-                                                                onClick={startRecording}
-                                                                className="flex items-center justify-center w-14 h-14 bg-white/20 backdrop-blur border-2 border-white rounded-full hover:bg-white/30 transition-all group"
-                                                            >
-                                                                <div className="w-4 h-4 rounded-full bg-red-500 group-hover:scale-110 transition-transform" />
-                                                            </button>
-                                                        ) : (
-                                                            <div className="flex items-center gap-4">
-                                                                <div className="bg-black/50 backdrop-blur px-3 py-1 rounded-full text-white font-mono font-bold flex items-center gap-2">
-                                                                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                                                                    00:{countdown.toString().padStart(2, '0')}
-                                                                </div>
-                                                                <button 
-                                                                    type="button" 
-                                                                    onClick={stopRecording}
-                                                                    className="flex items-center justify-center w-14 h-14 bg-white/20 backdrop-blur border-2 border-white rounded-full hover:bg-white/30 transition-all"
-                                                                >
-                                                                    <div className="w-4 h-4 bg-red-500 rounded-sm" />
-                                                                </button>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    
-                                                    {!isRecording && (
-                                                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none text-white font-bold text-lg drop-shadow-md">
-                                                            Camera Ready
-                                                        </div>
-                                                    )}
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <video 
-                                                        src={recordedVideoUrl} 
-                                                        className="w-full aspect-[4/3] object-contain bg-slate-900" 
-                                                        controls 
-                                                    />
-                                                    <div className="absolute top-4 right-4">
-                                                        <button 
-                                                            type="button" 
-                                                            onClick={clearRecording}
-                                                            className="bg-black/60 backdrop-blur hover:bg-red-500 text-white px-3 py-1.5 font-bold text-xs rounded-lg transition-colors border border-white/20"
-                                                        >
-                                                            Retake Video
-                                                        </button>
-                                                    </div>
-                                                </>
-                                            )}
-                                        </div>
+                                        <span className="text-[13.5px] text-[var(--text-tertiary)]">No file chosen</span>
                                     )}
                                 </div>
+                                <p className={hint}>PDF, DOC or DOCX.</p>
                             </div>
 
-                            <div className="border-t border-slate-200 dark:border-slate-700"></div>
-                            
-                            <div className="flex justify-end gap-4">
-                                <button type="button" onClick={goBack} className="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold py-2 px-4 rounded-lg flex-1 sm:flex-none">Cancel</button>
-                                <button type="submit" disabled={isSubmitting} className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-2 px-6 rounded-lg transition-colors flex-1 sm:flex-none">
-                                    {isSubmitting ? 'Submitting...' : 'Submit Application'}
+                            <div>
+                                <span className={label}>30-second video pitch *</span>
+                                <div className="flex bg-[var(--surface)] p-1 rounded-[var(--radius)] w-full max-w-xs mb-4" role="group" aria-label="Video source">
+                                    <button type="button" aria-pressed={recordingMode === 'upload'} onClick={() => { setRecordingMode('upload'); clearRecording(); }} className={tabBtn(recordingMode === 'upload')}>
+                                        Upload file
+                                    </button>
+                                    <button type="button" aria-pressed={recordingMode === 'record'} onClick={() => { setRecordingMode('record'); setVideoFile(null); }} className={tabBtn(recordingMode === 'record')}>
+                                        Record now
+                                    </button>
+                                </div>
+
+                                {recordingMode === 'upload' ? (
+                                    <div
+                                        className={`flex justify-center rounded-[var(--radius)] border border-dashed px-6 py-10 transition-colors ${isDragging ? 'border-[var(--accent)] bg-[var(--accent-subtle)]' : 'border-[var(--border-strong)] hover:border-[var(--text-tertiary)]'}`}
+                                        onDragOver={handleDragOver}
+                                        onDragLeave={handleDragLeave}
+                                        onDrop={handleDrop}
+                                    >
+                                        <div className="text-center">
+                                            {videoFile ? (
+                                                <div className="space-y-2">
+                                                    <VideoCameraIcon className="mx-auto h-8 w-8 text-[var(--text-secondary)]" />
+                                                    <p className="text-[14px] font-medium text-[var(--text-primary)] break-all">{videoFile.name}</p>
+                                                    <p className="text-[12.5px] text-[var(--text-secondary)]">{(videoFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+                                                    <button type="button" onClick={() => setVideoFile(null)} className={`${btnDanger} ${btnSm}`}>Remove video</button>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <VideoCameraIcon className="mx-auto h-8 w-8 text-[var(--text-tertiary)]" />
+                                                    <div className="mt-3 flex flex-wrap justify-center gap-1 text-[14px] text-[var(--text-secondary)]">
+                                                        <label htmlFor="video-upload" className="cursor-pointer font-medium text-[var(--accent)] hover:underline has-[:focus-visible]:underline">
+                                                            <span>Upload a short video</span>
+                                                            <input id="video-upload" name="video-upload" type="file" accept="video/mp4,video/webm,video/quicktime" onChange={handleVideoChange} className="sr-only" />
+                                                        </label>
+                                                        <span>or drag and drop</span>
+                                                    </div>
+                                                    <p className={hint}>MP4, WebM or MOV, up to 50 MB.</p>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-center bg-black rounded-[var(--radius)] overflow-hidden relative">
+                                        {!recordedVideoUrl ? (
+                                            <>
+                                                <video ref={videoPreviewRef} className={`w-full aspect-[4/3] object-cover bg-[#111] ${isRecording ? '' : 'opacity-50'}`} />
+                                                <div className="absolute bottom-4 left-0 right-0 flex justify-center items-center">
+                                                    {!isRecording ? (
+                                                        <button type="button" onClick={startRecording} aria-label="Start recording" className={roundBtn}>
+                                                            <span className="w-4 h-4 rounded-full bg-[var(--danger)]" />
+                                                        </button>
+                                                    ) : (
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="bg-black/50 backdrop-blur px-3 py-1 rounded-full text-white font-mono text-[13px] tabular-nums flex items-center gap-2" role="timer">
+                                                                <span className="w-2 h-2 rounded-full bg-[var(--danger)] animate-pulse" />
+                                                                00:{countdown.toString().padStart(2, '0')}
+                                                            </div>
+                                                            <button type="button" onClick={stopRecording} aria-label="Stop recording" className={roundBtn}>
+                                                                <StopIcon className="w-4 h-4 text-[var(--danger)]" />
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                {!isRecording && (
+                                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none text-white text-[15px] font-medium">
+                                                        Camera ready
+                                                    </div>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <>
+                                                <video src={recordedVideoUrl} className="w-full aspect-[4/3] object-contain bg-[#111]" controls />
+                                                <div className="absolute top-3 right-3">
+                                                    <button type="button" onClick={clearRecording} className="bg-black/60 backdrop-blur hover:bg-black/80 text-white px-3 h-8 text-[13px] font-medium rounded-[8px] transition-colors border border-white/20 focus-ring">
+                                                        Retake
+                                                    </button>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex justify-end gap-3 pt-6 border-t border-[var(--border)]">
+                                <button type="button" onClick={goBack} className={`${btnSecondary} flex-1 sm:flex-none`}>Cancel</button>
+                                <button type="submit" disabled={isSubmitting} className={`${btnPrimary} flex-1 sm:flex-none`}>
+                                    {isSubmitting ? 'Submitting…' : 'Submit application'}
                                 </button>
                             </div>
                         </form>
                     )}
                 </div>
 
-                {/* Sticky Job Details Sidebar */}
                 <aside className="w-full lg:w-1/3">
                     <div className="sticky top-24">
-                        <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 p-6 rounded-lg">
-                            <div className="mb-5">
-                                <p className="text-[11px] font-black text-slate-500 uppercase tracking-[0.18em] mb-2">Job Details</p>
-                                <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">{job.title}</h2>
-                                <p className="text-sm text-slate-500 dark:text-slate-400">{job.company}</p>
-                            </div>
+                        <div className={`${card} p-6`}>
+                            <p className={sideLabel}>Job details</p>
+                            <h2 className="font-display text-[20px] font-semibold tracking-tight text-[var(--text-primary)]">{job.title}</h2>
+                            <p className="text-[14px] text-[var(--text-secondary)]">{job.company}</p>
 
-                            <div className="flex flex-wrap gap-2 mb-5">
-                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 text-xs font-bold">
-                                    <BriefcaseIcon className="w-3.5 h-3.5" />
-                                    {job.type}
-                                </span>
-                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700/60 text-slate-700 dark:text-slate-200 text-xs font-bold">
-                                    <MapPinIcon className="w-3.5 h-3.5" />
-                                    {job.location}
-                                </span>
-                                <span 
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 text-xs font-bold truncate max-w-[120px]"
-                                    title={job.pay.length > 30 ? job.pay : ''}
-                                >
-                                    <CurrencyDollarIcon className="w-3.5 h-3.5" />
-                                    {job.pay.length > 30 ? `${job.pay.substring(0, 27)}...` : job.pay}
+                            <div className="flex flex-wrap gap-2 my-5">
+                                <span className={tag}><BriefcaseIcon className="w-3.5 h-3.5" />{job.type}</span>
+                                <span className={tag}><MapPinIcon className="w-3.5 h-3.5" />{job.location}</span>
+                                <span className={`${tag} max-w-full`} title={job.pay.length > 30 ? job.pay : ''}>
+                                    <CurrencyDollarIcon className="w-3.5 h-3.5 shrink-0" />
+                                    <span className="truncate">{job.pay.length > 30 ? `${job.pay.substring(0, 27)}…` : job.pay}</span>
                                 </span>
                             </div>
 
                             {(job.shortVideoUrl || job.companyVideoUrl || job.freelancerVideoUrl) && (
                                 <div className="mb-6">
-                                    <p className="text-[11px] font-black text-slate-500 uppercase tracking-[0.18em] mb-2">Marketing Video</p>
-                                    <div className="relative aspect-video rounded-xl overflow-hidden bg-slate-900 mb-4 group/video cursor-pointer">
-                                        <video
-                                            src={getMediaUrl(job.shortVideoUrl || job.companyVideoUrl || job.freelancerVideoUrl)}
-                                            className="w-full h-full object-cover opacity-90 group-hover/video:opacity-100 transition-opacity duration-300"
-                                            muted
-                                            loop
-                                            playsInline
-                                            onMouseEnter={(e) => { e.currentTarget.play().catch(() => {}); }}
-                                            onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
-                                        />
-                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-100 group-hover/video:opacity-0 transition-opacity duration-300">
-                                             <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white/70">▶</div>
-                                        </div>
-                                    </div>
+                                    <p className={sideLabel}>Intro video</p>
+                                    <video
+                                        src={getMediaUrl(job.shortVideoUrl || job.companyVideoUrl || job.freelancerVideoUrl)}
+                                        className="w-full aspect-video rounded-[var(--radius)] bg-black object-cover"
+                                        muted
+                                        loop
+                                        playsInline
+                                        controls
+                                    />
                                 </div>
                             )}
 
-                            <div className="space-y-4">
+                            <div className="space-y-5">
                                 <div>
-                                    <p className="text-[11px] font-black text-slate-500 uppercase tracking-[0.18em] mb-2 font-mono">About the Role</p>
-                                    <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-medium">{job.description}</p>
+                                    <p className={sideLabel}>About the role</p>
+                                    <p className="text-[14px] text-[var(--text-secondary)] leading-relaxed">{job.description}</p>
                                 </div>
-
                                 {job.companyBrief?.culture && (
                                     <div>
-                                        <p className="text-[11px] font-black text-slate-500 uppercase tracking-[0.18em] mb-2">Team Culture</p>
-                                        <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{job.companyBrief.culture}</p>
+                                        <p className={sideLabel}>Team culture</p>
+                                        <p className="text-[14px] text-[var(--text-secondary)] leading-relaxed">{job.companyBrief.culture}</p>
                                     </div>
                                 )}
-
                                 {job.companyBrief?.benefits?.length ? (
                                     <div>
-                                        <p className="text-[11px] font-black text-slate-500 uppercase tracking-[0.18em] mb-2">Benefits</p>
+                                        <p className={sideLabel}>Benefits</p>
                                         <div className="flex flex-wrap gap-2">
-                                            {job.companyBrief.benefits.map((benefit, index) => (
-                                                <span key={index} className="text-xs px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-700/60 text-slate-700 dark:text-slate-200">
-                                                    {benefit}
-                                                </span>
-                                            ))}
+                                            {job.companyBrief.benefits.map((benefit, index) => <span key={index} className={chip}>{benefit}</span>)}
                                         </div>
                                     </div>
                                 ) : null}
                             </div>
 
                             {job.companyBrief && (
-                                <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700 space-y-3">
-                                    <p className="text-[11px] font-black text-slate-500 uppercase tracking-[0.18em]">About {job.company}</p>
-                                    {job.companyBrief.about && (
-                                        <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{job.companyBrief.about}</p>
-                                    )}
-                                    <div className="flex flex-wrap gap-2 text-xs">
-                                        {job.companyBrief.size && <span className="px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-700/60 text-slate-700 dark:text-slate-200">Size: {job.companyBrief.size}</span>}
-                                        {job.companyBrief.industry && <span className="px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-700/60 text-slate-700 dark:text-slate-200">Industry: {job.companyBrief.industry}</span>}
+                                <div className="mt-6 pt-6 border-t border-[var(--border)] space-y-3">
+                                    <p className={sideLabel}>About {job.company}</p>
+                                    {job.companyBrief.about && <p className="text-[14px] text-[var(--text-secondary)] leading-relaxed">{job.companyBrief.about}</p>}
+                                    <div className="flex flex-wrap gap-2">
+                                        {job.companyBrief.size && <span className={chip}>Size: {job.companyBrief.size}</span>}
+                                        {job.companyBrief.industry && <span className={chip}>Industry: {job.companyBrief.industry}</span>}
                                     </div>
                                     {job.companyBrief.website && (
-                                        <a href={job.companyBrief.website} target="_blank" rel="noopener noreferrer" className="text-sm text-indigo-500 dark:text-indigo-400 hover:underline inline-block">
-                                            Visit Company Website →
+                                        <a href={job.companyBrief.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[14px] font-medium text-[var(--accent)] hover:underline">
+                                            Company website <ArrowTopRightIcon className="w-3.5 h-3.5" />
                                         </a>
                                     )}
                                 </div>
@@ -606,8 +489,7 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ job, navigate, 
                 </aside>
             </div>
         </div>
-        
-        {/* Custom Modal */}
+
         <Modal
             isOpen={modalState.isOpen}
             onClose={closeModal}
@@ -619,8 +501,7 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ job, navigate, 
             cancelText={modalState.cancelText}
             showCancel={modalState.showCancel}
         />
-        
-        {/* Confetti Animation */}
+
         <Confetti show={showConfetti} onComplete={closeConfetti} />
     </>
 );

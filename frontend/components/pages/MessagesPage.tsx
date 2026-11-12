@@ -2,14 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { messagesAPI, usersAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import {
-    SearchIcon,
-    PlusIcon,
-    EllipsisVerticalIcon,
-    PaperAirplaneIcon,
-    XMarkIcon,
-    SparklesIcon,
-} from '../icons/Icons';
+import { SearchIcon, PlusIcon, PaperAirplaneIcon, XMarkIcon, ArrowLeftIcon } from '../icons/Icons';
+import { card, chip, hint, input, pageLead, btnPrimary, btnSecondary, btnGhost, btnSm, errorNote, spinner, avatarUrl } from '../ui/classes';
 
 interface Msg {
     id: string;
@@ -239,394 +233,224 @@ const MessagesPage: React.FC = () => {
         setSearchError('');
     };
 
-    const avatarUrl = (name?: string, url?: string) =>
-        url || `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'U')}&size=80&background=6366f1&color=fff&bold=true`;
+    const roleBadge = (role?: string) =>
+        role === 'recruiter' || role === 'student'
+            ? <span className={`${chip} !text-[11.5px] !px-2 !py-0.5 capitalize`}>{role}</span>
+            : null;
 
-    const roleBadge = (role?: string) => {
-        if (role === 'recruiter') return <span className="text-[9px] font-black uppercase tracking-wider bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 px-2 py-0.5 rounded-full border border-indigo-100 dark:border-indigo-500/20">Recruiter</span>;
-        if (role === 'student') return <span className="text-[9px] font-black uppercase tracking-wider bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-500/20">Student</span>;
-        return null;
-    };
+    const closeNewChat = () => { setShowNewChat(false); setSearchQuery(''); setSearchResult(null); setSearchError(''); };
+    const copyId = () => { navigator.clipboard.writeText(user?.id || ''); };
 
-    const filteredThreads = threads.filter(t => 
+    const filteredThreads = threads.filter(t =>
         t.user.name.toLowerCase().includes(sidebarSearch.toLowerCase()) ||
         t.lastMessage.toLowerCase().includes(sidebarSearch.toLowerCase())
     );
 
+    const idBox = (
+        <div className="p-4 rounded-[var(--radius)] bg-[var(--surface)] border border-[var(--border)] text-left">
+            <p className="text-[12px] font-medium text-[var(--text-tertiary)] mb-1.5">Your user ID. Share it so others can message you.</p>
+            <div className="flex items-center justify-between gap-3">
+                <span className="font-mono text-[12.5px] text-[var(--text-primary)] select-all truncate flex-1">{user?.id}</span>
+                <button onClick={copyId} className={`${btnSecondary} ${btnSm}`}>Copy</button>
+            </div>
+        </div>
+    );
+
     return (
-        <div className="max-w-[900px] mx-auto px-0 sm:px-6 lg:px-8 py-0 sm:py-6 h-[100vh] sm:h-[calc(100vh-80px)] overflow-hidden flex flex-col animate-slide-up">
-            
-            {/* New Chat Modal */}
+        <div className="max-w-screen-xl mx-auto px-0 sm:px-8 sm:py-6 h-[100vh] sm:h-[calc(100vh-80px)] overflow-hidden flex flex-col animate-fade-in">
+
             {showNewChat && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-xl p-4 transition-all duration-300">
-                    <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] shadow-2xl shadow-indigo-500/10 w-full max-w-md p-8 border border-white/20 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl -mr-16 -mt-16" />
-                        
-                        <div className="flex items-center justify-between mb-8 relative z-10">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" onClick={closeNewChat}>
+                    <div role="dialog" aria-modal="true" aria-labelledby="new-chat-title" onClick={e => e.stopPropagation()} className={`${card} shadow-[var(--shadow-lg)] w-full max-w-md p-6`}>
+                        <div className="flex items-start justify-between mb-5">
                             <div>
-                                <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">New Conversation</h3>
-                                <p className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest mt-1">Start chatting with talent</p>
+                                <h3 id="new-chat-title" className="font-display text-[20px] font-semibold text-[var(--text-primary)]">New conversation</h3>
+                                <p className={pageLead}>Find someone by user ID or email.</p>
                             </div>
-                            <button onClick={() => { setShowNewChat(false); setSearchQuery(''); setSearchResult(null); setSearchError(''); }}
-                                className="w-10 h-10 flex items-center justify-center rounded-2xl bg-gray-50 dark:bg-slate-700 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 transition-all cursor-pointer">
-                                <XMarkIcon className="w-5 h-5" />
-                            </button>
+                            <button onClick={closeNewChat} aria-label="Close" className={`${btnGhost} !px-2 -mr-2`}><XMarkIcon className="w-5 h-5" /></button>
                         </div>
 
-                        <div className="space-y-6 relative z-10">
-                            <div className="relative">
-                                <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <input
-                                    type="text"
-                                    placeholder="Enter User ID or email..."
-                                    value={searchQuery}
-                                    onChange={e => setSearchQuery(e.target.value)}
-                                    onKeyDown={e => e.key === 'Enter' && handleSearch()}
-                                    className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-100 dark:border-slate-700 rounded-[1.5rem] pl-11 pr-5 py-4 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 transition-all text-gray-900 dark:text-white placeholder-gray-300 dark:placeholder-slate-600"
-                                />
-                                <button
-                                    onClick={handleSearch}
-                                    disabled={searching || !searchQuery.trim()}
-                                    className="absolute right-2 top-2 bottom-2 bg-gray-900 dark:bg-indigo-600 text-white px-5 rounded-xl text-xs font-black uppercase tracking-widest hover:scale-[1.05] active:scale-[0.95] disabled:opacity-40 transition-all cursor-pointer shadow-lg shadow-indigo-500/20"
-                                >
-                                    {searching ? '...' : 'Find'}
+                        <div className="space-y-4">
+                            <div className="flex gap-2">
+                                <div className="relative flex-1">
+                                    <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
+                                    <input
+                                        type="text"
+                                        autoFocus
+                                        aria-label="User ID or email"
+                                        placeholder="User ID or email"
+                                        value={searchQuery}
+                                        onChange={e => setSearchQuery(e.target.value)}
+                                        onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                                        className={`${input} pl-9`}
+                                    />
+                                </div>
+                                <button onClick={handleSearch} disabled={searching || !searchQuery.trim()} className={btnPrimary}>
+                                    {searching ? 'Searching…' : 'Find'}
                                 </button>
                             </div>
 
-                            {searchError && (
-                                <div className="text-[11px] text-red-500 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-800/20 rounded-2xl px-5 py-3 font-bold uppercase tracking-wider animate-shake">
-                                    ⚠️ {searchError}
-                                </div>
-                            )}
+                            {searchError && <p role="alert" className={errorNote}>{searchError}</p>}
 
                             {searchResult && (
-                                <div className="border border-indigo-100 dark:border-indigo-500/20 rounded-[2rem] p-5 flex items-center gap-5 bg-indigo-50/30 dark:bg-indigo-500/5 transition-all animate-slide-up group">
-                                    <div className="relative">
-                                        <img src={avatarUrl(searchResult.name, searchResult.avatarUrl)} alt={searchResult.name}
-                                            className="w-14 h-14 rounded-2xl object-cover shadow-md group-hover:scale-105 transition-transform" />
-                                        <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-green-500 border-2 border-white dark:border-slate-800" />
-                                    </div>
+                                <div className="border border-[var(--border)] rounded-[var(--radius)] p-3 flex items-center gap-3">
+                                    <img src={avatarUrl(searchResult.name, searchResult.avatarUrl)} alt="" className="w-11 h-11 rounded-full object-cover" />
                                     <div className="flex-1 min-w-0">
-                                        <p className="font-black text-gray-900 dark:text-white truncate text-base leading-tight mb-0.5">{searchResult.name}</p>
-                                        <p className="text-xs font-medium text-gray-500 dark:text-slate-400 truncate opacity-80">{searchResult.email}</p>
-                                        <div className="mt-2">{roleBadge(searchResult.role)}</div>
+                                        <p className="text-[14px] font-medium text-[var(--text-primary)] truncate">{searchResult.name}</p>
+                                        <p className="text-[12.5px] text-[var(--text-secondary)] truncate">{searchResult.email}</p>
+                                        <div className="mt-1">{roleBadge(searchResult.role)}</div>
                                     </div>
-                                    <button
-                                        onClick={() => startChatWith(searchResult)}
-                                        className="h-12 w-12 bg-indigo-600 dark:bg-indigo-500 text-white rounded-2xl flex items-center justify-center hover:scale-110 active:scale-90 transition-all cursor-pointer shadow-lg shadow-indigo-500/20"
-                                    >
-                                        <PaperAirplaneIcon className="w-5 h-5 rotate-45" />
-                                    </button>
+                                    <button onClick={() => startChatWith(searchResult)} className={`${btnPrimary} ${btnSm}`}>Message</button>
                                 </div>
                             )}
 
-                            <div className="p-5 bg-gray-50 dark:bg-slate-900/50 rounded-[1.5rem] border border-gray-100 dark:border-slate-700">
-                                <p className="text-[10px] text-gray-400 dark:text-slate-500 font-black uppercase tracking-[0.1em] mb-2 leading-none">Your User ID (Public)</p>
-                                <div className="flex items-center justify-between gap-3">
-                                    <span className="font-mono text-indigo-500 font-bold select-all text-[11px] truncate flex-1">{user?.id}</span>
-                                    <button onClick={() => { navigator.clipboard.writeText(user?.id || ''); }} className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 hover:underline uppercase tracking-widest cursor-pointer shrink-0">Copy</button>
-                                </div>
-                            </div>
+                            {idBox}
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Main Chat Container */}
-            <div className="flex-1 flex bg-white dark:bg-slate-800 border-x sm:border border-gray-100 dark:border-slate-700/60 rounded-none sm:rounded-[2.5rem] overflow-hidden shadow-2xl shadow-indigo-500/5 relative">
-                
-                {/* Sidebar */}
-                <aside className={`w-full md:w-[280px] flex-shrink-0 border-r border-gray-50 dark:border-slate-700/60 flex flex-col bg-slate-50/30 dark:bg-slate-900/40 ${isChatListVisible ? 'flex' : 'hidden md:flex'}`}>
-                    
-                    {/* Sidebar Header */}
-                    <div className="px-7 py-7 pb-5 flex flex-col gap-5 flex-shrink-0">
+            <div className={`flex-1 flex ${card} !rounded-none sm:!rounded-[14px] overflow-hidden`}>
+
+                <aside className={`w-full md:w-[320px] flex-shrink-0 border-r border-[var(--border)] flex-col bg-[var(--bg)] ${isChatListVisible ? 'flex' : 'hidden md:flex'}`}>
+                    <div className="p-4 flex flex-col gap-3 flex-shrink-0">
                         <div className="flex items-center justify-between">
-                            <div>
-                                <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Messages</h2>
-                                <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mt-0.5">Active Conversations</p>
-                            </div>
-                            <button
-                                onClick={() => setShowNewChat(true)}
-                                className="w-11 h-11 flex items-center justify-center bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-[1.1rem] hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer shadow-xl shadow-indigo-500/5"
-                                title="New message"
-                            >
-                                <PlusIcon className="w-5 h-5" />
+                            <h1 className="font-display text-[20px] font-semibold text-[var(--text-primary)]">Messages</h1>
+                            <button onClick={() => setShowNewChat(true)} className={`${btnSecondary} ${btnSm}`} aria-label="New message">
+                                <PlusIcon className="w-4 h-4" /> New
                             </button>
                         </div>
-
-                        {/* Search conversations */}
                         <div className="relative">
-                            <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                            <input 
-                                type="text" 
-                                placeholder="Search chats..." 
-                                value={sidebarSearch}
-                                onChange={e => setSidebarSearch(e.target.value)}
-                                className="w-full bg-white dark:bg-slate-800 border-none rounded-2xl py-2.5 pl-10 pr-4 text-xs font-bold text-gray-900 dark:text-white placeholder-gray-300 dark:placeholder-slate-600 shadow-sm focus:ring-2 focus:ring-indigo-500/10 transition-all"
-                            />
+                            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
+                            <input type="text" aria-label="Search conversations" placeholder="Search conversations" value={sidebarSearch} onChange={e => setSidebarSearch(e.target.value)} className={`${input} pl-9`} />
                         </div>
                     </div>
 
-                    {/* Thread List */}
-                    <div className="flex-1 overflow-y-auto custom-scrollbar px-3 pb-6">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar px-2 pb-4">
                         {loadingThreads ? (
-                            <div className="p-12 text-center animate-pulse">
-                                <div className="w-10 h-10 border-3 border-indigo-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Sycing inbox...</p>
-                            </div>
+                            <div className="p-10 flex justify-center" role="status" aria-label="Loading conversations"><div className={spinner} /></div>
                         ) : filteredThreads.length === 0 ? (
-                            <div className="p-10 text-center animate-slide-up">
-                                <div className="w-20 h-20 bg-white dark:bg-slate-800 rounded-[2rem] flex items-center justify-center mx-auto mb-5 text-4xl shadow-sm border border-gray-50 dark:border-slate-700">💭</div>
-                                <p className="text-gray-900 dark:text-white font-black tracking-tight text-lg">Empty Inbox</p>
-                                <p className="text-gray-400 dark:text-slate-500 text-xs mt-1 font-medium italic">Your social circle is quiet...</p>
-                                <button onClick={() => setShowNewChat(true)} className="mt-6 text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 hover:text-indigo-500 underline cursor-pointer">Invite Someone</button>
+                            <div className="p-8 text-center">
+                                <p className="text-[14px] font-medium text-[var(--text-primary)]">{sidebarSearch ? 'No matches' : 'No conversations yet'}</p>
+                                {!sidebarSearch && (
+                                    <>
+                                        <p className={hint}>Start one with a recruiter or student.</p>
+                                        <button onClick={() => setShowNewChat(true)} className={`${btnPrimary} mt-4`}>New message</button>
+                                    </>
+                                )}
                             </div>
                         ) : (
-                            <div className="space-y-1">
-                                {filteredThreads.map(thread => (
-                                    <div
-                                        key={thread.id}
-                                        onClick={() => openThread(thread)}
-                                        className={`flex items-center gap-4 px-4 py-4 rounded-[1.5rem] cursor-pointer transition-all duration-300 relative group ${
-                                            activeThread?.user.id === thread.user.id
-                                                ? 'bg-white dark:bg-slate-800 shadow-lg shadow-indigo-500/5 ring-1 ring-indigo-500/10'
-                                                : 'hover:bg-white/60 dark:hover:bg-slate-800/40'
-                                        }`}
-                                    >
-                                        {activeThread?.user.id === thread.user.id && (
-                                            <div className="absolute left-0 w-1.5 h-8 bg-indigo-600 dark:bg-indigo-500 rounded-r-full" />
-                                        )}
-                                        <div className="relative flex-shrink-0">
-                                            <img
-                                                src={avatarUrl(thread.user.name, thread.user.avatarUrl)}
-                                                alt={thread.user.name}
-                                                className="w-13 h-13 rounded-[1.1rem] object-cover shadow-sm group-hover:scale-105 transition-transform"
-                                            />
-                                            <span className="absolute -bottom-0.5 -right-0.5 block h-3.5 w-3.5 rounded-full bg-green-500 border-2 border-white dark:border-slate-900" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center justify-between gap-2 mb-1">
-                                                <p className={`text-sm truncate leading-none ${thread.unreadCount > 0 ? 'font-black text-indigo-600 dark:text-indigo-400' : 'font-bold text-gray-900 dark:text-white'}`}>
-                                                    {thread.user.name}
-                                                </p>
-                                                <p className="text-[9px] text-gray-400 dark:text-slate-500 flex-shrink-0 font-black uppercase tracking-tighter opacity-70">{thread.timestamp}</p>
-                                            </div>
-                                            <div className="flex items-center justify-between gap-2">
-                                                <p className={`text-xs truncate max-w-[140px] leading-tight ${thread.unreadCount > 0 ? 'text-gray-900 dark:text-slate-100 font-bold' : 'text-gray-400 dark:text-slate-500 font-medium'}`}>
-                                                    {thread.lastMessage || 'Click to reveal chat...'}
-                                                </p>
-                                                {thread.unreadCount > 0 && (
-                                                    <span className="bg-indigo-600 text-white text-[9px] font-black w-5 h-5 flex items-center justify-center rounded-full flex-shrink-0 shadow-lg shadow-indigo-600/30 animate-pulse">
-                                                        {thread.unreadCount}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                            <ul className="space-y-0.5">
+                                {filteredThreads.map(thread => {
+                                    const active = activeThread?.user.id === thread.user.id;
+                                    return (
+                                        <li key={thread.id}>
+                                            <button
+                                                onClick={() => openThread(thread)}
+                                                aria-current={active ? 'true' : undefined}
+                                                className={`w-full text-left flex items-center gap-3 px-3 py-3 rounded-[var(--radius)] transition-colors focus-ring ${active ? 'bg-[var(--surface)]' : 'hover:bg-[var(--surface-hover)]'}`}
+                                            >
+                                                <img src={avatarUrl(thread.user.name, thread.user.avatarUrl)} alt="" className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <p className={`text-[14px] truncate ${thread.unreadCount > 0 ? 'font-semibold' : 'font-medium'} text-[var(--text-primary)]`}>{thread.user.name}</p>
+                                                        <p className="text-[12px] text-[var(--text-tertiary)] flex-shrink-0">{thread.timestamp}</p>
+                                                    </div>
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <p className={`text-[13px] truncate ${thread.unreadCount > 0 ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
+                                                            {thread.lastMessage || 'No messages yet'}
+                                                        </p>
+                                                        {thread.unreadCount > 0 && (
+                                                            <span aria-label={`${thread.unreadCount} unread`} className="bg-[var(--accent)] text-[var(--accent-fg)] text-[11px] font-semibold min-w-5 h-5 px-1.5 flex items-center justify-center rounded-full flex-shrink-0">
+                                                                {thread.unreadCount}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
                         )}
                     </div>
                 </aside>
 
-                {/* Chat Window */}
-                <main className={`flex-1 flex flex-col min-w-0 bg-white dark:bg-slate-800/50 relative ${isChatListVisible && 'hidden md:flex'}`}>
-                    
+                <main className={`flex-1 flex flex-col min-w-0 bg-[var(--bg)] ${isChatListVisible && 'hidden md:flex'}`}>
                     {activeThread ? (
                         <>
-                            {/* Chat Header */}
-                            <div className="px-7 py-5 border-b border-gray-50 dark:border-slate-700/60 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md flex items-center justify-between flex-shrink-0 z-20">
-                                <div className="flex items-center gap-4">
-                                    <button className="md:hidden p-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-700 transition-all text-gray-500" onClick={() => setIsChatListVisible(true)}>
-                                        <span className="text-xl">←</span>
-                                    </button>
-                                    <div className="relative group cursor-pointer">
-                                        <img
-                                            src={avatarUrl(activeThread.user.name, activeThread.user.avatarUrl)}
-                                            alt={activeThread.user.name}
-                                            className="w-11 h-11 rounded-[1.1rem] object-cover shadow-md group-hover:scale-105 transition-transform"
-                                        />
-                                        <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 border-2 border-white dark:border-slate-800 animate-pulse" />
-                                    </div>
-                                    <div className="cursor-pointer">
-                                        <h2 className="font-black text-gray-900 dark:text-white text-[15px] leading-tight tracking-tight flex items-center gap-2">
-                                            {activeThread.user.name}
-                                            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                                        </h2>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            {roleBadge(activeThread.user.role)}
-                                            <span className="text-[9px] font-black text-green-500 uppercase tracking-[0.2em] opacity-80">Online now</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <div className="hidden lg:flex flex-col items-end mr-2">
-                                        <span className="text-[9px] font-black text-gray-300 dark:text-slate-600 uppercase tracking-widest leading-none">Global Network</span>
-                                        <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500 tracking-tighter mt-0.5 truncate max-w-[80px]">#{activeThread.user.id.slice(-8)}</span>
-                                    </div>
-                                    <button className="w-11 h-11 flex items-center justify-center rounded-2xl border border-gray-50 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition-all cursor-pointer">
-                                        <EllipsisVerticalIcon className="w-5 h-5 text-gray-400 group-hover:text-indigo-500" />
-                                    </button>
+                            <div className="px-4 sm:px-6 py-3 border-b border-[var(--border)] flex items-center gap-3 flex-shrink-0">
+                                <button className={`${btnGhost} md:hidden !px-2 -ml-2`} onClick={() => setIsChatListVisible(true)} aria-label="Back to conversations">
+                                    <ArrowLeftIcon className="w-5 h-5" />
+                                </button>
+                                <img src={avatarUrl(activeThread.user.name, activeThread.user.avatarUrl)} alt="" className="w-10 h-10 rounded-full object-cover" />
+                                <div className="min-w-0">
+                                    <h2 className="text-[15px] font-semibold text-[var(--text-primary)] truncate">{activeThread.user.name}</h2>
+                                    <div className="mt-0.5">{roleBadge(activeThread.user.role)}</div>
                                 </div>
                             </div>
 
-                            {/* Messages Area */}
-                            <div className="flex-1 overflow-y-auto custom-scrollbar px-6 sm:px-10 py-8 flex flex-col gap-5 bg-slate-50/20 dark:bg-slate-900/10 min-h-0">
+                            <div className="flex-1 overflow-y-auto custom-scrollbar px-4 sm:px-8 py-6 flex flex-col gap-1 min-h-0 bg-[var(--surface)]/40" aria-live="polite">
                                 {loadingMessages ? (
-                                    <div className="flex-1 flex items-center justify-center">
-                                        <div className="text-center">
-                                            <div className="w-10 h-10 border-3 border-indigo-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                                            <p className="text-[10px] text-indigo-400 font-black uppercase tracking-widest">Decrypting messages...</p>
-                                        </div>
-                                    </div>
+                                    <div className="flex-1 flex items-center justify-center" role="status" aria-label="Loading messages"><div className={spinner} /></div>
                                 ) : activeThread.messages.length === 0 ? (
-                                    <div className="flex-1 flex items-center justify-center">
-                                        <div className="text-center py-16 px-10 bg-white/50 dark:bg-slate-800/50 rounded-[3rem] border border-dashed border-gray-200 dark:border-slate-700">
-                                            <div className="w-24 h-24 bg-white dark:bg-slate-800 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-indigo-500/10 text-5xl animate-bounce">👋</div>
-                                            <h3 className="text-xl font-black text-gray-900 dark:text-white tracking-tight mb-2">Break the ice!</h3>
-                                            <p className="text-xs text-gray-400 dark:text-slate-500 font-medium leading-relaxed max-w-[200px] mx-auto">Start a conversation with <strong className="text-indigo-600 dark:text-indigo-400">{activeThread.user.name}</strong> and grow your network.</p>
+                                    <div className="flex-1 flex items-center justify-center text-center">
+                                        <div>
+                                            <p className="text-[15px] font-medium text-[var(--text-primary)]">No messages yet</p>
+                                            <p className={hint}>Say hello to {activeThread.user.name}.</p>
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="space-y-6">
-                                        {activeThread.messages.map((msg, idx) => {
-                                            const isMe = msg.sender === 'me';
-                                            const showAvatar = idx === 0 || activeThread.messages[idx-1].sender !== msg.sender;
-                                            
-                                            return (
-                                                <div key={msg.id || idx} className={`flex items-end gap-3.5 group animate-zoom-in ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                                    {!isMe && (
-                                                        <div className="w-9 h-9 flex-shrink-0">
-                                                            {showAvatar && (
-                                                                <img src={avatarUrl(activeThread.user.name, activeThread.user.avatarUrl)}
-                                                                    className="w-9 h-9 rounded-2xl object-cover shadow-sm ring-2 ring-white dark:ring-slate-800 hover:scale-110 transition-transform" alt="" />
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                    <div className={`relative max-w-[80%] sm:max-w-[70%] lg:max-w-[85%] ${
-                                                        isMe
-                                                            ? 'bg-indigo-600 text-white rounded-[20px] rounded-br-[4px] shadow-lg shadow-indigo-500/10'
-                                                            : 'bg-gray-800 text-white rounded-[20px] rounded-bl-[4px] shadow-sm border border-transparent'
-                                                    } px-5 py-3`}>
-                                                        <p className="text-[13px] leading-relaxed font-medium whitespace-pre-wrap">{msg.text}</p>
-                                                        <div className={`flex items-center justify-end gap-1.5 mt-2 ${isMe ? 'text-white/40' : 'text-gray-300 dark:text-slate-500'}`}>
-                                                            <p className="text-[9px] font-black uppercase tracking-tighter">{msg.time}</p>
-                                                            {isMe && (
-                                                                <span className="text-[10px]">
-                                                                    {msg.isRead
-                                                                        ? <span className="text-sky-300 font-black">✓✓</span>
-                                                                        : <span className="opacity-70">✓</span>
-                                                                    }
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                    {isMe && (
-                                                       <div className="w-4" /> /* spacer */
-                                                    )}
+                                    activeThread.messages.map((msg, idx) => {
+                                        const isMe = msg.sender === 'me';
+                                        const newGroup = idx === 0 || activeThread.messages[idx - 1].sender !== msg.sender;
+                                        return (
+                                            <div key={msg.id || idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'} ${newGroup && idx > 0 ? 'mt-3' : ''}`}>
+                                                <div className={`max-w-[85%] sm:max-w-[70%] px-3.5 py-2 rounded-[14px] ${isMe ? 'bg-[var(--text-primary)] text-[var(--bg)] rounded-br-[4px]' : 'bg-[var(--bg)] border border-[var(--border)] text-[var(--text-primary)] rounded-bl-[4px]'}`}>
+                                                    <p className="text-[14px] leading-relaxed whitespace-pre-wrap break-words">{msg.text}</p>
+                                                    <p className={`text-[11px] mt-0.5 text-right tabular-nums ${isMe ? 'opacity-60' : 'text-[var(--text-tertiary)]'}`}>{msg.time}</p>
                                                 </div>
-                                            );
-                                        })}
-                                    </div>
+                                            </div>
+                                        );
+                                    })
                                 )}
                                 <div ref={messagesEndRef} />
                             </div>
 
-                            {/* Input Bar */}
-                            <div className="px-6 sm:px-10 py-5 border-t border-gray-50 dark:border-slate-700/60 bg-white dark:bg-slate-800 flex-shrink-0 z-20">
-                                <div className="flex items-end gap-4 bg-gray-50 dark:bg-slate-900/50 rounded-[24px] px-5 py-3 border border-gray-100 dark:border-slate-700 focus-within:ring-4 focus-within:ring-indigo-500/5 focus-within:border-indigo-500/30 transition-all duration-300">
+                            <div className="px-4 sm:px-6 py-3 border-t border-[var(--border)] flex-shrink-0">
+                                <div className="flex items-end gap-2">
                                     <textarea
                                         ref={textareaRef}
                                         rows={1}
+                                        aria-label="Message"
                                         value={messageInput}
                                         onChange={handleTextareaChange}
                                         onKeyDown={handleKeyDown}
-                                        placeholder="Type your message..."
-                                        className="flex-1 bg-transparent resize-none focus:outline-none text-sm text-gray-900 dark:text-white placeholder-gray-300 dark:placeholder-slate-500 font-bold leading-relaxed"
-                                        style={{ minHeight: '22px', maxHeight: '150px' }}
+                                        placeholder="Write a message"
+                                        className={`${input} !h-auto resize-none py-2.5 leading-relaxed`}
+                                        style={{ minHeight: '40px', maxHeight: '120px' }}
                                     />
-                                    <button
-                                        onClick={sendMessage}
-                                        disabled={!messageInput.trim() || isSending}
-                                        className={`w-12 h-12 flex items-center justify-center rounded-[1.2rem] transition-all duration-300 flex-shrink-0 shadow-lg ${
-                                            !messageInput.trim() || isSending
-                                                ? 'bg-gray-100 dark:bg-slate-800 text-gray-300 cursor-not-allowed shadow-none'
-                                                : 'bg-gray-900 dark:bg-indigo-600 text-white hover:scale-110 active:scale-95 shadow-indigo-600/20 shadow-xl'
-                                        }`}
-                                    >
-                                        {isSending ? (
-                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        ) : (
-                                            <PaperAirplaneIcon className="w-5 h-5 rotate-45" />
-                                        )}
+                                    <button onClick={sendMessage} disabled={!messageInput.trim() || isSending} aria-label="Send message" className={`${btnPrimary} !px-3`}>
+                                        {isSending ? <div className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin" /> : <PaperAirplaneIcon className="w-5 h-5" />}
                                     </button>
                                 </div>
-                                <div className="flex items-center justify-center gap-6 mt-3 px-2">
-                                    <p className="text-[9px] text-gray-300 dark:text-slate-600 font-black uppercase tracking-[0.2em]">Enter to send</p>
-                                    <p className="text-[9px] text-gray-300 dark:text-slate-600 font-black uppercase tracking-[0.2em]">Shift+Enter for break</p>
-                                </div>
+                                <p className={`${hint} !mt-1.5`}>Enter to send, Shift+Enter for a new line.</p>
                             </div>
                         </>
                     ) : (
                         <div className="flex-1 flex items-center justify-center p-8">
-                            <div className="text-center relative max-w-sm">
-                                <div className="absolute inset-0 bg-indigo-500/5 blur-[100px] rounded-full scale-150" />
-                                
-                                <div className="relative z-10">
-                                    <div className="w-32 h-32 bg-white dark:bg-slate-800 rounded-[3rem] flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-indigo-500/5 text-6xl border border-gray-50 dark:border-slate-700 animate-pulse">
-                                        <SparklesIcon className="w-16 h-16 text-indigo-500 opacity-20 absolute" />
-                                        💬
-                                    </div>
-                                    <h3 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight mb-4 leading-tight">Your Digital Workspace.</h3>
-                                    <p className="text-gray-400 dark:text-slate-500 mb-10 font-bold text-sm leading-relaxed mx-auto max-w-[280px]">Connect with top student talent and visionary recruiters globally in real-time.</p>
-                                    
-                                    <button
-                                        onClick={() => setShowNewChat(true)}
-                                        className="w-full py-5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-black uppercase tracking-widest rounded-[1.5rem] hover:scale-[1.05] active:scale-[0.95] transition-all shadow-2xl shadow-gray-300 dark:shadow-none cursor-pointer flex items-center justify-center gap-3 mb-8"
-                                    >
-                                        <PlusIcon className="w-4 h-4" />
-                                        Start a Conversation
-                                    </button>
-                                    
-                                    <div className="p-6 bg-slate-50/50 dark:bg-slate-900/40 rounded-[2rem] border border-gray-50 dark:border-slate-700 text-left">
-                                        <h4 className="text-[9px] text-gray-300 dark:text-slate-600 uppercase tracking-[0.25em] font-black mb-2">My Network ID</h4>
-                                        <div className="flex items-center justify-between gap-4">
-                                            <span className="font-mono text-indigo-500 font-black select-all text-xs truncate break-all">{user?.id}</span>
-                                            <button 
-                                                onClick={() => { navigator.clipboard.writeText(user?.id || ''); }}
-                                                className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 hover:underline uppercase tracking-widest cursor-pointer whitespace-nowrap"
-                                            >
-                                                Copy Key
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
+                            <div className="text-center max-w-sm w-full">
+                                <h2 className="font-display text-[22px] font-semibold text-[var(--text-primary)]">Select a conversation</h2>
+                                <p className={`${pageLead} mb-6`}>Pick a chat from the list, or start a new one with a student or recruiter.</p>
+                                <button onClick={() => setShowNewChat(true)} className={`${btnPrimary} mb-6`}>
+                                    <PlusIcon className="w-4 h-4" /> New message
+                                </button>
+                                {idBox}
                             </div>
                         </div>
                     )}
                 </main>
             </div>
-            
-            <style>{`
-                .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-                .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-                .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.1); border-radius: 10px; }
-                .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.2); }
-                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(99, 102, 241, 0.3); }
-                
-                @keyframes zoom-in { 
-                    from { opacity: 0; transform: scale(0.95) translateY(10px); } 
-                    to { opacity: 1; transform: scale(1) translateY(0); } 
-                }
-                .animate-zoom-in { animation: zoom-in 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
-                
-                @keyframes shake {
-                    0%, 100% { transform: translateX(0); }
-                    25% { transform: translateX(-5px); }
-                    75% { transform: translateX(5px); }
-                }
-                .animate-shake { animation: shake 0.4s ease-in-out; }
-            `}</style>
         </div>
     );
 };

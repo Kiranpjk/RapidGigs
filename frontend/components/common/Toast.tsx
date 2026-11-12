@@ -7,7 +7,7 @@ interface ToastState { id: number; tone: Tone; text: string }
 /** Small result message for actions (saved, sent, failed). Announced politely to screen readers. */
 export const useToast = () => {
   const [toast, setToast] = useState<ToastState | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout>>();
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const show = useCallback((text: string, tone: Tone = 'success') => {
     clearTimeout(timer.current);
     setToast({ id: Date.now(), tone, text });
