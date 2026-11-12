@@ -183,6 +183,9 @@ router.post(
       if (!job) {
         return res.status(404).json({ error: 'Job not found' });
       }
+      if (job.applyUrl) {
+        return res.status(400).json({ error: 'This listing is applied for on the company site, not through RapidGig' });
+      }
       if (job.status === 'Full') {
         return res.status(400).json({ error: 'This job has no more open positions' });
       }

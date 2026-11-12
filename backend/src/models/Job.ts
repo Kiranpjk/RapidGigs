@@ -22,6 +22,9 @@ export interface IJob extends Document {
   comments: number;
   shares: number;
   postedAgo?: string;
+  source?: 'simplify' | 'zapply';
+  externalId?: string;
+  applyUrl?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -118,6 +121,17 @@ const JobSchema: Schema = new Schema(
     postedAgo: {
       type: String,
     },
+    // Set only on jobs imported from public internship lists (apply happens on the company site).
+    source: {
+      type: String,
+      enum: ['simplify', 'zapply'],
+    },
+    externalId: {
+      type: String,
+    },
+    applyUrl: {
+      type: String,
+    },
   },
   {
     timestamps: true,
@@ -127,6 +141,7 @@ const JobSchema: Schema = new Schema(
 JobSchema.index({ postedBy: 1, createdAt: -1 });
 JobSchema.index({ categoryId: 1, status: 1, createdAt: -1 });
 JobSchema.index({ status: 1, createdAt: -1 });
+JobSchema.index({ source: 1, externalId: 1 }, { unique: true, partialFilterExpression: { source: { $exists: true } } });
 
 export const Job: Model<IJob> = mongoose.model<IJob>('Job', JobSchema);
 

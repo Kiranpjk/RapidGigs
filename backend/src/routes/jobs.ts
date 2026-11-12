@@ -76,6 +76,8 @@ router.get('/', async (req, res) => {
       shares: job.shares || 0,
       postedAgo: formatTimestamp(job.createdAt),
       createdAt: job.createdAt,
+      applyUrl: job.applyUrl,
+      source: job.source,
     })));
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -149,6 +151,8 @@ router.get('/:id', async (req, res) => {
       shares: job.shares || 0,
       postedAgo: formatTimestamp(job.createdAt),
       createdAt: job.createdAt,
+      applyUrl: job.applyUrl,
+      source: job.source,
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
