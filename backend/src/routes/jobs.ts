@@ -5,6 +5,7 @@ import { Application } from '../models/Application';
 import { ShortVideo } from '../models/ShortVideo';
 import { Category } from '../models/Category';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { requireRole } from '../middleware/rbac';
 import { formatTimestamp } from '../utils/formatTimestamp';
 import mongoose from 'mongoose';
 import { parseJobDescription } from '../services/jobParser';
@@ -174,10 +175,12 @@ router.post('/parse-description', authenticate, async (req: AuthRequest, res) =>
 });
 
 
-// Create job (authenticated)
+// Create job (recruiters and admins only)
+// Role, not the job:create permission: older and seeded recruiter accounts have an empty permissions list.
 router.post(
   '/',
   authenticate,
+  requireRole(['recruiter', 'admin']),
   [
     body('title').trim().notEmpty(),
     body('company').trim().notEmpty(),
