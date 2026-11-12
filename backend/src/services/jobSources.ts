@@ -276,7 +276,7 @@ export function parseRemoteOk(body: unknown): Listing[] {
     out.push({
       source: 'remoteok', externalId, title, company,
       location: clean(i.location, 100) || 'Worldwide',
-      type: 'Remote', applyUrl, postedAt, categoryName: categoryFor(title, kind, tags.join(' ')),
+      type: 'Remote', applyUrl, postedAt, categoryName: categoryFor(title, kind), // its tags are too noisy to map to categories
       kind, pay: formatPay(i.salary_min, i.salary_max, 'USD', 'year'), // Remote OK salaries are annual USD
       summary: toSummary(i.description) || `${title} at ${company}.`,
     });
