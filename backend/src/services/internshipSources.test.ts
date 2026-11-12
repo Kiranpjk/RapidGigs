@@ -46,7 +46,7 @@ test('zapply: normal row, header and separator ignored', () => {
   assert.equal(ls[0].externalId, 'workday-unisys-external-REQ575421');
   assert.equal(ls[0].applyUrl, url);
   assert.equal(ls[0].company, 'Unisys');
-  assert.equal(ls[0].categoryName, 'Web Development');
+  assert.equal(ls[0].categoryName, 'Software Engineering');
   assert.equal(ls[0].postedAt.getTime(), now.getTime() - 11 * 60e3);
 });
 
@@ -64,4 +64,12 @@ test('zapply: drops javascript: URLs and strips markdown/HTML', () => {
   assert.equal(l.company, 'Acme');
   assert.equal(l.title, 'Data Analyst Intern');
   assert.equal(l.categoryName, 'Data Science');
+});
+
+test('category: hardware from the source, neutral default when nothing matches', () => {
+  const item = (title: string, category: string) => ({ active: true, is_visible: true, terms: ['Summer 2027'], id: title, title,
+    company_name: 'Acme', url: 'https://example.com/a', locations: ['Austin, TX'], date_posted: 1700000000, category });
+  const [hw, other] = parseSimplify([item('Digital Design Engineer Intern', 'Hardware'), item('Event Coordinator Intern', 'Other')]);
+  assert.equal(hw.categoryName, 'Hardware Engineering');
+  assert.equal(other.categoryName, 'Internships');
 });

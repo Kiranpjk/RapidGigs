@@ -102,10 +102,12 @@ async function main() {
               description: describe(l), pay: 'See listing', status: 'Open', maxSlots: 1,
               categoryId: category!._id, postedBy: user!._id,
             },
-            $setOnInsert: { createdAt: l.postedAt },
           },
           { upsert: true, runValidators: true, setDefaultsOnInsert: true }
         );
+        // The list's posted date, so the card shows the role's real age. Mongoose stamps createdAt with
+        // the import time and treats it as immutable, so this one field is written through the driver.
+        await Job.collection.updateOne({ source, externalId: l.externalId }, { $set: { createdAt: l.postedAt } });
         if (res.upsertedCount) created++;
         else updated++;
       }

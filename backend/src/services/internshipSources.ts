@@ -45,15 +45,19 @@ const TITLE_HINTS: [RegExp, string][] = [
   [/android|\bios\b|mobile/i, 'Mobile Development'],
   [/marketing/i, 'Digital Marketing'],
   [/customer (support|success)/i, 'Customer Support'],
+  [/hardware|electrical|mechanical|embedded|firmware|fpga|asic|circuit|manufactur/i, 'Hardware Engineering'],
+  [/software|developer|full.?stack|front.?end|back.?end|devops|cloud|\bweb\b/i, 'Software Engineering'],
 ];
 const SOURCE_CATEGORIES: [RegExp, string][] = [
   [/data|quant/i, 'Data Science'],
   [/product/i, 'Project Management'],
+  [/hardware/i, 'Hardware Engineering'],
+  [/software/i, 'Software Engineering'],
 ];
 
 const categoryFor = (title: string, sourceCategory = '') =>
   (TITLE_HINTS.find(([re]) => re.test(title)) || SOURCE_CATEGORIES.find(([re]) => re.test(sourceCategory)))?.[1] ||
-  'Web Development';
+  'Internships'; // neutral label: the lists also carry business and healthcare roles
 
 const typeFor = (location: string): Listing['type'] =>
   /remote/i.test(location) ? 'Remote' : /hybrid/i.test(location) ? 'Hybrid' : 'On-site';
