@@ -7,7 +7,7 @@ const FIRST_CHECK_MS = 60e3;
 const CHECK_EVERY_MS = 3600e3;
 
 export const autoImportEnabled = (env: NodeJS.ProcessEnv = process.env) =>
-  env.LISTINGS_AUTO_IMPORT === 'false' ? false : env.LISTINGS_AUTO_IMPORT === 'true' || env.NODE_ENV === 'production';
+  env.LISTINGS_AUTO_IMPORT === 'false' ? false : env.LISTINGS_AUTO_IMPORT === 'true' || env.NODE_ENV === 'production' || env.RENDER === 'true'; // Render sets RENDER=true itself
 
 // One tiny document keeps lastRunAt and the runningSince lock, so several instances or a restart loop
 // cannot import concurrently or more often than DUE_MS. Returns true when this call ran an import.
@@ -46,7 +46,7 @@ export async function checkAndRunImport(now = new Date()): Promise<boolean> {
 // Call once after the database is connected and the server is listening. Never throws, never blocks startup.
 export function startListingScheduler() {
   if (!autoImportEnabled()) {
-    console.log('Listing auto-import is off (set LISTINGS_AUTO_IMPORT=true to enable outside production)');
+    console.log('Listing auto-import is off (set LISTINGS_AUTO_IMPORT=true to enable outside production or Render)');
     return;
   }
   let busy = false;
