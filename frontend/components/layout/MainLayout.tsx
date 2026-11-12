@@ -56,6 +56,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ currentPage, navigate, onLogout
                     shortVideoUrl: data.shortVideoUrl,
                     applyUrl: data.applyUrl,
                     source: data.source,
+                    kind: data.kind,
                     maxSlots: data.maxSlots,
                     filledSlots: data.filledSlots,
                     status: data.status,

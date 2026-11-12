@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
+import { SOURCE_NAMES, KINDS, SourceName, Kind } from '../services/jobSources';
 
 export interface IJob extends Document {
   title: string;
@@ -22,7 +23,8 @@ export interface IJob extends Document {
   comments: number;
   shares: number;
   postedAgo?: string;
-  source?: 'simplify' | 'zapply';
+  source?: SourceName;
+  kind?: Kind;
   externalId?: string;
   applyUrl?: string;
   createdAt: Date;
@@ -121,10 +123,14 @@ const JobSchema: Schema = new Schema(
     postedAgo: {
       type: String,
     },
-    // Set only on jobs imported from public internship lists (apply happens on the company site).
+    // Set only on jobs imported from public job feeds (apply happens on the source's own page).
     source: {
       type: String,
-      enum: ['simplify', 'zapply'],
+      enum: SOURCE_NAMES,
+    },
+    kind: {
+      type: String,
+      enum: KINDS,
     },
     externalId: {
       type: String,
@@ -141,6 +147,9 @@ const JobSchema: Schema = new Schema(
 JobSchema.index({ postedBy: 1, createdAt: -1 });
 JobSchema.index({ categoryId: 1, status: 1, createdAt: -1 });
 JobSchema.index({ status: 1, createdAt: -1 });
+JobSchema.index({ createdAt: -1 }); // default sort of GET /api/jobs
+JobSchema.index({ likes: -1, createdAt: -1 }); // 'popular' sort
+JobSchema.index({ kind: 1, createdAt: -1 });
 JobSchema.index({ source: 1, externalId: 1 }, { unique: true, partialFilterExpression: { source: { $exists: true } } });
 
 export const Job: Model<IJob> = mongoose.model<IJob>('Job', JobSchema);

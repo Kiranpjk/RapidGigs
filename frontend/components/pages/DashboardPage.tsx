@@ -4,9 +4,12 @@ import { MapPinIcon, SearchIcon, VideoCameraIcon, BriefcaseIcon, CheckCircleIcon
 import { CATEGORIES } from '../../data/mockData';
 import { useAuth } from '../../context/AuthContext';
 import { useJobs } from '../../context/JobContext';
-import { jobsAPI } from '../../services/api';
+import { categoriesAPI } from '../../services/api';
+import { useJobFeed, useDebounced, countLabel } from '../../hooks/useJobFeed';
 import JobDetailModal from '../common/JobDetailModal';
 import JobSourceCredit from '../common/JobSourceCredit';
+import KindFilter from '../common/KindFilter';
+import ShowMore from '../common/ShowMore';
 
 const BASE_URL = (import.meta.env.VITE_API_BASE as string)?.replace('/api', '') || 'http://localhost:3001';
 const getMediaUrl = (url?: string) => { if (!url) return ''; if (url.startsWith('http')) return url; return url.startsWith('/') ? `${BASE_URL}${url}` : `${BASE_URL}/${url}`; };
@@ -19,10 +22,8 @@ interface DashboardPageProps {
 const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) => {
     const [selectedCategory, setSelectedCategory] = useState<string>('All');
     const [searchQuery, setSearchQuery] = useState('');
-    const [debouncedSearch, setDebouncedSearch] = useState('');
-    const [liveJobs, setLiveJobs] = useState<Job[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [loadError, setLoadError] = useState(false);
+    const [kind, setKind] = useState('');
+    const [categoryNames, setCategoryNames] = useState<string[]>(() => CATEGORIES.map(c => c.name));
     const [reloadKey, setReloadKey] = useState(0);
     const [sortBy, setSortBy] = useState<'latest' | 'relevant'>('latest');
     const [selectedJobForDetail, setSelectedJobForDetail] = useState<Job | null>(null);
@@ -31,31 +32,23 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
     const { hasApplied } = useJobs();
     const isRecruiter = user?.role === 'recruiter';
 
-    useEffect(() => { const t = setTimeout(() => setDebouncedSearch(searchQuery), 300); return () => clearTimeout(t); }, [searchQuery]);
+    const debouncedSearch = useDebounced(searchQuery, 300);
+    const { jobs: liveJobs, total, loading: isLoading, loadingMore, error: loadError, moreError, loadMore, hasMore } = useJobFeed({
+        search: debouncedSearch,
+        category: selectedCategory === 'All' ? '' : selectedCategory,
+        kind,
+        sort: sortBy === 'relevant' ? 'popular' : '',
+    }, reloadKey);
 
+    // Pills follow the categories the API knows, which include those of imported roles.
     useEffect(() => {
-        setIsLoading(true);
-        setLoadError(false);
-        const filters: any = {};
-        if (debouncedSearch) filters.search = debouncedSearch;
-        if (selectedCategory !== 'All') filters.category = selectedCategory;
-        if (sortBy === 'relevant') filters.sort = 'popular';
-
-        jobsAPI.getAll(filters)
+        categoriesAPI.getAll()
             .then(data => {
-                const arr = Array.isArray(data) ? data : [];
-                setLiveJobs(arr.map((j: any) => ({
-                    id: j.id || j._id, title: j.title, company: j.company, location: j.location,
-                    type: j.type || 'Remote', pay: j.pay, description: j.description,
-                    postedAgo: j.postedAgo || 'Recently', category: j.category,
-                    companyVideoUrl: j.companyVideoUrl, freelancerVideoUrl: j.freelancerVideoUrl,
-                    shortVideoUrl: j.shortVideoUrl, applyUrl: j.applyUrl, source: j.source, maxSlots: j.maxSlots, filledSlots: j.filledSlots,
-                    status: j.status, likes: j.likes || 0, comments: j.comments || 0, shares: j.shares || 0,
-                })));
+                const names = (Array.isArray(data) ? data : []).map((c: any) => c?.name).filter((n: unknown): n is string => typeof n === 'string' && !!n);
+                if (names.length) setCategoryNames(names);
             })
-            .catch(() => { setLiveJobs([]); setLoadError(true); })
-            .finally(() => setIsLoading(false));
-    }, [debouncedSearch, selectedCategory, sortBy, reloadKey]);
+            .catch(() => {});
+    }, []);
 
     // Plain render function (not a nested component) so cards don't remount — and videos don't reset — on every keystroke.
     const renderJobCard = (job: Job, i: number) => {
@@ -120,6 +113,12 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                             <>
                                 <span className="text-[var(--border-strong)]" aria-hidden="true">/</span>
                                 <span className="shrink-0">{job.type}</span>
+                            </>
+                        )}
+                        {job.kind && (
+                            <>
+                                <span className="text-[var(--border-strong)]" aria-hidden="true">/</span>
+                                <span className="shrink-0">{job.kind}</span>
                             </>
                         )}
                     </p>
@@ -222,21 +221,23 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                     <button onClick={() => setSelectedCategory('All')} aria-pressed={selectedCategory === 'All'} className={chip(selectedCategory === 'All')}>
                         All
                     </button>
-                    {CATEGORIES.map(cat => (
-                        <button key={cat.id} onClick={() => setSelectedCategory(cat.name)} aria-pressed={selectedCategory === cat.name} className={chip(selectedCategory === cat.name)}>
-                            {cat.name}
+                    {categoryNames.map(name => (
+                        <button key={name} onClick={() => setSelectedCategory(name)} aria-pressed={selectedCategory === name} className={chip(selectedCategory === name)}>
+                            {name}
                         </button>
                     ))}
                 </div>
 
                 {/* Results header */}
-                <div className="mt-10 mb-5 flex items-end justify-between gap-4 border-b border-[var(--border)] pb-3">
+                <div className="mt-10 mb-5 flex flex-wrap items-end justify-between gap-x-4 gap-y-3 border-b border-[var(--border)] pb-3">
                     <h2 className="font-display text-[22px] font-semibold tracking-[-0.02em] text-[var(--text-primary)]">
-                        {selectedCategory === 'All' ? 'Open roles' : selectedCategory}
-                        {!isLoading && liveJobs.length > 0 && (
-                            <span className="ml-2 align-middle font-sans text-[13px] font-medium tabular-nums text-[var(--text-tertiary)]">{liveJobs.length}</span>
+                        {selectedCategory === 'All' ? 'Roles' : selectedCategory}
+                        {!isLoading && !loadError && (
+                            <span className="ml-2 align-middle font-sans text-[13px] font-medium tabular-nums text-[var(--text-tertiary)]">{countLabel(total)}</span>
                         )}
                     </h2>
+                    <div className="flex flex-wrap items-center gap-3">
+                    <KindFilter value={kind} onChange={setKind} />
                     <div className="flex rounded-[var(--radius)] bg-[var(--surface)] p-0.5" role="group" aria-label="Sort">
                         {(['latest', 'relevant'] as const).map(s => (
                             <button
@@ -250,6 +251,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                                 {s === 'latest' ? 'Latest' : 'Popular'}
                             </button>
                         ))}
+                    </div>
                     </div>
                 </div>
 
@@ -275,6 +277,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 items-start gap-x-5 gap-y-6">
                             {liveJobs.map((job, i) => renderJobCard(job, i))}
                         </div>
+                        {liveJobs.length > 0 && <ShowMore hasMore={hasMore} loading={loadingMore} failed={moreError} onMore={loadMore} />}
                         {liveJobs.length === 0 && (
                             <div className="rounded-[14px] border border-dashed border-[var(--border-strong)] px-6 py-16 text-center" role="status">
                                 <BriefcaseIcon className="mx-auto w-6 h-6 text-[var(--text-tertiary)]" />
@@ -286,16 +289,16 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                                         ? "Couldn't load gigs. The server may still be starting, so give it half a minute."
                                         : debouncedSearch
                                         ? `No gigs match "${debouncedSearch}".`
-                                        : selectedCategory !== 'All'
-                                        ? `No ${selectedCategory} gigs yet.`
+                                        : selectedCategory !== 'All' || kind
+                                        ? 'No gigs match these filters yet.'
                                         : 'No gigs posted yet.'}
                                 </p>
                                 {loadError ? (
                                     <button onClick={() => setReloadKey(k => k + 1)} className="mt-5 px-4 py-2 text-[13px] font-medium rounded-[var(--radius)] bg-[var(--text-primary)] text-[var(--bg)] hover:bg-[var(--accent)] hover:text-[var(--accent-fg)] transition-colors focus-ring">
                                         Try again
                                     </button>
-                                ) : (debouncedSearch || selectedCategory !== 'All') && (
-                                    <button onClick={() => { setSearchQuery(''); setSelectedCategory('All'); }} className="mt-5 px-4 py-2 text-[13px] font-medium rounded-[var(--radius)] border border-[var(--border-strong)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors focus-ring">
+                                ) : (debouncedSearch || selectedCategory !== 'All' || kind) && (
+                                    <button onClick={() => { setSearchQuery(''); setSelectedCategory('All'); setKind(''); }} className="mt-5 px-4 py-2 text-[13px] font-medium rounded-[var(--radius)] border border-[var(--border-strong)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors focus-ring">
                                         Show all gigs
                                     </button>
                                 )}

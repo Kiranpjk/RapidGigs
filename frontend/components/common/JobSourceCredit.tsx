@@ -1,15 +1,22 @@
 import React from 'react';
 import { Job } from '../../types';
 
-// Credit link for imported listings. Deliberately no rel="nofollow": Zapply's reuse terms ask for a followed link back.
-const CREDITS = {
+// Credit link for imported listings. Deliberately no rel="nofollow": the sources' terms ask for a followed link back.
+const CREDITS: Record<NonNullable<Job['source']>, { label: string; href: string }> = {
     simplify: { label: 'via Simplify', href: 'https://github.com/SimplifyJobs/Summer2027-Internships' },
     zapply: { label: 'via Zapply', href: 'https://github.com/zapplyjobs/Internships-2027' },
-} as const;
+    arbeitnow: { label: 'via Arbeitnow', href: 'https://www.arbeitnow.com' },
+    remotive: { label: 'via Remotive', href: 'https://remotive.com' },
+    remoteok: { label: 'via Remote OK', href: 'https://remoteok.com' },
+    jobicy: { label: 'via Jobicy', href: 'https://jobicy.com' },
+    himalayas: { label: 'via Himalayas', href: 'https://himalayas.app' },
+};
 
 const JobSourceCredit: React.FC<{ source: Job['source'] }> = ({ source }) => {
     if (!source) return null;
-    const { label, href } = CREDITS[source];
+    const credit = CREDITS[source];
+    if (!credit) return null;
+    const { label, href } = credit;
     return (
         <a
             href={href}

@@ -188,6 +188,22 @@ export const jobsAPI = {
     return fetchWithAuth(`${API_BASE_URL}/jobs${qs ? `?${qs}` : ''}`);
   },
 
+  // One page of the live feed. Also reads X-Total-Count, so it cannot go through fetchWithAuth (which returns only the body).
+  getPage: async (
+    p: { search?: string; category?: string; type?: string; kind?: string; sort?: string; page: number; limit: number },
+    signal?: AbortSignal
+  ): Promise<{ jobs: any[]; total: number }> => {
+    const params = new URLSearchParams();
+    for (const [k, v] of Object.entries(p)) if (v !== undefined && v !== '') params.append(k, String(v));
+    const res = await fetch(`${API_BASE_URL}/jobs?${params}`, { signal });
+    if (!res.ok) throw new Error(`Request failed with status ${res.status}`);
+    const jobs = await res.json();
+    const list = Array.isArray(jobs) ? jobs : [];
+    const header = res.headers.get('X-Total-Count');
+    const total = header !== null && Number.isFinite(Number(header)) ? Number(header) : list.length;
+    return { jobs: list, total };
+  },
+
   getMyJobs: async () => fetchWithAuth(`${API_BASE_URL}/jobs/my-jobs`),
 
   getById: async (jobId: string) => fetchWithAuth(`${API_BASE_URL}/jobs/${jobId}`),

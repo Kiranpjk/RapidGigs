@@ -10,7 +10,7 @@
         "seed:demo": "tsx src/scripts/seed-demo.ts",
         "migrate": "node node_modules/tsx/dist/cli.mjs src/config/database.ts",
         "test": "tsx --test \"src/**/*.test.ts\"",
-        "import:internships": "tsx src/scripts/import-internships.ts",
+        "import:listings": "tsx src/scripts/import-listings.ts",
         "test:veo": "tsx src/scripts/test_veoaifree_puppeteer.ts"
     },
     "dependencies": {
