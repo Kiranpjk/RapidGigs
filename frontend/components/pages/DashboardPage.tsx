@@ -184,10 +184,10 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate, onApplyNow }) =
                     ) : (
                         <>
                             <h1 className="max-w-[14ch] font-display text-display font-semibold text-[var(--text-primary)] text-balance">
-                                See the team before you <span className="text-[var(--accent)]">apply.</span>
+                                Real roles, refreshed <span className="text-[var(--accent)]">twice a day.</span>
                             </h1>
                             <p className="mt-5 max-w-[52ch] text-[17px] leading-[1.6] text-[var(--text-secondary)]">
-                                Every role comes with a short video from the people hiring. Watch, decide, and apply with your work instead of a cover letter.
+                                Internships, working-student roles and jobs from seven public job lists. Every Apply button opens the employer's own application page.
                             </p>
                         </>
                     )}

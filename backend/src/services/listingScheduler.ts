@@ -43,12 +43,30 @@ export async function checkAndRunImport(now = new Date()): Promise<boolean> {
   return true;
 }
 
+// One-off cleanup of the seeded demo recruiter, its made-up jobs and one old test job, so the live board
+// only lists real roles. It finds nothing on later boots; delete it once it has run in production.
+export async function removeDemoData() {
+  const users = mongoose.connection.collection('users');
+  const jobs = mongoose.connection.collection('jobs');
+  const demo = await users.findOne({ email: 'demo-recruiter@rapidgig.demo' }, { projection: { _id: 1 } });
+  let removed = 0;
+  if (demo) {
+    removed += (await jobs.deleteMany({ postedBy: demo._id, source: { $exists: false } })).deletedCount;
+    await users.deleteOne({ _id: demo._id });
+  }
+  removed += (await jobs.deleteOne({ _id: new mongoose.Types.ObjectId('699d416cc66f096806670012'), title: 'softwareq' })).deletedCount;
+  return removed;
+}
+
 // Call once after the database is connected and the server is listening. Never throws, never blocks startup.
 export function startListingScheduler() {
   if (!autoImportEnabled()) {
     console.log('Listing auto-import is off (set LISTINGS_AUTO_IMPORT=true to enable outside production or Render)');
     return;
   }
+  removeDemoData()
+    .then((n) => n && console.log(`Removed ${n} demo and test jobs`))
+    .catch((e: any) => console.error(`Demo cleanup failed (${e?.name || 'error'})`));
   let busy = false;
   const tick = async () => {
     if (busy) return;
