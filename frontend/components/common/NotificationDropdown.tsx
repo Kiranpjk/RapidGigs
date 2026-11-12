@@ -52,7 +52,9 @@ export const NotificationDropdown: React.FC<{ navigate: (page: Page) => void }> 
             <button
                 ref={refs.setReference}
                 onClick={() => setIsOpen(!isOpen)}
-                className="relative p-2 rounded-md text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors duration-100"
+                aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+                aria-expanded={isOpen}
+                className="relative p-2 rounded-md text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors duration-100 focus-ring"
             >
                 <BellIcon className="h-4 w-4" />
                 {unreadCount > 0 && (
@@ -64,12 +66,12 @@ export const NotificationDropdown: React.FC<{ navigate: (page: Page) => void }> 
                 <div
                     ref={refs.setFloating}
                     style={floatingStyles}
-                    className="w-72 bg-[var(--bg)] border border-[var(--border)] rounded-lg shadow-lg z-50 animate-fade-in"
+                    className="w-80 bg-[var(--bg)] border border-[var(--border)] rounded-[14px] shadow-[var(--shadow-lg)] z-50 animate-fade-in"
                 >
-                    <div className="flex items-center justify-between px-3 py-2.5 border-b border-[var(--border)]">
-                        <h3 className="text-[13px] font-medium text-[var(--text-primary)]">Notifications</h3>
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
+                        <h3 className="text-[14px] font-semibold text-[var(--text-primary)]">Notifications</h3>
                         {unreadCount > 0 && (
-                            <button onClick={markAllRead} className="text-[11px] text-[var(--accent)] hover:underline font-medium">
+                            <button onClick={markAllRead} className="text-[12.5px] text-[var(--accent)] hover:underline font-medium">
                                 Mark all read
                             </button>
                         )}
@@ -77,24 +79,24 @@ export const NotificationDropdown: React.FC<{ navigate: (page: Page) => void }> 
 
                     <div className="max-h-80 overflow-y-auto">
                         {notifications.length === 0 ? (
-                            <div className="p-6 text-center text-sm text-[var(--text-tertiary)]">No notifications</div>
+                            <div className="p-6 text-center text-[14px] text-[var(--text-tertiary)]">No notifications</div>
                         ) : (
                             <div className="divide-y divide-[var(--border)]">
                                 {notifications.map(notif => (
                                     <button
                                         key={notif.id}
                                         onClick={() => handleClick(notif)}
-                                        className={`w-full text-left px-3 py-2.5 hover:bg-[var(--surface-hover)] transition-colors duration-75 ${notif.isRead ? 'opacity-60' : ''}`}
+                                        className={`w-full text-left px-4 py-3 hover:bg-[var(--surface-hover)] transition-colors duration-75 ${notif.isRead ? 'opacity-60' : ''}`}
                                     >
                                         <div className="flex items-start gap-2">
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex justify-between items-start gap-2">
-                                                    <p className={`text-[12px] truncate ${notif.isRead ? 'text-[var(--text-secondary)]' : 'text-[var(--text-primary)] font-medium'}`}>
+                                                    <p className={`text-[13.5px] truncate ${notif.isRead ? 'text-[var(--text-secondary)]' : 'text-[var(--text-primary)] font-medium'}`}>
                                                         {notif.title}
                                                     </p>
-                                                    <span className="text-[10px] text-[var(--text-tertiary)] whitespace-nowrap shrink-0">{notif.time}</span>
+                                                    <span className="text-[12px] text-[var(--text-tertiary)] whitespace-nowrap shrink-0">{notif.time}</span>
                                                 </div>
-                                                <p className="text-[11px] text-[var(--text-tertiary)] line-clamp-2 mt-0.5">{notif.message}</p>
+                                                <p className="text-[12.5px] text-[var(--text-secondary)] line-clamp-2 mt-0.5">{notif.message}</p>
                                             </div>
                                             {!notif.isRead && (
                                                 <div className="w-1.5 h-1.5 bg-[var(--accent)] rounded-full mt-1.5 shrink-0" />
