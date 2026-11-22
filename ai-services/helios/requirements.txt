@@ -12,7 +12,7 @@
 git+https://github.com/huggingface/diffusers.git
 
 # HuggingFace ecosystem
-transformers>=4.40.0
+transformers>=5.23.0
 accelerate>=0.30.0
 sentencepiece
 safetensors
