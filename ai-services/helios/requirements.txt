@@ -13,7 +13,7 @@ git+https://github.com/huggingface/diffusers.git
 
 # HuggingFace ecosystem
 transformers>=4.40.0
-accelerate>=0.30.0
+accelerate>=1.16.0
 sentencepiece
 safetensors
 protobuf
