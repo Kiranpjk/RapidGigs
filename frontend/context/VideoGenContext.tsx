@@ -23,6 +23,7 @@ export interface VideoGenJob {
 
 export interface StartVideoGenOptions {
   fromPostJob?: boolean;
+  mongoJobId?: string;
 }
 
 interface VideoGenContextValue {

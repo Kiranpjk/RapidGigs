@@ -41,6 +41,7 @@ export type JobKind = 'Internship' | 'Working student' | 'Job';
 
 export interface Job {
   id: string; // ✅ was: number — MongoDB returns string ObjectIds
+  _id?: string; // raw MongoDB id on some API payloads
   title: string;
   company: string;
   // ✅ FIXED: Removed logo: ReactNode — ReactNode can't be serialized to localStorage
