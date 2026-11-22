@@ -253,6 +253,7 @@ async def generate_video(
     poll_interval: int = 5,
     doc_id: str | None = None,
     max_retries: int = 3,
+    auth_config: AuthConfig | None = None,
 ) -> dict:
     """
     Generate a video via Meta AI's GraphQL API.
@@ -262,7 +263,7 @@ async def generate_video(
 
         auth_config = AuthConfig(
             datr=os.getenv("META_AI_DATR", ""),
-            aba_sess=os.getenv("META_AI_ABRA_SESS", ""),
+            abra_sess=os.getenv("META_AI_ABRA_SESS", ""),
             ecto_1_sess=os.getenv("META_AI_ECTO_1_SESS", ""),
         )
     raise NotImplementedError(
