@@ -59,3 +59,7 @@ modal.log
 # Generated media
 uploads/
 *.mp4
+
+# Keep committed env templates (no real values)
+!.env.example
+!**/.env.example
