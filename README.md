@@ -1,5 +1,9 @@
 # RapidGig
 
+[![CI](https://github.com/Kiranpjk/rapidgigs/actions/workflows/ci.yml/badge.svg)](https://github.com/Kiranpjk/rapidgigs/actions/workflows/ci.yml)
+[![Security](https://github.com/Kiranpjk/rapidgigs/actions/workflows/security.yml/badge.svg)](https://github.com/Kiranpjk/rapidgigs/actions/workflows/security.yml)
+[![Docker](https://github.com/Kiranpjk/rapidgigs/actions/workflows/docker.yml/badge.svg)](https://github.com/Kiranpjk/rapidgigs/actions/workflows/docker.yml)
+
 A video-first job platform connecting freelancers and recruiters with AI-powered video generation.
 
 ## Live Demo
@@ -98,11 +102,20 @@ PAYMENT_SERVICE_KEY=dev mvn spring-boot:run
 mvn test   # escrow state-machine tests
 ```
 
-Or run the whole stack: `docker compose up --build`
+### Run with Docker
+
+```bash
+cp .env.example .env          # set JWT_SECRET, PAYMENT_SERVICE_KEY, N8N_WEBHOOK_SECRET
+docker compose up --build     # mongodb, backend :3001, payment-service, frontend :80
+docker compose --profile gpu up helios        # optional: Helios video service (NVIDIA GPU)
+docker compose --profile automation up n8n    # optional: n8n workflows :5678
+```
+
+The backend image is also published to `ghcr.io/kiranpjk/rapidgigs-backend` (see CI/CD below).
 
 ### Configuration
 
-Create `backend/.env`:
+Create `backend/.env` (template: `backend/.env.example`):
 ```env
 PORT=3001
 NODE_ENV=development
@@ -178,6 +191,26 @@ VITE_GOOGLE_CLIENT_ID=your_client_id.apps.googleusercontent.com
 - **Payment Service**: Docker (`payment-service/Dockerfile`), needs `PAYMENT_SERVICE_KEY` and `MONGO_URI`
 - **Database**: MongoDB Atlas (free tier, 512MB)
 - **Storage**: Cloudinary (free tier, 25GB)
+
+## CI/CD
+
+GitHub Actions workflows in [`.github/workflows`](.github/workflows):
+
+| Workflow | Runs on | What it does |
+|----------|---------|--------------|
+| `ci.yml` | push to `main`, PRs | Backend: `npm ci`, `tsc --noEmit`, unit tests, build. Frontend: `npm ci`, `tsc --noEmit`, Vite build. Python (`ai-services`, `metaai-sdk`): byte-compile + Ruff (syntax errors, undefined names) |
+| `docker.yml` | push to `main`, `v*` tags, PRs touching `backend/` | Builds the backend image; on `main`/tags pushes it to `ghcr.io/kiranpjk/rapidgigs-backend` (`latest`, `sha-*`, semver) using `GITHUB_TOKEN` |
+| `security.yml` | push, PRs, weekly | CodeQL for JavaScript/TypeScript and Python; dependency review on PRs and `npm audit` (both report-only, non-blocking) |
+
+Dependabot (`.github/dependabot.yml`) opens weekly/monthly update PRs for npm, pip, Maven, Docker base images and GitHub Actions.
+
+The Java payment service is not built in CI yet; run `mvn test` in `payment-service/` locally.
+
+## Security
+
+- No secrets are committed. Configuration comes from environment variables; templates live in `.env.example`, `backend/.env.example` and `frontend/.env.example`, and all real `.env` files are git-ignored and excluded from Docker build contexts.
+- `docker compose` refuses to start without `JWT_SECRET`, `PAYMENT_SERVICE_KEY` and `N8N_WEBHOOK_SECRET`; the backend refuses to start in production without `JWT_SECRET`.
+- CodeQL results appear under the repository's Security tab.
 
 ## More Docs
 
