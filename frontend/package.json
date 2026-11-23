@@ -35,7 +35,7 @@
     "baseline-browser-mapping": "^2.10.17",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.17",
-    "typescript": "~5.8.2",
+    "typescript": "~7.0.2",
     "vite": "^6.2.0"
   }
 }
