@@ -211,6 +211,7 @@ The Java payment service is not built in CI yet; run `mvn test` in `payment-serv
 - No secrets are committed. Configuration comes from environment variables; templates live in `.env.example`, `backend/.env.example` and `frontend/.env.example`, and all real `.env` files are git-ignored and excluded from Docker build contexts.
 - `docker compose` refuses to start without `JWT_SECRET`, `PAYMENT_SERVICE_KEY` and `N8N_WEBHOOK_SECRET`; the backend refuses to start in production without `JWT_SECRET`.
 - CodeQL results appear under the repository's Security tab.
+- Dependency audit (Nov 2026): `npm audit` went from 17 advisories to 0 (root 2 critical → 0, backend 3 high → 0, frontend 12 → 0). Fixed with `npm audit fix`, removing the unused `git` package from the frontend, and an npm `overrides` entry that moves `magic-hour`'s `zod` dependency to patched 4.x. Dependabot keeps these up to date.
 
 ## More Docs
 
